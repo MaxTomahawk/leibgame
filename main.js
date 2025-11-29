@@ -210,7 +210,7 @@ function createSkyAtmosphere(scene) {
         const startX = (Math.random() - 0.5) * 500;
         const startY = -20 + Math.random() * 50;
         const startZ = (Math.random() - 0.5) * 200;
-        const speed = 20 + Math.random() * 40;
+        const speed = 5 + Math.random() * 5;
         const rotationSpeed = 0.5 + Math.random() * 0.5;
         const bobAmount = 2 + Math.random() * 1;
         const bobSpeed = 1 + Math.random() * 1.5;
@@ -221,12 +221,17 @@ function createSkyAtmosphere(scene) {
 
         ufos.push({
             group: ufoGroup,
-            speed: speed,
-            direction: Math.random() < 0.5 ? 1 : -1,
-            rotationSpeed: rotationSpeed,
-            originalY: startY,
-            bobAmount: bobAmount,
-            bobSpeed: bobSpeed
+            speed: 0.5 + Math.random() * 0.5,          // base forward speed
+            pathFrequencyX: 0.2 + Math.random() * 0.3, // frequency for sinusoidal X motion
+            pathFrequencyY: 0.1 + Math.random() * 0.2, // frequency for vertical bob
+            pathFrequencyZ: 0.15 + Math.random() * 0.25, // frequency for Z weaving
+            pathAmplitudeX: 20 + Math.random() * 30,    // horizontal sway
+            pathAmplitudeY: 5 + Math.random() * 5,      // vertical bob height
+            pathAmplitudeZ: 10 + Math.random() * 20,    // Z weaving amplitude
+            rotationSpeed: 0.1 + Math.random() * 0.2,   // gentle rotation
+            startX: startX,                              // initial positions
+            startY: startY,
+            startZ: startZ
         });
     }
 
@@ -267,25 +272,23 @@ function createSkyAtmosphere(scene) {
 function animateAtmosphere(atmosphereObjects, delta) {
     const time = Date.now() * 0.001;
 
-    // UFOs - move & pulse (stronger pulse so ring stands out)
     if (atmosphereObjects.ufos) {
         atmosphereObjects.ufos.forEach(ufo => {
-            ufo.group.position.x += ufo.speed * delta * ufo.direction;
+            // forward motion along X
+            const forward = ufo.speed * delta * 50; // scale for visual effect
 
-            // Wrap
-            if (ufo.group.position.x > 260) ufo.group.position.x = -260;
-            else if (ufo.group.position.x < -260) ufo.group.position.x = 260;
+            ufo.group.position.x = ufo.startX + Math.sin(time * ufo.pathFrequencyX) * ufo.pathAmplitudeX + forward;
+            ufo.group.position.y = ufo.startY + Math.sin(time * ufo.pathFrequencyY) * ufo.pathAmplitudeY;
+            ufo.group.position.z = ufo.startZ + Math.sin(time * ufo.pathFrequencyZ) * ufo.pathAmplitudeZ;
 
-            // Bob and rotate
-            ufo.group.position.y = ufo.originalY + Math.sin(time * ufo.bobSpeed) * ufo.bobAmount;
+            // gentle rotation
             ufo.group.rotation.y += ufo.rotationSpeed * delta;
 
-            // Pulse the bottom ring light with stronger contrast
+            // bottom ring pulse
             const ring = ufo.group.children.find(c => c.geometry && c.geometry.type === 'TorusGeometry');
             if (ring && ring.material) {
-                const pulse = Math.abs(Math.sin(time * 4 + ufo.group.position.x * 0.01)) * 0.6 + 0.6; // 0.6..1.2
+                const pulse = Math.abs(Math.sin(time * 4 + ufo.group.position.x * 0.01)) * 0.6 + 0.6;
                 ring.material.opacity = Math.min(1.0, pulse);
-                // scale pulse a bit to make it more visible on small UFOs
                 const baseScale = 1.0;
                 ring.scale.set(baseScale * (0.8 + pulse * 0.6), baseScale * (0.8 + pulse * 0.6), 1);
             }
