@@ -2,12 +2,6 @@
  a third person RPG platformer
  can you reach the castle of king willem?
 
-vraag authors om de variabelen.
-
-# Images
-### ![alt text](image.png)
-### ![alt text](image2.png)
-
 # Amazing features such as...
 
 - platformer with moon! - Can you visit the king?
@@ -19,6 +13,10 @@ vraag authors om de variabelen.
 - Mobile support! (iOS, Android, ..)
 - Equalized the diversity quota by adding a second character to leib weissman's universe! 
 
+
+# Images
+### ![alt text](image.png)
+### ![alt text](image2.png)
 
 # local setup
 
