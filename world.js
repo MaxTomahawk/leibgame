@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
+let worldUnsubscribe = null; // Store unsubscribe function
+
 // --- WERELD SYNC LOGICA ---
 export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader) {
     ui.status.innerText = "Wereld laden...";
@@ -16,19 +18,41 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
     if (isMultiplayer) {
         try {
             const worldDocRef = doc(db, "levels", "main_world");
-            const docSnap = await getDoc(worldDocRef);
-
-            if (docSnap.exists()) {
-                console.log("Bestaande wereld gevonden!");
-                worldData = docSnap.data();
-            } else {
-                console.log("Geen wereld gevonden, nieuwe genereren...");
-                worldData = generateWorldData(CASTLE_Z);
-                await setDoc(worldDocRef, worldData);
+            
+            // OPTIMIZATION: Try to load from localStorage first to avoid read
+            const cachedWorld = localStorage.getItem('cachedWorld');
+            if (cachedWorld) {
+                try {
+                    const cached = JSON.parse(cachedWorld);
+                    console.log("📦 Using cached world data (no read needed)");
+                    worldData = cached;
+                } catch (e) {
+                    console.warn("Failed to parse cached world, fetching from Firebase");
+                }
             }
 
-            // ✅ FIX 2: Listen for world changes
-            setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+            // Only fetch from Firebase if no cache
+            if (!worldData) {
+                const docSnap = await getDoc(worldDocRef);
+
+                if (docSnap.exists()) {
+                    console.log("☁️ Fetched world from Firebase (1 read)");
+                    worldData = docSnap.data();
+                    
+                    // Cache it for next time
+                    localStorage.setItem('cachedWorld', JSON.stringify(worldData));
+                } else {
+                    console.log("Geen wereld gevonden, nieuwe genereren...");
+                    worldData = generateWorldData(CASTLE_Z);
+                    await setDoc(worldDocRef, worldData);
+                    localStorage.setItem('cachedWorld', JSON.stringify(worldData));
+                }
+            }
+
+            //OPTIMIZATION : Only listen if not already listening
+            if (!worldUnsubscribe) {
+                worldUnsubscribe = setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+            }
 
         } catch (e) {
             console.error("Fout bij ophalen wereld (waarschijnlijk rechten):", e);
@@ -52,11 +76,11 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
     }
 }
 
-// New function to listen for world regeneration
+// World listener setup
 function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
     let lastWorldTimestamp = null;
 
-    onSnapshot(worldDocRef, (docSnap) => {
+    const unsubscribe = onSnapshot(worldDocRef, (docSnap) => {
         if (!docSnap.exists()) return;
 
         const data = docSnap.data();
@@ -72,6 +96,9 @@ function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enem
         if (currentTimestamp !== lastWorldTimestamp) {
             console.log("🌍 World regenerated! Reloading...");
             lastWorldTimestamp = currentTimestamp;
+
+            // ✅ Update cache
+            localStorage.setItem('cachedWorld', JSON.stringify(data));
 
             // Clear old world
             platforms.forEach(p => scene.remove(p));
@@ -106,6 +133,9 @@ function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enem
             setTimeout(() => notification.remove(), 3000);
         }
     });
+
+    // ✅ Return unsubscribe for cleanup
+    return unsubscribe;
 }
 
 // --- WORLD DATA GENERATOR ---
@@ -114,7 +144,7 @@ export function generateWorldData(CASTLE_Z) {
         platforms: [], 
         coins: [], 
         enemies: [],
-        generatedAt: Date.now() // ✅ FIX 2: Add timestamp
+        generatedAt: Date.now()
     };
 
     data.platforms.push({ x: 0, y: -2, z: 0, w: 10, h: 2, d: 10 });
@@ -262,4 +292,13 @@ function createEnemy(x, y, z, scene, enemies, textureLoader) {
     mesh.position.set(x, y, z);
     scene.add(mesh);
     enemies.push(mesh);
+}
+
+// ✅ Cleanup function to stop listeners (call this when leaving multiplayer)
+export function cleanupWorldListener() {
+    if (worldUnsubscribe) {
+        worldUnsubscribe();
+        worldUnsubscribe = null;
+        console.log("🛑 World listener stopped");
+    }
 }
