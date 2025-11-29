@@ -72,15 +72,76 @@ export function generateWorldData(CASTLE_Z) {
     return data;
 }
 
+// --- LOW POLY CASTLE BUILDER ---
+function createCastle(scene, CASTLE_Z) {
+    console.log("creating castle...")
+    const castle = new THREE.Group();
+
+    // === MAIN KEEP ===
+    const keep = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 12, 10),
+        new THREE.MeshStandardMaterial({ color: 0xbababa })
+    );
+    keep.position.y = 6;
+    castle.add(keep);
+
+    // === CORNER TOWERS ===
+    const towerGeo = new THREE.CylinderGeometry(2, 2, 14, 6); // low poly
+    const towerMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+
+    const towerOffsets = [
+        [ 5, 5],
+        [-5, 5],
+        [ 5,-5],
+        [-5,-5]
+    ];
+
+    towerOffsets.forEach(([x, z]) => {
+        const t = new THREE.Mesh(towerGeo, towerMat);
+        t.position.set(x, 7, z);
+        castle.add(t);
+
+        // simple cone roof
+        const roof = new THREE.Mesh(
+            new THREE.ConeGeometry(3, 3, 6),
+            new THREE.MeshStandardMaterial({ color: 0x663300 })
+        );
+        roof.position.set(x, 15, z);
+        castle.add(roof);
+    });
+
+    // === WALLS ===
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+
+    const walls = [
+        { x: 0, z: 7, w: 14, h: 6, d: 1 },
+        { x: 0, z:-7, w: 14, h: 6, d: 1 },
+        { x: 7, z: 0, w: 1,  h: 6, d: 14 },
+        { x:-7, z: 0, w: 1,  h: 6, d: 14 }
+    ];
+
+    walls.forEach(w => {
+        const wall = new THREE.Mesh(
+            new THREE.BoxGeometry(w.w, w.h, w.d),
+            wallMat
+        );
+        wall.position.set(w.x, w.h / 2, w.z);
+        castle.add(wall);
+    });
+
+    // === FINAL POSITION ===
+    castle.position.set(0, 1, CASTLE_Z);
+    // castle.scale.set(3, 3, 3);
+    scene.add(castle);
+}
+
 // --- BUILD WORLD ---
 export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
     if (data.platforms) data.platforms.forEach(p => createPlat(p.x, p.y, p.z, p.w, p.h, p.d, scene, platforms, platformTexture));
     if (data.coins) data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     if (data.enemies) data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, textureLoader));
 
-    const tower = new THREE.Mesh(new THREE.BoxGeometry(6, 12, 6), new THREE.MeshStandardMaterial({ color: 0x888888 }));
-    tower.position.set(0, 6, CASTLE_Z);
-    scene.add(tower);
+    createCastle(scene, CASTLE_Z);
 }
 
 // --- OBJECT CREATORS ---

@@ -6,17 +6,18 @@ vraag authors om de variabelen.
 
 # Images
 ### ![alt text](image.png)
+### ![alt text](image2.png)
 
-# Amazing features 
-Such as..
+# Amazing features such as...
 
-platformer with moon! - Can you visit the king?
-
-3D renderings of leib!
-
-including spring easter egg character.
-
-Equalized the diversity quota by adding a second character to leib weissman's universe! 
+- platformer with moon! - Can you visit the king?
+- 3D renderings of leib!
+- including spring easter egg character.
+- UFO's!
+- Real particles effects!
+- Multiplayer!
+- Mobile support! (iOS, Android, ..)
+- Equalized the diversity quota by adding a second character to leib weissman's universe! 
 
 
 # local setup
