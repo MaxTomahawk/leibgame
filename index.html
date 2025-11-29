@@ -31,6 +31,16 @@
                 <span id="coin-display" class="text-2xl font-bold">0</span>
             </div>
         </div>
+        <!-- Progress Bar -->
+        <div id="progress-bar"
+            style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); width: 300px; height: 30px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 15px; overflow: hidden; z-index: 1000; display: none;">
+            <div id="progress-fill"
+                style="height: 100%; width: 0%; background: linear-gradient(90deg, #4ade80, #22c55e); transition: width 0.3s ease;">
+            </div>
+            <div id="progress-text"
+                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px black;">
+                0%</div>
+        </div>
         <div id="status-msg" class="text-center mt-2 text-white font-bold text-lg drop-shadow-lg"></div>
     </div>
 

@@ -58,7 +58,10 @@ const ui = {
     nameDisplay: document.getElementById('player-name-display'),
     nameInput: document.getElementById('username-input'),
     gameOver: document.getElementById('game-over-screen'),
-    goReason: document.getElementById('go-reason')
+    goReason: document.getElementById('go-reason'),
+    progressBar: document.getElementById('progress-bar'),
+    progressFill: document.getElementById('progress-fill'),
+    progressText: document.getElementById('progress-text')
 };
 
 function handleMobileControls(mobile) {
@@ -545,6 +548,13 @@ function animate() {
             }
         }
 
+        // UPDATE PROGRESS BAR
+        const startZ = 0;
+        const endZ = CASTLE_Z;
+        const progress = Math.max(0, Math.min(100, ((startZ - player.position.z) / (startZ - endZ)) * 100));
+        ui.progressFill.style.width = progress + '%';
+        ui.progressText.innerText = Math.round(progress) + '%';
+
         // COIN PICKUP
         for (let i = coins.length - 1; i >= 0; i--) {
             if (player.position.distanceTo(coins[i].position) < 1.5) {
@@ -656,6 +666,7 @@ function setupInputs() {
         await syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
 
         ui.start.classList.remove('active');
+        ui.progressBar.style.display = 'block';
         document.body.requestPointerLock();
         window.gameState = 'playing';
 
