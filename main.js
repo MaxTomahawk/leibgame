@@ -135,35 +135,56 @@ function createSkyAtmosphere(scene) {
     ground.position.y = -100;
     scene.add(ground);
 
-    // 2. MOUNTAIN RANGE (realistic ridges, not giant triangles)
+    // 2. NATURAL MOUNTAIN LANDSCAPE (organic scattered placement)
     const mountainRanges = [];
-    for (let range = 0; range < 4; range++) {
-        const rangeAngle = (range / 4) * Math.PI * 2;
-        const rangeDistance = 250;
-        const rangeX = Math.cos(rangeAngle) * rangeDistance;
-        const rangeZ = Math.sin(rangeAngle) * rangeDistance;
 
-        for (let peak = 0; peak < 15; peak++) {
-            const spread = 80;
-            const offset = (peak - 7) * (spread / 15);
-            const perpX = Math.cos(rangeAngle + Math.PI / 2) * offset;
-            const perpZ = Math.sin(rangeAngle + Math.PI / 2) * offset;
-            const height = 120 + Math.random() * 100;
-            const width = 25 + Math.random() * 20;
+    // Create multiple natural clusters around the playing area
+    const clusters = [
+        { centerX: -200, centerZ: -150, count: 25, spread: 120 },  // left-back cluster
+        { centerX: 200, centerZ: -200, count: 20, spread: 100 },   // right-back cluster
+        { centerX: -180, centerZ: 50, count: 15, spread: 80 },     // left-front cluster
+        { centerX: 180, centerZ: 100, count: 12, spread: 70 },     // right-front cluster
+        { centerX: 0, centerZ: -450, count: 30, spread: 150 },     // far back center ridge (moved further back)
+        { centerX: -100, centerZ: -350, count: 18, spread: 90 },   // additional depth (moved back)
+        { centerX: 100, centerZ: -380, count: 18, spread: 90 }     // additional depth (moved back)
+    ];
+
+    clusters.forEach(cluster => {
+        for (let i = 0; i < cluster.count; i++) {
+            // Use Gaussian-like distribution for more natural clustering
+            const angle = Math.random() * Math.PI * 2;
+            const distance = (Math.random() + Math.random()) / 2 * cluster.spread; // tends toward center
+
+            const x = cluster.centerX + Math.cos(angle) * distance;
+            const z = cluster.centerZ + Math.sin(angle) * distance;
+
+            // Vary mountain characteristics based on distance from origin
+            const distFromOrigin = Math.sqrt(x * x + z * z);
+            const heightVariation = 100 + Math.random() * 120;
+            const height = heightVariation * (0.8 + (distFromOrigin / 400) * 0.4); // taller when further
+
+            const width = 20 + Math.random() * 25;
+
             const mountainGeo = new THREE.ConeGeometry(width, height, 4);
             const mountainMat = new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(0.3 + Math.random() * 0.1, 0.2, 0.25 + Math.random() * 0.15),
+                color: new THREE.Color().setHSL(
+                    0.28 + Math.random() * 0.12, // greenish-brown hues
+                    0.15 + Math.random() * 0.2,
+                    0.2 + Math.random() * 0.2
+                ),
                 fog: true
             });
+
             const mountain = new THREE.Mesh(mountainGeo, mountainMat);
-            mountain.position.x = rangeX + perpX + (Math.random() - 0.5) * 15;
-            mountain.position.z = rangeZ + perpZ + (Math.random() - 0.5) * 15;
-            mountain.position.y = -40 + Math.random() * 20;
-            mountain.rotation.y = rangeAngle + (Math.random() - 0.5) * 0.5;
+            mountain.position.x = x + (Math.random() - 0.5) * 20;
+            mountain.position.z = z + (Math.random() - 0.5) * 20;
+            mountain.position.y = -50 + Math.random() * 30;
+            mountain.rotation.y = Math.random() * Math.PI * 2;
+
             scene.add(mountain);
             mountainRanges.push(mountain);
         }
-    }
+    });
 
     // 4. UFOs
     const ufos = [];
