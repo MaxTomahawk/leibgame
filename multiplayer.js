@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { setDoc, doc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { onDisconnect } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
 
 let otherPlayers = {};
 
@@ -149,23 +151,21 @@ function listenToPlayers(scene, userId, ui, db) {
 }
 
 function startBroadcasting(userId, myName, db, auth) {
-    console.log("🎙️ ==========================================");
     console.log("🎙️ startBroadcasting FUNCTION ENTERED");
-    console.log("🎙️ userId:", userId);
-    console.log("🎙️ myName:", myName);
-    console.log("🎙️ db:", db);
-    console.log("🎙️ auth:", auth);
-    console.log("🎙️ window.player:", window.player);
-    console.log("🎙️ window.gameState:", window.gameState);
-    console.log("🎙️ ==========================================");
     
     let lastSent = 0;
     let lastPos = new THREE.Vector3();
     let isWriting = false;
+
+    const playerRef = doc(db, "players", userId);
+    
+    // This will automatically delete the player when they disconnect
+    onDisconnect(playerRef).delete().catch(err => {
+        console.warn("Could not setup onDisconnect:", err);
+    });
+    
     try {
         const broadcastInterval = setInterval(() => {
-        
-            // Access player from window every time!
             const player = window.player;
             
             if (!player) {
@@ -177,12 +177,9 @@ function startBroadcasting(userId, myName, db, auth) {
                 const now = Date.now();
                 const dist = player.position.distanceTo(lastPos);
 
-                // console.log(`📍 Distance: ${dist.toFixed(3)}, Time since last: ${now - lastSent}ms`); // don't log to prevent spam
-
                 if (now - lastSent > 100 && (dist > 0.05 || now - lastSent > 2000)) {
                     isWriting = true;
                     
-                    console.log(`🚀 SENDING UPDATE NOW!`);
                     setDoc(doc(db, "players", userId), {
                         name: myName,
                         x: player.position.x,
@@ -202,38 +199,24 @@ function startBroadcasting(userId, myName, db, auth) {
                             isWriting = false;
                             console.error("❌ Write failed:", err);
                         });
-                } else {
-                    // don't log to prevent spam
-                    // console.log("⏭️ Skipping update (threshold not met)");
                 }
-            } else {
-                // don't log to prevent console output spam
-                // console.log("❌ Conditions not met:", {
-                //     gameState: window.gameState,
-                //     hasAuth: !!auth.currentUser,
-                //     isWriting: isWriting
-                // });
             }
         }, 100);
         
-        console.log("🎙️ setInterval created! ID:", broadcastInterval);
         window.broadcastInterval = broadcastInterval;
-        console.log("🎙️ Interval stored on window");
 
     } catch (error) {
         console.error("💥 ERROR CREATING INTERVAL:", error);
-        console.error("💥 Stack:", error.stack);
     }
 
+    // ✅ IMPROVED: Keep the beforeunload as backup
     window.addEventListener('beforeunload', () => {
-        console.log("👋 Cleaning up on page unload");
         if (window.broadcastInterval) {
             clearInterval(window.broadcastInterval);
         }
-        deleteDoc(doc(db, "players", userId));
+        // Use sendBeacon for more reliable cleanup
+        navigator.sendBeacon && deleteDoc(doc(db, "players", userId)).catch(() => {});
     });
-    
-    console.log("🎙️ startBroadcasting FUNCTION COMPLETE");
 }
 
 function createNameLabel(name) {
