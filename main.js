@@ -123,6 +123,243 @@ function enableStart() {
     ui.btn.classList.remove('opacity-50', 'cursor-not-allowed');
 }
 
+function createSkyAtmosphere(scene) {
+    // 1. DISTANT GROUND/HORIZON (far below)
+    const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+    const groundMat = new THREE.MeshLambertMaterial({ 
+        color: 0x3a5f3a, 
+        fog: true 
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -100;
+    scene.add(ground);
+
+    // 2. MOUNTAIN RANGE (realistic ridges, not giant triangles)
+    const mountainRanges = [];
+    
+    // Create 4 distinct mountain ranges in different directions
+    for (let range = 0; range < 4; range++) {
+        const rangeAngle = (range / 4) * Math.PI * 2;
+        const rangeDistance = 250;
+        const rangeX = Math.cos(rangeAngle) * rangeDistance;
+        const rangeZ = Math.sin(rangeAngle) * rangeDistance;
+        
+        // Each range has many peaks close together
+        for (let peak = 0; peak < 15; peak++) {
+            const spread = 80;
+            const offset = (peak - 7) * (spread / 15);
+            
+            const perpX = Math.cos(rangeAngle + Math.PI / 2) * offset;
+            const perpZ = Math.sin(rangeAngle + Math.PI / 2) * offset;
+            
+            const height = 120 + Math.random() * 100;
+            const width = 25 + Math.random() * 20;
+            
+            const mountainGeo = new THREE.ConeGeometry(width, height, 4);
+            const mountainMat = new THREE.MeshLambertMaterial({ 
+                color: new THREE.Color().setHSL(0.3 + Math.random() * 0.1, 0.2, 0.25 + Math.random() * 0.15),
+                fog: true
+            });
+            const mountain = new THREE.Mesh(mountainGeo, mountainMat);
+            
+            mountain.position.x = rangeX + perpX + (Math.random() - 0.5) * 15;
+            mountain.position.z = rangeZ + perpZ + (Math.random() - 0.5) * 15;
+            mountain.position.y = -40 + Math.random() * 20;
+            mountain.rotation.y = rangeAngle + (Math.random() - 0.5) * 0.5;
+            
+            scene.add(mountain);
+            mountainRanges.push(mountain);
+        }
+    }
+
+    // 3. FLOATING ISLANDS
+    const islands = [];
+    for (let i = 0; i < 12; i++) {
+        const islandGroup = new THREE.Group();
+        
+        const baseGeo = new THREE.SphereGeometry(8 + Math.random() * 12, 8, 8);
+        const baseMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.scale.y = 0.4;
+        islandGroup.add(base);
+        
+        const grassGeo = new THREE.CylinderGeometry(
+            6 + Math.random() * 8, 
+            8 + Math.random() * 10, 
+            2, 
+            8
+        );
+        const grassMat = new THREE.MeshLambertMaterial({ color: 0x4a7c4a });
+        const grass = new THREE.Mesh(grassGeo, grassMat);
+        grass.position.y = 2;
+        islandGroup.add(grass);
+        
+        const angle = (i / 12) * Math.PI * 2;
+        const distance = 80 + Math.random() * 100;
+        islandGroup.position.x = Math.cos(angle) * distance;
+        islandGroup.position.z = Math.sin(angle) * distance;
+        islandGroup.position.y = -20 + Math.random() * 40;
+        
+        islandGroup.rotation.z = (Math.random() - 0.5) * 0.3;
+        
+        scene.add(islandGroup);
+        islands.push({
+            group: islandGroup,
+            floatSpeed: 0.003 + Math.random() * 0.004,
+            floatOffset: Math.random() * Math.PI * 2,
+            floatAmount: 0.2
+        });
+    }
+
+    // 4. PROPER UFOs (small flying saucers, NOT clouds!)
+    const ufos = [];
+    for (let i = 0; i < 50; i++) {
+        const ufoGroup = new THREE.Group();
+        
+        // Main saucer disk (small and flat)
+        const diskGeo = new THREE.CylinderGeometry(1.2, 1.5, 0.3, 16);
+        const diskMat = new THREE.MeshStandardMaterial({ 
+            color: 0xaaaaaa, 
+            metalness: 0.9,
+            roughness: 0.1,
+            emissive: 0x222222
+        });
+        const disk = new THREE.Mesh(diskGeo, diskMat);
+        ufoGroup.add(disk);
+        
+        // Small cockpit dome
+        const domeGeo = new THREE.SphereGeometry(0.6, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        const domeMat = new THREE.MeshStandardMaterial({ 
+            color: 0x4488ff, 
+            transparent: true,
+            opacity: 0.7,
+            emissive: 0x002266,
+            metalness: 0.3
+        });
+        const dome = new THREE.Mesh(domeGeo, domeMat);
+        dome.position.y = 0.15;
+        ufoGroup.add(dome);
+        
+        // Bottom glow ring
+        const ringGeo = new THREE.TorusGeometry(1.0, 0.15, 8, 16);
+        const lightColors = [0x00ff00, 0x00ffff, 0xff00ff, 0xffff00, 0xff0000];
+        const lightColor = lightColors[Math.floor(Math.random() * lightColors.length)];
+        const ringMat = new THREE.MeshBasicMaterial({ 
+            color: lightColor,
+            transparent: true,
+            opacity: 0.8
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = -0.15;
+        ufoGroup.add(ring);
+        
+        // Random position across the sky
+        ufoGroup.position.x = (Math.random() - 0.5) * 500;
+        ufoGroup.position.y = 15 + Math.random() * 70;
+        ufoGroup.position.z = (Math.random() - 0.5) * 500;
+        
+        // Random scale variation
+        const scale = 0.6 + Math.random() * 0.6;
+        ufoGroup.scale.set(scale, scale, scale);
+        
+        scene.add(ufoGroup);
+        ufos.push({
+            group: ufoGroup,
+            speed: 0.8 + Math.random() * 1.2,
+            bobSpeed: 2 + Math.random() * 3,
+            bobAmount: 0.3 + Math.random() * 0.5,
+            rotationSpeed: 1 + Math.random() * 2,
+            originalY: ufoGroup.position.y,
+            startX: ufoGroup.position.x,
+            direction: Math.random() > 0.5 ? 1 : -1
+        });
+    }
+
+    // 5. SPEED PARTICLES (lots of them for that fast running feeling!)
+    const particles = [];
+    for (let i = 0; i < 200; i++) {
+        const particleGeo = new THREE.SphereGeometry(0.15, 4, 4);
+        const particleMat = new THREE.MeshBasicMaterial({ 
+            color: new THREE.Color().setHSL(Math.random(), 0.8, 0.6),
+            transparent: true,
+            opacity: 0.6
+        });
+        const particle = new THREE.Mesh(particleGeo, particleMat);
+        
+        particle.position.x = (Math.random() - 0.5) * 300;
+        particle.position.y = -10 + Math.random() * 80;
+        particle.position.z = (Math.random() - 0.5) * 300;
+        
+        scene.add(particle);
+        particles.push({
+            mesh: particle,
+            speed: 2 + Math.random() * 4,
+            resetZ: particle.position.z
+        });
+    }
+
+    return { islands, ufos, particles };
+}
+
+// Replace the animateAtmosphere function:
+function animateAtmosphere(atmosphereObjects, delta) {
+    const time = Date.now() * 0.001;
+    
+    // Animate floating islands
+    if (atmosphereObjects.islands) {
+        atmosphereObjects.islands.forEach(island => {
+            island.group.position.y += Math.sin(time * island.floatSpeed + island.floatOffset) * island.floatAmount;
+        });
+    }
+    
+    // Animate UFOs - they actually move and rotate now!
+    if (atmosphereObjects.ufos) {
+        atmosphereObjects.ufos.forEach(ufo => {
+            // Move horizontally in random direction
+            ufo.group.position.x += ufo.speed * delta * ufo.direction;
+            
+            // Wrap around
+            if (ufo.group.position.x > 250) {
+                ufo.group.position.x = -250;
+            } else if (ufo.group.position.x < -250) {
+                ufo.group.position.x = 250;
+            }
+            
+            // Bob up and down (more pronounced)
+            ufo.group.position.y = ufo.originalY + Math.sin(time * ufo.bobSpeed) * ufo.bobAmount;
+            
+            // Spin the saucer
+            ufo.group.rotation.y += ufo.rotationSpeed * delta;
+            
+            // Pulse the bottom ring light
+            const ring = ufo.group.children[2];
+            if (ring) {
+                const pulse = Math.sin(time * 4) * 0.4 + 0.6;
+                ring.material.opacity = pulse;
+            }
+        });
+    }
+    
+    // Animate speed particles - zoom past the player!
+    if (atmosphereObjects.particles) {
+        atmosphereObjects.particles.forEach(particle => {
+            // Move particles toward player (creates speed sensation)
+            particle.mesh.position.z += particle.speed;
+            
+            // Reset when they pass the player
+            if (particle.mesh.position.z > 100) {
+                particle.mesh.position.z = -200;
+                particle.mesh.position.x = (Math.random() - 0.5) * 300;
+                particle.mesh.position.y = -10 + Math.random() * 80;
+            }
+            
+            // Subtle floating motion
+            particle.mesh.position.y += Math.sin(time * 2 + particle.mesh.position.x) * 0.02;
+        });
+    }
+}
 
 function initThreeJS() {
     scene = new THREE.Scene();
@@ -145,6 +382,9 @@ function initThreeJS() {
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
     hemiLight.position.set(0, 20, 0);
     scene.add(hemiLight);
+
+    const atmosphereObjects = createSkyAtmosphere(scene);
+    window.atmosphereObjects = atmosphereObjects; // Store globally
 
     textureLoader = new THREE.TextureLoader();
 
@@ -465,6 +705,8 @@ function animate() {
     requestAnimationFrame(animate);
     const now = Date.now();
     const delta = 0.016;
+
+    if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
 
     // Update animations
     if (mixer) mixer.update(delta);
