@@ -22,9 +22,9 @@ jobs:
           echo "  \"commit\": \"$(git rev-parse --short HEAD)\"," >> version.json
           echo "  \"commitFull\": \"$(git rev-parse HEAD)\"," >> version.json
           echo "  \"date\": \"$(date -u +"%Y-%m-%d %H:%M:%S UTC")\"," >> version.json
-          echo "  \"timestamp\": $(date +%s) >> version.json
+          echo "  \"timestamp\": $(date +%s)" >> version.json
           echo "}" >> version.json
-          cat version.json  # Show in logs
+          cat version.json
       
       - name: Check if version.json changed
         id: check_changes
