@@ -8,6 +8,8 @@ import { MobileControls } from './mobile-controls.js';
 import { generateWorldData } from './world.js';
 
 let selectedModelFile = 'assets/leib.glb'; // default
+let gameVersion = { commit: 'loading...', date: 'loading...' };
+
 
 // Instellingen
 const BASE_GRAVITY = 30.0;
@@ -47,7 +49,6 @@ const tripFog = new THREE.Color(0x00ff00);
 const baseBg = new THREE.Color(0x87CEEB);
 const tripBg = new THREE.Color(0x113311);
 
-// UI Referenties
 const ui = {
     start: document.getElementById('start-screen'),
     status: document.getElementById('auth-status'),
@@ -62,8 +63,31 @@ const ui = {
     goReason: document.getElementById('go-reason'),
     progressBar: document.getElementById('progress-bar'),
     progressFill: document.getElementById('progress-fill'),
-    progressText: document.getElementById('progress-text')
+    progressText: document.getElementById('progress-text'),
+    version: document.getElementById('version-display')
 };
+
+// ✅ NEW: Fetch version on load
+fetch('version.json')
+    .then(r => r.json())
+    .then(v => {
+        gameVersion = v;
+        console.log('🎮 Game Version:', v.commit, '|', v.date);
+        updateVersionDisplay();
+    })
+    .catch(e => {
+        console.warn('Could not load version:', e);
+        gameVersion = { commit: 'dev', date: 'local' };
+        updateVersionDisplay();
+    });
+
+function updateVersionDisplay() {
+    const versionEl = document.getElementById('version-display');
+    if (versionEl) {
+        versionEl.innerText = `v${gameVersion.commit}`;
+        versionEl.title = `Built: ${gameVersion.date}`;
+    }
+}
 
 function handleMobileControls(mobile) {
     mobile.onJump = () => {
