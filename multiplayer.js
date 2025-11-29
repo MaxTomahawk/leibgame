@@ -146,6 +146,34 @@ function listenToPlayers(scene, userId, ui, db) {
             }
         }
 
+        // Remove players who are no longer in the database OR are stale
+        for (const [id, player] of Object.entries(otherPlayers)) {
+            const isStale = now - player.lastSeen > 5000;
+            const notInDatabase = !activePlayerIds.has(id);
+
+            if (notInDatabase || isStale) {
+                console.log(`🗑️ Removing player ${id} (notInDB: ${notInDatabase}, stale: ${isStale})`);
+                if (player.container) scene.remove(player.container);
+                delete otherPlayers[id];
+            }
+        }
+
+        // Also delete stale players from Firebase (cleanup duty)
+        snap.docs.forEach(docSnap => {
+            const id = docSnap.id;
+            if (id === userId) return; // Don't delete yourself!
+
+            const data = docSnap.data();
+            const timeSinceUpdate = now - (data.lastUpdate || 0);
+
+            if (timeSinceUpdate > 10000) { // 10 seconds = definitely gone
+                console.log(`🧹 Cleaning up stale Firebase entry for ${id}`);
+                deleteDoc(doc(db, "players", id)).catch(err => {
+                    console.warn("Could not delete stale player:", err);
+                });
+            }
+        });
+
         ui.peers.innerText = Object.keys(otherPlayers).length + 1;
     }, (err) => {
         console.error("Player snapshot error:", err);
