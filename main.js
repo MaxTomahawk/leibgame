@@ -125,9 +125,9 @@ function enableStart() {
 function createSkyAtmosphere(scene) {
     // 1. DISTANT GROUND/HORIZON (far below)
     const groundGeo = new THREE.PlaneGeometry(2000, 2000);
-    const groundMat = new THREE.MeshLambertMaterial({ 
-        color: 0x3a5f3a, 
-        fog: true 
+    const groundMat = new THREE.MeshLambertMaterial({
+        color: 0x3a5f3a,
+        fog: true
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -150,7 +150,7 @@ function createSkyAtmosphere(scene) {
             const height = 120 + Math.random() * 100;
             const width = 25 + Math.random() * 20;
             const mountainGeo = new THREE.ConeGeometry(width, height, 4);
-            const mountainMat = new THREE.MeshLambertMaterial({ 
+            const mountainMat = new THREE.MeshLambertMaterial({
                 color: new THREE.Color().setHSL(0.3 + Math.random() * 0.1, 0.2, 0.25 + Math.random() * 0.15),
                 fog: true
             });
@@ -164,102 +164,138 @@ function createSkyAtmosphere(scene) {
         }
     }
 
-    // 3. PROPER UFOs (smaller, more numerous, with smaller scale variance)
+    // --- UFOs (properly shaped, smooth top + bottom, dome sits naturally) ---
     const ufos = [];
-    const UFO_COUNT = 80; // increase small cute UFOs
+    const UFO_COUNT = 75;
+
     for (let i = 0; i < UFO_COUNT; i++) {
         const ufoGroup = new THREE.Group();
 
-        // Main saucer disk (smaller)
-        const diskGeo = new THREE.CylinderGeometry(0.7, 0.9, 0.2, 16);
-        const diskMat = new THREE.MeshStandardMaterial({ 
-            color: 0xaaaaaa, 
-            metalness: 0.9,
-            roughness: 0.15,
-            emissive: 0x111111
-        });
-        const disk = new THREE.Mesh(diskGeo, diskMat);
-        ufoGroup.add(disk);
+        // Smooth, tall, curved UFO body with top bulge
+        const points = [];
 
-        // Tiny cockpit dome
-        const domeGeo = new THREE.SphereGeometry(0.35, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        const domeMat = new THREE.MeshStandardMaterial({ 
-            color: 0x66b3ff, 
+        // TOP BULGE (fixes top-down view)
+        points.push(new THREE.Vector2(0.0, 0.40));   // top center
+        points.push(new THREE.Vector2(0.85, 0.38));  // dome shoulder
+        points.push(new THREE.Vector2(1.45, 0.32));  // upper bulge
+
+        // MID SECTION
+        points.push(new THREE.Vector2(1.85, 0.18));  // upper wide point
+        points.push(new THREE.Vector2(2.05, -0.02)); // saucer rim
+
+        // LOWER CURVE
+        points.push(new THREE.Vector2(1.60, -0.22)); // inward curve
+        points.push(new THREE.Vector2(1.30, -0.34)); // bottom taper
+        points.push(new THREE.Vector2(1.15, -0.40)); // bottom edge
+
+        const bodyGeo = new THREE.LatheGeometry(points, 96);
+        const bodyMat = new THREE.MeshStandardMaterial({
+            color: 0xa8a8a8,
+            metalness: 0.85,
+            roughness: 0.28,
+            emissive: 0x0f0f0f,
+            emissiveIntensity: 0.35
+        });
+
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        ufoGroup.add(body);
+
+        // Top cap to close the lathe hole
+        const capGeo = new THREE.CircleGeometry(1.45, 32); // match top radius
+        const capMat = bodyMat; // same material
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.y = 0.40; // same height as top point
+        ufoGroup.add(cap);
+
+        // Bottom rim: smooth torus
+        const rimGeo = new THREE.TorusGeometry(1.2, 0.08, 16, 32);
+        const rimMat = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            emissive: 0x222222,
+            emissiveIntensity: 0.22,
+            metalness: 0.25,
+            roughness: 0.45
+        });
+        const rim = new THREE.Mesh(rimGeo, rimMat);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = -0.16;
+        ufoGroup.add(rim);
+
+        // Dome: flattened hemisphere
+        const domeGeo = new THREE.SphereGeometry(0.55, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2.2);
+        const domeMat = new THREE.MeshStandardMaterial({
+            color: 0x77c7ff,
             transparent: true,
-            opacity: 0.75,
-            emissive: 0x001944,
-            metalness: 0.25
+            opacity: 0.65,
+            emissive: 0x112244,
+            emissiveIntensity: 0.28,
+            metalness: 0.18
         });
         const dome = new THREE.Mesh(domeGeo, domeMat);
-        dome.position.y = 0.08;
+        dome.position.y = 0.16;
         ufoGroup.add(dome);
 
-        // Bottom glow ring (make a bit thicker so pulse is visible even when small)
-        const ringGeo = new THREE.TorusGeometry(0.8, 0.12, 8, 16);
-        const lightColors = [0x00ff00, 0x00ffff, 0xff00ff, 0xffff00, 0xff6600];
+        // Subtle soft bottom point-light
+        const lightColors = [0x00ffaa, 0x66ddff, 0xff55dd, 0xffff88];
         const lightColor = lightColors[Math.floor(Math.random() * lightColors.length)];
-        const ringMat = new THREE.MeshBasicMaterial({ 
-            color: lightColor,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = -0.08;
-        ufoGroup.add(ring);
+        const bottomLight = new THREE.PointLight(lightColor, 0.35, 3);
+        bottomLight.position.set(0, -0.20, 0);
+        ufoGroup.add(bottomLight);
 
-        // Random position across the sky (biased a little closer and lower)
+        // Spawn area
         ufoGroup.position.x = (Math.random() - 0.5) * 420;
-        ufoGroup.position.y = 10 + Math.random() * 50;
+        ufoGroup.position.y = -10 + Math.random() * 40;
         ufoGroup.position.z = (Math.random() - 0.5) * 420;
 
-        // Random scale variation biased to be small (0.35 .. 0.95)
-        const scale = 0.35 + Math.random() * 0.6;
+        // Scale variation
+        const scale = 0.9 + Math.random() * 1.0;
         ufoGroup.scale.set(scale, scale, scale);
 
         scene.add(ufoGroup);
+
         ufos.push({
             group: ufoGroup,
-            speed: 0.6 + Math.random() * 1.1,
-            bobSpeed: 1.5 + Math.random() * 2.5,
+            speed: 0.6 + Math.random() * 1.0,
+            bobSpeed: 1.2 + Math.random() * 2.0,
             bobAmount: 0.12 + Math.random() * 0.25,
-            rotationSpeed: 0.6 + Math.random() * 1.6,
+            rotationSpeed: 0.4 + Math.random() * 1.2,
             originalY: ufoGroup.position.y,
-            startX: ufoGroup.position.x,
             direction: Math.random() > 0.5 ? 1 : -1
         });
     }
 
-    // 4. SPEED PARTICLES (larger and more visible)
+    // 4. SPEED PARTICLES (small, colorful, streak-style)
     const particles = [];
-    for (let i = 0; i < 220; i++) {
-        // increase base radius so particles are visible, but keep low poly for perf
-        const size = 0.28 + Math.random() * 0.15; // was 0.15
-        const particleGeo = new THREE.SphereGeometry(size, 6, 6);
-        const h = Math.random();
-        const s = 0.8;
-        const l = 0.5 + Math.random() * 0.25;
-        const particleMat = new THREE.MeshBasicMaterial({ 
-            color: new THREE.Color().setHSL(h, s, l),
+    for (let i = 0; i < 2500; i++) {
+
+        // Thin stretched streaks
+        const particleGeo = new THREE.SphereGeometry(0.12, 6, 6);
+
+        const particleMat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(Math.random(), 1.0, 0.6),
             transparent: true,
-            opacity: 0.85,
-            blending: THREE.AdditiveBlending
+            opacity: 0.9,
+            blending: THREE.NormalBlending
         });
+
         const particle = new THREE.Mesh(particleGeo, particleMat);
 
         particle.position.x = (Math.random() - 0.5) * 300;
         particle.position.y = -10 + Math.random() * 80;
         particle.position.z = (Math.random() - 0.5) * 300;
 
+        // random tilt so streaks aren't all perfectly aligned
+        particle.rotation.x = (Math.random() - 0.5) * 0.3;
+        particle.rotation.y = (Math.random() - 0.5) * 0.3;
+
         scene.add(particle);
         particles.push({
             mesh: particle,
-            speed: 3 + Math.random() * 48,
-            resetZ: particle.position.z
+            speed: 6 + Math.random() * 55,
+            hueOffset: Math.random() * Math.PI * 2 // for color cycling
         });
     }
-
     return { ufos, particles };
 }
 
@@ -291,24 +327,23 @@ function animateAtmosphere(atmosphereObjects, delta) {
         });
     }
 
-    // Particles - move faster and reset, subtle float
+    // Particles - fast streaks with color cycling
     if (atmosphereObjects.particles) {
-        atmosphereObjects.particles.forEach(particle => {
-            particle.mesh.position.z += particle.speed * delta * 60 * 0.016; // keep feeling of speed but stable across frames
+        atmosphereObjects.particles.forEach(p => {
 
-            // Reset when they pass the player
-            if (particle.mesh.position.z > 120) {
-                particle.mesh.position.z = -220;
-                particle.mesh.position.x = (Math.random() - 0.5) * 300;
-                particle.mesh.position.y = -10 + Math.random() * 80;
-                // vary size slightly on respawn for variety
-                const newScale = 0.6 + Math.random() * 1.2;
-                particle.mesh.scale.set(newScale, newScale, newScale);
-                particle.mesh.material.opacity = 0.7 + Math.random() * 0.3;
+            // Move forward
+            p.mesh.position.z += p.speed * delta * 60 * 0.016;
+
+            // Reset
+            if (p.mesh.position.z > 120) {
+                p.mesh.position.z = -240;
+                p.mesh.position.x = (Math.random() - 0.5) * 300;
+                p.mesh.position.y = -10 + Math.random() * 80;
             }
 
-            // Subtle floating motion (a little larger amplitude)
-            particle.mesh.position.y += Math.sin(time * 2 + particle.mesh.position.x) * 0.04;
+            // Color pulse / cycle (speed effect)
+            const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
+            p.mesh.material.color.setHSL(hue, 1.0, 0.6);
         });
     }
 }
