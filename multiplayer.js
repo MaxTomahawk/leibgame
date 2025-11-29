@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { setDoc, doc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { onDisconnect } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 
 let otherPlayers = {};
@@ -14,10 +13,13 @@ function listenToPlayers(scene, userId, ui, db) {
 
     onSnapshot(playersRef, (snap) => {
         const now = Date.now();
+        const activePlayerIds = new Set(); // ✅ NEW: Track who's still in the database
 
         snap.forEach(docSnap => {
             const id = docSnap.id;
             if (id === userId) return;
+
+            activePlayerIds.add(id); // ✅ NEW: Mark this player as active
 
             const data = docSnap.data();
             console.log(`[Firebase] Player ID: ${id}`, data);
@@ -47,42 +49,40 @@ function listenToPlayers(scene, userId, ui, db) {
                             mesh.scale.set(appearance.scale, appearance.scale, appearance.scale);
                             mesh.rotation.y = data.rot || 0;
                             container.add(mesh);
-                            
+
                             // Setup animations for other players
                             let mixer = null;
                             let animations = {};
                             if (gltf.animations && gltf.animations.length > 0) {
                                 mixer = new THREE.AnimationMixer(mesh);
-                                
-                                // Use same mapping as in main.js todo, reuse array to prevent bugs
+
                                 const ANIMATION_MAPPING = {
                                     'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
                                     'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
                                     'assets/leib.glb': { idle: 7, run: 2, jump: 6 }
                                 };
                                 const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/option2.glb'];
-                                
+
                                 animations = {
                                     idle: mixer.clipAction(gltf.animations[mapping.idle] || gltf.animations[0]),
                                     run: mixer.clipAction(gltf.animations[mapping.run] || gltf.animations[0]),
                                     jump: mixer.clipAction(gltf.animations[mapping.jump] || gltf.animations[0])
                                 };
-                                
+
                                 for (const action of Object.values(animations)) {
                                     action.setLoop(THREE.LoopRepeat);
                                 }
-                                
-                                // Play initial animation
+
                                 const initialAnim = data.currentAnimation || 'idle';
                                 if (animations[initialAnim]) {
                                     animations[initialAnim].play();
                                 }
                             }
-                            
-                            otherPlayers[id] = { 
-                                container, 
-                                mesh, 
-                                label, 
+
+                            otherPlayers[id] = {
+                                container,
+                                mesh,
+                                label,
                                 lastSeen: now,
                                 mixer,
                                 animations,
@@ -106,7 +106,6 @@ function listenToPlayers(scene, userId, ui, db) {
                         }
                     );
                 } else {
-                    // fallback box
                     const mesh = new THREE.Mesh(
                         new THREE.BoxGeometry(1, 2, 1),
                         new THREE.MeshStandardMaterial({ color: 0xff0000 })
@@ -120,7 +119,7 @@ function listenToPlayers(scene, userId, ui, db) {
                 player.container.position.lerp(new THREE.Vector3(data.x, data.y, data.z), 0.3);
                 if (player.mesh) player.mesh.rotation.y = data.rot || 0;
                 player.lastSeen = now;
-                
+
                 // Update animation if changed
                 const newAnim = data.currentAnimation || 'idle';
                 if (player.animations && newAnim !== player.currentAnimation) {
@@ -135,9 +134,13 @@ function listenToPlayers(scene, userId, ui, db) {
             }
         });
 
-        // Remove old players
+        // ✅ NEW: Remove players who are no longer in the database OR are stale
         for (const [id, player] of Object.entries(otherPlayers)) {
-            if (now - player.lastSeen > 10000) {
+            const isStale = now - player.lastSeen > 5000;
+            const notInDatabase = !activePlayerIds.has(id);
+
+            if (notInDatabase || isStale) {
+                console.log(`🗑️ Removing player ${id} (notInDB: ${notInDatabase}, stale: ${isStale})`);
                 if (player.container) scene.remove(player.container);
                 delete otherPlayers[id];
             }
@@ -149,44 +152,36 @@ function listenToPlayers(scene, userId, ui, db) {
         ui.status.innerHTML = "❌ Database Toegang Geweigerd!";
     });
 }
-
 function startBroadcasting(userId, myName, db, auth) {
     console.log("🎙️ startBroadcasting FUNCTION ENTERED");
-    
+
     let lastSent = 0;
     let lastPos = new THREE.Vector3();
     let isWriting = false;
 
-    const playerRef = doc(db, "players", userId);
-    
-    // This will automatically delete the player when they disconnect
-    onDisconnect(playerRef).delete().catch(err => {
-        console.warn("Could not setup onDisconnect:", err);
-    });
-    
     try {
         const broadcastInterval = setInterval(() => {
             const player = window.player;
-            
+
             if (!player) {
                 console.error("❌ window.player is NULL/UNDEFINED!");
                 return;
             }
-            
+
             if (window.gameState === 'playing' && auth.currentUser && !isWriting) {
                 const now = Date.now();
                 const dist = player.position.distanceTo(lastPos);
 
                 if (now - lastSent > 100 && (dist > 0.05 || now - lastSent > 2000)) {
                     isWriting = true;
-                    
+
                     setDoc(doc(db, "players", userId), {
                         name: myName,
                         x: player.position.x,
                         y: player.position.y,
                         z: player.position.z,
                         rot: player.rotation.y,
-                        lastUpdate: now,
+                        lastUpdate: now, // ✅ This acts as our heartbeat
                         player_appearance: player.userData.appearance,
                         currentAnimation: player.userData.currentAnimation || 'idle'
                     }, { merge: true })
@@ -202,20 +197,20 @@ function startBroadcasting(userId, myName, db, auth) {
                 }
             }
         }, 100);
-        
+
         window.broadcastInterval = broadcastInterval;
 
     } catch (error) {
         console.error("💥 ERROR CREATING INTERVAL:", error);
     }
 
-    // ✅ IMPROVED: Keep the beforeunload as backup
+    // ✅ Cleanup on page unload
     window.addEventListener('beforeunload', () => {
         if (window.broadcastInterval) {
             clearInterval(window.broadcastInterval);
         }
-        // Use sendBeacon for more reliable cleanup
-        navigator.sendBeacon && deleteDoc(doc(db, "players", userId)).catch(() => {});
+        // Try to delete (might not work on mobile, but stale check will handle it)
+        deleteDoc(doc(db, "players", userId)).catch(() => { });
     });
 }
 

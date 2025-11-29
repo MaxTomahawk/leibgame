@@ -5,6 +5,7 @@ import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from 
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { syncAndBuildWorld } from './world.js';
 import { MobileControls } from './mobile-controls.js';
+import { generateWorldData } from './world.js';
 
 let selectedModelFile = 'assets/leib.glb'; // default
 
@@ -648,6 +649,21 @@ function endGame(reason, won = false) {
     ui.goReason.style.color = won ? '#00ff00' : '#ff0000';
 
     ui.gameOver.classList.add('active');
+
+    if (won && isMultiplayer) {
+        console.log("🏆 Player won! Regenerating world...");
+        regenerateWorld();
+    }
+}
+
+async function regenerateWorld() {
+    try {
+        const worldData = generateWorldData(CASTLE_Z);
+        await setDoc(doc(db, "levels", "main_world"), worldData);
+        console.log("✅ New world generated and saved!");
+    } catch (e) {
+        console.error("❌ Failed to regenerate world:", e);
+    }
 }
 
 function updateAnimation(isMoving) {
