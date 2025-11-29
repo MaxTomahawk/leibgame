@@ -182,7 +182,7 @@ function listenToPlayers(scene, userId, ui, db) {
 
         // Remove players who are no longer in the database OR are stale
         for (const [id, player] of Object.entries(otherPlayers)) {
-            const isStale = now - player.lastSeen > 10000; // ✅ Increased from 5s to 10s
+            const isStale = now - player.lastSeen > 15000; // ✅ Increased from 5s to 15s (matches Firebase cleanup)
             const notInDatabase = !activePlayerIds.has(id);
 
             if (notInDatabase || isStale) {
@@ -208,8 +208,21 @@ function listenToPlayers(scene, userId, ui, db) {
             }
         }
 
-        // OPTIMIZATION: Removed automatic Firebase cleanup - this causes extra writes
-        // Stale entries will be cleaned up by the 10s timeout above instead
+        // Cleanup stale Firebase entries
+        snap.docs.forEach(docSnap => {
+            const id = docSnap.id;
+            if (id === userId) return; // Don't delete yourself!
+
+            const data = docSnap.data();
+            const timeSinceUpdate = now - (data.lastUpdate || 0);
+
+            if (timeSinceUpdate > 15000) { // 15 seconds = definitely gone (increased from 10s)
+                console.log(`🧹 Cleaning up stale Firebase entry for ${id}`);
+                deleteDoc(doc(db, "players", id)).catch(err => {
+                    console.warn("Could not delete stale player:", err);
+                });
+            }
+        });
 
         ui.peers.innerText = Object.keys(otherPlayers).length + 1;
     }, (err) => {
@@ -242,7 +255,7 @@ function startBroadcasting(userId, myName, db, auth) {
                 const rotDiff = Math.abs(player.rotation.y - lastRot);
                 const animChanged = (player.userData.currentAnimation || 'idle') !== lastAnim;
 
-                // OPTIMIZATION: Only send updates when something meaningful changed
+                // ✅ OPTIMIZATION 3: Only send updates when something meaningful changed
                 // OR when heartbeat is needed (every 3 seconds instead of 2)
                 const needsUpdate = dist > 0.1 || rotDiff > 0.05 || animChanged;
                 const needsHeartbeat = now - lastSent > 3000; // Increased from 2s to 3s
@@ -254,7 +267,7 @@ function startBroadcasting(userId, myName, db, auth) {
 
                     setDoc(doc(db, "players", userId), {
                         name: myName,
-                        x: Math.round(player.position.x * 100) / 100, // Round to 2 decimals
+                        x: Math.round(player.position.x * 100) / 100, // ✅ Round to 2 decimals
                         y: Math.round(player.position.y * 100) / 100,
                         z: Math.round(player.position.z * 100) / 100,
                         rot: Math.round(player.rotation.y * 100) / 100,
@@ -275,7 +288,7 @@ function startBroadcasting(userId, myName, db, auth) {
                         });
                 }
             }
-        }, 150); // OPTIMIZATION : Reduced update frequency from 100ms to 150ms
+        }, 150); // ✅ OPTIMIZATION 4: Reduced update frequency from 100ms to 150ms
 
         window.broadcastInterval = broadcastInterval;
 
@@ -283,7 +296,7 @@ function startBroadcasting(userId, myName, db, auth) {
         console.error("💥 ERROR CREATING INTERVAL:", error);
     }
 
-    // OPTIMIZATION: Better cleanup
+    // ✅ OPTIMIZATION 5: Better cleanup
     window.addEventListener('beforeunload', () => {
         if (window.broadcastInterval) {
             clearInterval(window.broadcastInterval);
