@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { initFirebase, db, auth } from './firebase.js';
-import { listenToPlayers, startBroadcasting } from './multiplayer.js';
+import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { syncAndBuildWorld } from './world.js';
 import { MobileControls } from './mobile-controls.js';
@@ -436,16 +436,20 @@ function updateAnimation(isMoving) {
         if (currentAnimation !== 'jump') {
             playAnimation('jump');
             currentAnimation = 'jump';
+            player.userData.currentAnimation = 'jump';
         }
     } else if (isMoving) {
         if (currentAnimation !== 'run') {
             playAnimation('run');
             currentAnimation = 'run';
+            player.userData.currentAnimation = 'run';
+
         }
     } else {
         if (currentAnimation !== 'idle') {
             playAnimation('idle');
             currentAnimation = 'idle';
+            player.userData.currentAnimation = 'idle';
         }
     }
 }
@@ -461,6 +465,11 @@ function animate() {
 
     // Update animations
     if (mixer) mixer.update(delta);
+
+    // Update other players' animations
+    if (isMultiplayer) {
+        updateOtherPlayerAnimations(delta);
+    }
 
     if (window.gameState === 'playing') {
 

@@ -45,7 +45,47 @@ function listenToPlayers(scene, userId, ui, db) {
                             mesh.scale.set(appearance.scale, appearance.scale, appearance.scale);
                             mesh.rotation.y = data.rot || 0;
                             container.add(mesh);
-                            otherPlayers[id] = { container, mesh, label, lastSeen: now };
+                            
+                            // Setup animations for other players
+                            let mixer = null;
+                            let animations = {};
+                            if (gltf.animations && gltf.animations.length > 0) {
+                                mixer = new THREE.AnimationMixer(mesh);
+                                
+                                // Use same mapping as in main.js todo, reuse array to prevent bugs
+                                const ANIMATION_MAPPING = {
+                                    'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
+                                    'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
+                                    'assets/leib.glb': { idle: 7, run: 2, jump: 6 }
+                                };
+                                const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/option2.glb'];
+                                
+                                animations = {
+                                    idle: mixer.clipAction(gltf.animations[mapping.idle] || gltf.animations[0]),
+                                    run: mixer.clipAction(gltf.animations[mapping.run] || gltf.animations[0]),
+                                    jump: mixer.clipAction(gltf.animations[mapping.jump] || gltf.animations[0])
+                                };
+                                
+                                for (const action of Object.values(animations)) {
+                                    action.setLoop(THREE.LoopRepeat);
+                                }
+                                
+                                // Play initial animation
+                                const initialAnim = data.currentAnimation || 'idle';
+                                if (animations[initialAnim]) {
+                                    animations[initialAnim].play();
+                                }
+                            }
+                            
+                            otherPlayers[id] = { 
+                                container, 
+                                mesh, 
+                                label, 
+                                lastSeen: now,
+                                mixer,
+                                animations,
+                                currentAnimation: data.currentAnimation || 'idle'
+                            };
                         },
                         (progress) => {
                             if (progress.total > 0) {
@@ -78,6 +118,18 @@ function listenToPlayers(scene, userId, ui, db) {
                 player.container.position.lerp(new THREE.Vector3(data.x, data.y, data.z), 0.3);
                 if (player.mesh) player.mesh.rotation.y = data.rot || 0;
                 player.lastSeen = now;
+                
+                // Update animation if changed
+                const newAnim = data.currentAnimation || 'idle';
+                if (player.animations && newAnim !== player.currentAnimation) {
+                    if (player.animations[player.currentAnimation]) {
+                        player.animations[player.currentAnimation].fadeOut(0.2);
+                    }
+                    if (player.animations[newAnim]) {
+                        player.animations[newAnim].reset().fadeIn(0.2).play();
+                        player.currentAnimation = newAnim;
+                    }
+                }
             }
         });
 
@@ -138,7 +190,8 @@ function startBroadcasting(userId, myName, db, auth) {
                         z: player.position.z,
                         rot: player.rotation.y,
                         lastUpdate: now,
-                        player_appearance: player.userData.appearance
+                        player_appearance: player.userData.appearance,
+                        currentAnimation: player.userData.currentAnimation || 'idle'
                     }, { merge: true })
                         .then(() => {
                             isWriting = false;
@@ -200,4 +253,12 @@ function createNameLabel(name) {
     return sprite;
 }
 
-export { listenToPlayers, startBroadcasting, createNameLabel };
+function updateOtherPlayerAnimations(delta) {
+    for (const player of Object.values(otherPlayers)) {
+        if (player.mixer) {
+            player.mixer.update(delta);
+        }
+    }
+}
+
+export { listenToPlayers, startBroadcasting, createNameLabel, updateOtherPlayerAnimations };
