@@ -13,13 +13,13 @@ function listenToPlayers(scene, userId, ui, db) {
 
     onSnapshot(playersRef, (snap) => {
         const now = Date.now();
-        const activePlayerIds = new Set(); // ✅ NEW: Track who's still in the database
+        const activePlayerIds = new Set();
 
         snap.forEach(docSnap => {
             const id = docSnap.id;
             if (id === userId) return;
 
-            activePlayerIds.add(id); // ✅ NEW: Mark this player as active
+            activePlayerIds.add(id);
 
             const data = docSnap.data();
             console.log(`[Firebase] Player ID: ${id}`, data);
@@ -86,7 +86,8 @@ function listenToPlayers(scene, userId, ui, db) {
                                 lastSeen: now,
                                 mixer,
                                 animations,
-                                currentAnimation: data.currentAnimation || 'idle'
+                                currentAnimation: data.currentAnimation || 'idle',
+                                currentModel: appearance.model // ✅ Track current model
                             };
                         },
                         (progress) => {
@@ -102,7 +103,13 @@ function listenToPlayers(scene, userId, ui, db) {
                                 new THREE.MeshStandardMaterial({ color: 0xff0000 })
                             );
                             container.add(mesh);
-                            otherPlayers[id] = { container, mesh, label, lastSeen: now };
+                            otherPlayers[id] = { 
+                                container, 
+                                mesh, 
+                                label, 
+                                lastSeen: now,
+                                currentModel: appearance.model 
+                            };
                         }
                     );
                 } else {
@@ -111,11 +118,48 @@ function listenToPlayers(scene, userId, ui, db) {
                         new THREE.MeshStandardMaterial({ color: 0xff0000 })
                     );
                     container.add(mesh);
-                    otherPlayers[id] = { container, mesh, label, lastSeen: now };
+                    otherPlayers[id] = { 
+                        container, 
+                        mesh, 
+                        label, 
+                        lastSeen: now,
+                        currentModel: null 
+                    };
                 }
             } else {
-                // Smooth position update
                 const player = otherPlayers[id];
+                
+                // ✅ FIX 1: Check if model changed - if so, reload the player
+                if (appearance.model !== player.currentModel) {
+                    console.log(`🔄 Model changed for ${id}, reloading...`);
+                    
+                    // Remove old container completely
+                    if (player.container) {
+                        scene.remove(player.container);
+                        
+                        // Dispose of old resources
+                        player.container.traverse((child) => {
+                            if (child.isMesh) {
+                                if (child.geometry) child.geometry.dispose();
+                                if (child.material) {
+                                    if (Array.isArray(child.material)) {
+                                        child.material.forEach(m => m.dispose());
+                                    } else {
+                                        child.material.dispose();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Delete from tracking
+                    delete otherPlayers[id];
+                    
+                    // The next snapshot will recreate them with the new model
+                    return;
+                }
+                
+                // Smooth position update
                 player.container.position.lerp(new THREE.Vector3(data.x, data.y, data.z), 0.3);
                 if (player.mesh) player.mesh.rotation.y = data.rot || 0;
                 player.lastSeen = now;
@@ -134,18 +178,6 @@ function listenToPlayers(scene, userId, ui, db) {
             }
         });
 
-        // ✅ NEW: Remove players who are no longer in the database OR are stale
-        for (const [id, player] of Object.entries(otherPlayers)) {
-            const isStale = now - player.lastSeen > 5000;
-            const notInDatabase = !activePlayerIds.has(id);
-
-            if (notInDatabase || isStale) {
-                console.log(`🗑️ Removing player ${id} (notInDB: ${notInDatabase}, stale: ${isStale})`);
-                if (player.container) scene.remove(player.container);
-                delete otherPlayers[id];
-            }
-        }
-
         // Remove players who are no longer in the database OR are stale
         for (const [id, player] of Object.entries(otherPlayers)) {
             const isStale = now - player.lastSeen > 5000;
@@ -153,7 +185,23 @@ function listenToPlayers(scene, userId, ui, db) {
 
             if (notInDatabase || isStale) {
                 console.log(`🗑️ Removing player ${id} (notInDB: ${notInDatabase}, stale: ${isStale})`);
-                if (player.container) scene.remove(player.container);
+                if (player.container) {
+                    scene.remove(player.container);
+                    
+                    // Properly dispose resources
+                    player.container.traverse((child) => {
+                        if (child.isMesh) {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(m => m.dispose());
+                                } else {
+                                    child.material.dispose();
+                                }
+                            }
+                        }
+                    });
+                }
                 delete otherPlayers[id];
             }
         }
@@ -161,12 +209,12 @@ function listenToPlayers(scene, userId, ui, db) {
         // Also delete stale players from Firebase (cleanup duty)
         snap.docs.forEach(docSnap => {
             const id = docSnap.id;
-            if (id === userId) return; // Don't delete yourself!
+            if (id === userId) return;
 
             const data = docSnap.data();
             const timeSinceUpdate = now - (data.lastUpdate || 0);
 
-            if (timeSinceUpdate > 10000) { // 10 seconds = definitely gone
+            if (timeSinceUpdate > 10000) {
                 console.log(`🧹 Cleaning up stale Firebase entry for ${id}`);
                 deleteDoc(doc(db, "players", id)).catch(err => {
                     console.warn("Could not delete stale player:", err);
@@ -180,6 +228,7 @@ function listenToPlayers(scene, userId, ui, db) {
         ui.status.innerHTML = "❌ Database Toegang Geweigerd!";
     });
 }
+
 function startBroadcasting(userId, myName, db, auth) {
     console.log("🎙️ startBroadcasting FUNCTION ENTERED");
 
@@ -209,7 +258,7 @@ function startBroadcasting(userId, myName, db, auth) {
                         y: player.position.y,
                         z: player.position.z,
                         rot: player.rotation.y,
-                        lastUpdate: now, // ✅ This acts as our heartbeat
+                        lastUpdate: now,
                         player_appearance: player.userData.appearance,
                         currentAnimation: player.userData.currentAnimation || 'idle'
                     }, { merge: true })
@@ -232,12 +281,10 @@ function startBroadcasting(userId, myName, db, auth) {
         console.error("💥 ERROR CREATING INTERVAL:", error);
     }
 
-    // ✅ Cleanup on page unload
     window.addEventListener('beforeunload', () => {
         if (window.broadcastInterval) {
             clearInterval(window.broadcastInterval);
         }
-        // Try to delete (might not work on mobile, but stale check will handle it)
         deleteDoc(doc(db, "players", userId)).catch(() => { });
     });
 }

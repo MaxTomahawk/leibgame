@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 // --- WERELD SYNC LOGICA ---
 export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader) {
@@ -26,6 +26,10 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
                 worldData = generateWorldData(CASTLE_Z);
                 await setDoc(worldDocRef, worldData);
             }
+
+            // ✅ FIX 2: Listen for world changes
+            setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+
         } catch (e) {
             console.error("Fout bij ophalen wereld (waarschijnlijk rechten):", e);
             ui.status.innerHTML = "⚠️ <strong>Database Fout:</strong> Toegang geweigerd.<br><small>Check je Firestore Rules in de Console.</small>";
@@ -48,9 +52,70 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
     }
 }
 
+// New function to listen for world regeneration
+function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
+    let lastWorldTimestamp = null;
+
+    onSnapshot(worldDocRef, (docSnap) => {
+        if (!docSnap.exists()) return;
+
+        const data = docSnap.data();
+        const currentTimestamp = data.generatedAt || 0;
+
+        // Skip initial load (already handled by syncAndBuildWorld)
+        if (lastWorldTimestamp === null) {
+            lastWorldTimestamp = currentTimestamp;
+            return;
+        }
+
+        // If world changed, rebuild it
+        if (currentTimestamp !== lastWorldTimestamp) {
+            console.log("🌍 World regenerated! Reloading...");
+            lastWorldTimestamp = currentTimestamp;
+
+            // Clear old world
+            platforms.forEach(p => scene.remove(p));
+            platforms.length = 0;
+            coins.forEach(c => scene.remove(c));
+            coins.length = 0;
+            enemies.forEach(e => scene.remove(e));
+            enemies.length = 0;
+
+            // Build new world
+            buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+
+            // Optional: Show notification to player
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 255, 0, 0.9);
+                color: white;
+                padding: 20px 40px;
+                border-radius: 10px;
+                font-size: 24px;
+                font-weight: bold;
+                z-index: 10000;
+                animation: fadeOut 3s forwards;
+            `;
+            notification.innerText = "🌍 Nieuwe wereld geladen!";
+            document.body.appendChild(notification);
+
+            setTimeout(() => notification.remove(), 3000);
+        }
+    });
+}
+
 // --- WORLD DATA GENERATOR ---
 export function generateWorldData(CASTLE_Z) {
-    const data = { platforms: [], coins: [], enemies: [] };
+    const data = { 
+        platforms: [], 
+        coins: [], 
+        enemies: [],
+        generatedAt: Date.now() // ✅ FIX 2: Add timestamp
+    };
 
     data.platforms.push({ x: 0, y: -2, z: 0, w: 10, h: 2, d: 10 });
 
@@ -86,7 +151,7 @@ function createCastle(scene, CASTLE_Z) {
     castle.add(keep);
 
     // === CORNER TOWERS ===
-    const towerGeo = new THREE.CylinderGeometry(2, 2, 14, 6); // low poly
+    const towerGeo = new THREE.CylinderGeometry(2, 2, 14, 6);
     const towerMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
 
     const towerOffsets = [
@@ -101,7 +166,6 @@ function createCastle(scene, CASTLE_Z) {
         t.position.set(x, 7, z);
         castle.add(t);
 
-        // simple cone roof
         const roof = new THREE.Mesh(
             new THREE.ConeGeometry(3, 3, 6),
             new THREE.MeshStandardMaterial({ color: 0x663300 })
@@ -131,7 +195,6 @@ function createCastle(scene, CASTLE_Z) {
 
     // === FINAL POSITION ===
     castle.position.set(0, 1, CASTLE_Z);
-    // castle.scale.set(3, 3, 3);
     scene.add(castle);
 }
 
