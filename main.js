@@ -3,15 +3,16 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/
 import { initFirebase, db, auth } from './firebase.js';
 import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { syncAndBuildWorld } from './world.js';
+// ✅ IMPORT CONFIGURATION HERE
+import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG } from './world.js';
 import { MobileControls } from './mobile-controls.js';
-import { generateWorldData } from './world.js';
+
 
 let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 
-// Instellingen
+// Settings (unchanged)
 const BASE_GRAVITY = 30.0;
 const TRIP_GRAVITY = 10.0;
 const JUMP_SPEED = 15.0;
@@ -19,8 +20,8 @@ const MOVE_SPEED = 12.0;
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
-// Globals
-let userId, myName = "Speler", isMultiplayer = false;
+// Globals (unchanged)
+let userId, myName = "Player", isMultiplayer = false;
 let camera, scene, renderer, player, playerModel, mixer, animations = {};
 let velocity = new THREE.Vector3();
 let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [];
@@ -32,6 +33,8 @@ let currentAction = null;
 let modelLoaded = false;
 let platformTexture = null;
 let mobile = null // mobile support
+const raycaster = new THREE.Raycaster();
+const downDirection = new THREE.Vector3(0, -1, 0);
 
 const MODEL_SCALES = {
     'assets/option2.glb': 0.45,
@@ -39,7 +42,7 @@ const MODEL_SCALES = {
     'assets/leib.glb': 1.3,
 };
 
-// Trip Mode Variabelen
+// Trip Mode Variables (unchanged)
 let isTripping = false;
 let tripTimer = null;
 let currentGravity = BASE_GRAVITY;
@@ -67,7 +70,10 @@ const ui = {
     version: document.getElementById('version-display')
 };
 
-// ✅ NEW: Fetch version on load
+// ... (Rest of helper functions like updateVersionDisplay, handleMobileControls, window.onload, etc. are unchanged) ...
+
+
+// ✅ NEW: Fetch version on load (unchanged)
 fetch('version.json')
     .then(r => r.json())
     .then(v => {
@@ -111,26 +117,26 @@ function handleMobileControls(mobile) {
 }
 
 window.onload = async () => {
-    // Start Three.js eerst om visuele feedback te geven
+    // Start Three.js first to provide visual feedback
     initThreeJS();
     mobile = new MobileControls();
     handleMobileControls(mobile)
 
     try {
-        updateStatus("firebase", "🔌 Verbinding maken...", "blue");
+        updateStatus("firebase", "🔌 Connecting...", "blue");
 
         const firebaseGlobals = initFirebase((user) => {
             userId = user.uid;
             isMultiplayer = true;
             console.log("Firebase connected! User ID:", userId);
-            updateStatus("firebase", "✅ Multiplayer verbonden!", "green");
+            updateStatus("firebase", "✅ Multiplayer connected!", "green");
             checkIfReadyToStart();
 
             listenToPlayers(scene, userId, ui, db);
         });
     } catch (e) {
         console.error("Firebase init error:", e);
-        updateStatus("firebase", "⚠️ Offline Modus (Config Fout)", "yellow");
+        updateStatus("firebase", "⚠️ Offline Mode (Config Error)", "yellow");
         isMultiplayer = false;
         checkIfReadyToStart();
     }
@@ -297,21 +303,21 @@ function createSkyAtmosphere(scene) {
 
         const particle = new THREE.Mesh(particleGeo, particleMat);
 
-        particle.position.x = (Math.random() - 0.5) * 300;
-        particle.position.y = -10 + Math.random() * 80;
-        particle.position.z = (Math.random() - 0.5) * 300;
+            particle.position.x = (Math.random() - 0.5) * 300;
+            particle.position.y = -10 + Math.random() * 80;
+            particle.position.z = (Math.random() - 0.5) * 300;
 
-        // random tilt so streaks aren't all perfectly aligned
-        particle.rotation.x = (Math.random() - 0.5) * 0.3;
-        particle.rotation.y = (Math.random() - 0.5) * 0.3;
+            // random tilt so streaks aren't all perfectly aligned
+            particle.rotation.x = (Math.random() - 0.5) * 0.3;
+            particle.rotation.y = (Math.random() - 0.5) * 0.3;
 
-        scene.add(particle);
-        particles.push({
-            mesh: particle,
-            speed: 6 + Math.random() * 55,
-            hueOffset: Math.random() * Math.PI * 2 // for color cycling
-        });
-    }
+            scene.add(particle);
+            particles.push({
+                mesh: particle,
+                speed: 6 + Math.random() * 55,
+                hueOffset: Math.random() * Math.PI * 2 // for color cycling
+            });
+        }
     return { ufos, particles };
 }
 
@@ -373,7 +379,7 @@ function initThreeJS() {
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Licht
+    // Light
     const ambient = new THREE.AmbientLight(0xffffff, 0.25);
     scene.add(ambient);
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
@@ -393,7 +399,7 @@ function initThreeJS() {
     // (important when renderer.outputEncoding isn't the default)
     renderer.outputEncoding = THREE.sRGBEncoding;
 
-    // Load platform texture and update existing platforms when ready
+    // Load platform texture (Kept for compatibility, though we use generated clouds now)
     platformTexture = textureLoader.load(
         "assets/hava.png",
         // onLoad
@@ -434,13 +440,13 @@ function initThreeJS() {
         }
     );
 
-    // Speler Container (voor collisie detectie)
+    // Player Container (for collision detection)
     player = new THREE.Object3D();
     player.position.set(0, 5, 0);
     window.player = player;  // add player to window to be used in multiplayer.js
     scene.add(player);
 
-    // Laad het GLB model
+    // Load the GLB model
     loadPlayerModel(selectedModelFile);
 
     setupInputs();
@@ -457,26 +463,26 @@ function initThreeJS() {
 function addPlayerLights() {
     if (!player) return;
 
-    // Key light (vooraan, iets hoger)
+    // Key light (front, slightly higher)
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
     keyLight.position.set(5, 10, 5);
     keyLight.castShadow = true;
     keyLight.intensity = 1.2;
     player.add(keyLight);
 
-    // Fill light (van de andere kant, zachter)
+    // Fill light (from other side, softer)
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
     fillLight.position.set(-5, 5, 5);
     fillLight.intensity = 0.4;
     player.add(fillLight);
 
-    // Back light / rim light (achter speler, voor contouren)
+    // Back light / rim light (behind player, for contours)
     const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
     backLight.position.set(0, 5, -5);
     backLight.intensity = 0.4;
     player.add(backLight);
 
-    // Optioneel: klein puntlicht vlakbij het model voor highlights
+    // Optional: small point light near model for highlights
     const pointLight = new THREE.PointLight(0xffffff, 0.5, 10);
     pointLight.position.set(0, 3, 0);
     pointLight.intensity = 1;
@@ -486,8 +492,8 @@ function addPlayerLights() {
 function loadPlayerModel(model) {
     const loader = new GLTFLoader();
 
-    // --- CONFIGURATIE ANIMATIES PER MODEL ---
-    // Hier koppel je de bestandsnaam aan de juiste animatie-indexen
+    // --- ANIMATION CONFIGURATION PER MODEL ---
+    // Map filename to correct animation indices
     const ANIMATION_MAPPING = {
         'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
         'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
@@ -496,7 +502,7 @@ function loadPlayerModel(model) {
     // -----------------------------------------
 
     console.log("Starting to load model...", model);
-    updateStatus("model", "🎮 Model laden... 0%", "purple");
+    updateStatus("model", "🎮 Loading Model... 0%", "purple");
 
     loader.load(model,
         (gltf) => {
@@ -529,12 +535,12 @@ function loadPlayerModel(model) {
                 // Create a mixer for this model
                 mixer = new THREE.AnimationMixer(playerModel);
 
-                // 1. Haal de juiste mapping op. Als het model niet in de lijst staat, pakken we 'option2.glb' als standaard.
+                // 1. Get correct mapping. Fallback to 'option2.glb' defaults.
                 const mapping = ANIMATION_MAPPING[model] || ANIMATION_MAPPING['option2.glb'];
-                console.log(`Gebruikte animatie-indexen voor ${model}:`, mapping);
+                console.log(`Used animation indices for ${model}:`, mapping);
 
-                // 2. Pas de indexen toe
-                // We gebruiken (|| gltf.animations[0]) als veiligheid voor als een nummer niet bestaat
+                // 2. Apply indices
+                // Use (|| gltf.animations[0]) as safety if index doesn't exist
                 animations = {
                     idle: mixer.clipAction(gltf.animations[mapping.idle] || gltf.animations[0]),
                     run: mixer.clipAction(gltf.animations[mapping.run] || gltf.animations[0]),
@@ -556,19 +562,19 @@ function loadPlayerModel(model) {
 
 
             modelLoaded = true;
-            updateStatus("model", "✅ Model geladen!", "green");
+            updateStatus("model", "✅ Model loaded!", "green");
             checkIfReadyToStart();
         },
         (progress) => {
             if (progress.total > 0) {
                 const percent = Math.round(progress.loaded / progress.total * 100);
-                updateStatus("model", `🎮 Model laden... ${percent}%`, "purple");
+                updateStatus("model", `🎮 Loading Model... ${percent}%`, "purple");
                 console.log('Loading model:', percent + '%');
             }
         },
         (error) => {
             console.error('Error loading model:', error);
-            updateStatus("model", "⚠️ Model laden mislukt (gebruik fallback)", "yellow");
+            updateStatus("model", "⚠️ Model load failed (using fallback)", "yellow");
 
             // Fallback: simple box model
             const fallbackGeo = new THREE.BoxGeometry(1, 2, 1);
@@ -592,13 +598,13 @@ function loadPlayerModel(model) {
 }
 
 
-// Helper functie om status berichten te combineren
+// Helper function to combine status messages (unchanged)
 const statusMessages = { model: "", firebase: "" };
 
 function updateStatus(type, message, color) {
     statusMessages[type] = { text: message, color: color };
 
-    // Combineer beide berichten
+    // Combine both messages
     const messages = [];
     const colors = [];
 
@@ -611,7 +617,7 @@ function updateStatus(type, message, color) {
         colors.push(statusMessages.firebase.color);
     }
 
-    // Bepaal de meest "belangrijke" kleur (red > yellow > purple > blue > green)
+    // Determine most "important" color (red > yellow > purple > blue > green)
     const colorPriority = { red: 1, yellow: 2, purple: 3, blue: 4, green: 5 };
     const finalColor = colors.sort((a, b) => colorPriority[a] - colorPriority[b])[0] || "blue";
 
@@ -630,24 +636,24 @@ function updateStatus(type, message, color) {
 function playAnimation(name) {
     if (!mixer || !animations[name]) return;
 
-    // Als we deze animatie al afspelen, doe niets (behalve als het jump is, die mag soms resetten)
+    // If already playing, do nothing (unless jump, which can reset)
     if (currentAction === animations[name] && name !== 'jump') return;
 
-    console.log(`%c 🎬 Schakelen naar animatie: ${name}`, 'color: yellow; font-weight: bold;');
+    console.log(`%c 🎬 Switching to animation: ${name}`, 'color: yellow; font-weight: bold;');
 
     const nextAction = animations[name];
 
     if (currentAction) {
-        // Fade out de vorige
+        // Fade out previous
         currentAction.fadeOut(0.2);
     }
 
-    // Reset, fade in en speel de nieuwe
+    // Reset, fade in and play new
     nextAction.reset().fadeIn(0.2).play();
     currentAction = nextAction;
 }
 
-// --- GAMEPLAY FUNCTIES ---
+// --- GAMEPLAY FUNCTIONS (unchanged) ---
 function activateWeed() {
     if (window.gameState !== 'playing' || coinsCollected < 1 || isTripping) return;
     coinsCollected--;
@@ -713,6 +719,27 @@ function updateAnimation(isMoving) {
     }
 }
 
+// --- HELPER FOR NEAREST PLAYER ---
+// New helper function to find nearest player
+function getNearestPlayerPosition(enemyPosition) {
+    let closestTarget = player.position; // Default: yourself
+    let minDistance = enemyPosition.distanceTo(player.position);
+
+    // Check all other players in multiplayer
+    if (otherPlayers) {
+        Object.values(otherPlayers).forEach(op => {
+            if (op.mesh) {
+                const dist = enemyPosition.distanceTo(op.mesh.position);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closestTarget = op.mesh.position;
+                }
+            }
+        });
+    }
+    return closestTarget;
+}
+
 // --- GAME LOOP ---
 let currentAnimation = '';
 let isGrounded = false;
@@ -724,13 +751,20 @@ function animate() {
 
     if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
 
-    // Update animations
+    // Update animations (Player)
     if (mixer) mixer.update(delta);
 
-    // Update other players' animations
+    // Update animations (Other Players)
     if (isMultiplayer) {
         updateOtherPlayerAnimations(delta);
     }
+    
+    // NIEUW: Update animations (Enemies)
+    enemies.forEach(e => {
+        if (e.userData.mixer) {
+            e.userData.mixer.update(delta);
+        }
+    });
 
     if (window.gameState === 'playing') {
 
@@ -784,18 +818,37 @@ function animate() {
             endGame("Je bent in de afgrond gevallen!", false);
         }
 
-        // PLATFORM COLLISIONS
-        platforms.forEach(p => {
-            if (Math.abs(player.position.x - p.position.x) < p.userData.w / 2 + 0.4 &&
-                Math.abs(player.position.z - p.position.z) < p.userData.d / 2 + 0.4) {
+        // --- NEW COLLISION LOGIC (RAYCASTING) ---
+        // 1. Ray starts higher up (y + 2.5) to reliably hit the top surface of rounded clouds
+        const rayOrigin = player.position.clone().add(new THREE.Vector3(0, 2.5, 0));
+        raycaster.set(rayOrigin, downDirection);
 
-                if (player.position.y > p.position.y && player.position.y < p.position.y + 3 && velocity.y <= 0) {
-                    player.position.y = p.position.y + p.userData.h / 2 + 1.01;
-                    velocity.y = 0;
-                    isGrounded = true;
-                }
+        // 2. Check for intersections with all platform objects
+        const intersects = raycaster.intersectObjects(platforms);
+        let onSolidGround = false;
+
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            
+            // MATH FIX:
+            // Ray starts at y+2.5. Feet are at y-1.1.
+            // Perfect standing distance = 2.5 - (-1.1) = 3.6.
+            // We check for < 4.0 to allow for bumps and slopes without falling.
+            if (hit.distance < 4.0 && velocity.y <= 0) {
+                
+                // Set player Y so feet (-1.1) are exactly on the hit point
+                player.position.y = hit.point.y + 1.1; 
+                
+                velocity.y = 0;
+                isGrounded = true;
+                onSolidGround = true;
             }
-        });
+        }
+
+        // If ray hits nothing (or ground is too far), we fall
+        if (!onSolidGround) {
+            isGrounded = false;
+        }
 
         // WIN CHECK
         if (player.position.z <= CASTLE_Z + 5 &&
@@ -813,8 +866,12 @@ function animate() {
         ui.progressFill.style.width = progress + '%';
         ui.progressText.innerText = Math.round(progress) + '%';
 
-        // COIN PICKUP
+        // --- COIN PICKUP & ROTATION ---
         for (let i = coins.length - 1; i >= 0; i--) {
+            // 1. ROTATION: Spin the coin using the CONFIG value
+            coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta; 
+
+            // 2. PICKUP CHECK (unchanged)
             if (player.position.distanceTo(coins[i].position) < 1.5) {
                 scene.remove(coins[i]);
                 coins.splice(i, 1);
@@ -823,8 +880,13 @@ function animate() {
             }
         }
 
-        // ENEMIES LOOK AT PLAYER
-        enemies.forEach(e => e.lookAt(player.position.x, e.position.y, player.position.z));
+        // --- ENEMY LOGIC (LOOK AT NEAREST PLAYER) ---
+        enemies.forEach(e => {
+            // Find nearest target
+            const targetPos = getNearestPlayerPosition(e.position);
+            // Make enemy look at that point
+            e.lookAt(targetPos.x, e.position.y, targetPos.z);
+        });
 
         // ENEMY COLLISIONS
         for (let i = enemies.length - 1; i >= 0; i--) {
@@ -914,7 +976,7 @@ function setupInputs() {
                 lastUpdate: Date.now(),
                 player_appearance: appearance
             }, { merge: true }).catch(e => {
-                console.error("Fout bij initiële positie zenden:", e);
+                console.error("Error sending initial position:", e);
             });
             console.log("trying to broadcast")
             startBroadcasting(userId, myName, db, auth);
