@@ -314,10 +314,10 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
 
     scene.updateMatrixWorld(true); 
 
-    // MODIFIED: Only build coins if they exist in data (for backward compatibility)
-    if (data.coins && data.coins.length > 0) {
-        data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
-    }
+    // // MODIFIED: Only build coins if they exist in data (for backward compatibility)
+    // if (data.coins && data.coins.length > 0) {
+    //     data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
+    // }
     
     if (data.enemies) {
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
