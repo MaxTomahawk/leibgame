@@ -224,7 +224,7 @@ export function generateWorldData(CASTLE_Z) {
 
         data.platforms.push({ x, y, z, w, h, d });
         // REMOVED: No longer spawning coins here
-        // if (Math.random() > 0.4) data.coins.push({ x, y: y + 3, z }); 
+        if (Math.random() > 0.4) data.coins.push({ x, y: y + 3, z }); 
         if (Math.random() > 0.7) data.enemies.push({ x, y: y + 3, z });
         z -= (5 + Math.random() * 4);
     }
@@ -318,7 +318,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     // if (data.coins && data.coins.length > 0) {
     //     data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     // }
-    
+
     if (data.coins && data.coins.length > 0) {
         data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     }
@@ -380,6 +380,7 @@ function createCoin(x, y, z, scene, coins) {
     );
     mesh.position.set(x, y, z);
     mesh.rotation.x = Math.PI / 2;
+    console.log("created coin at: ", x, y, z)
     scene.add(mesh);
     coins.push(mesh);
 }
@@ -407,7 +408,7 @@ function createStar(x, y, z, scene, coins) {
 }
 
 // Export function to spawn coin at enemy position
-export function spawnCoinAtPosition(x, y, z, scene, coins) {
+export function spawnStarAtPosition(x, y, z, scene, coins) {
     createStar(x, y, z, scene, coins);
     console.log(`🪙 Coin spawned at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
 }

@@ -3,7 +3,7 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/
 import { initFirebase, db, auth } from './firebase.js';
 import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnCoinAtPosition } from './world.js';
+import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
 
 
@@ -915,7 +915,7 @@ function animate() {
             for (let j = enemies.length - 1; j >= 0; j--) {
                 if (p.mesh.position.distanceTo(enemies[j].position) < 2.0) {
                     // Spawn a coin at the enemy's position before removing
-                    spawnCoinAtPosition(enemies[j].position.x,
+                    spawnStarAtPosition(enemies[j].position.x,
                         enemies[j].position.y + 1, // raise coin slightly above enemy
                         enemies[j].position.z, scene, coins);
 
