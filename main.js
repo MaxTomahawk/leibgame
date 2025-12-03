@@ -3,8 +3,7 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/
 import { initFirebase, db, auth } from './firebase.js';
 import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-// ✅ IMPORT CONFIGURATION HERE
-import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG } from './world.js';
+import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnCoinAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
 
 
@@ -29,7 +28,7 @@ let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [
 window.gameState = 'start';
 let coinsCollected = 0;
 let moveF = false, moveB = false, moveL = false, moveR = false;
-let isSprinting = false; 
+let isSprinting = false;
 let cameraPitch = 0;
 let textureLoader;
 let currentAction = null;
@@ -306,21 +305,21 @@ function createSkyAtmosphere(scene) {
 
         const particle = new THREE.Mesh(particleGeo, particleMat);
 
-            particle.position.x = (Math.random() - 0.5) * 300;
-            particle.position.y = -10 + Math.random() * 80;
-            particle.position.z = (Math.random() - 0.5) * 300;
+        particle.position.x = (Math.random() - 0.5) * 300;
+        particle.position.y = -10 + Math.random() * 80;
+        particle.position.z = (Math.random() - 0.5) * 300;
 
-            // random tilt so streaks aren't all perfectly aligned
-            particle.rotation.x = (Math.random() - 0.5) * 0.3;
-            particle.rotation.y = (Math.random() - 0.5) * 0.3;
+        // random tilt so streaks aren't all perfectly aligned
+        particle.rotation.x = (Math.random() - 0.5) * 0.3;
+        particle.rotation.y = (Math.random() - 0.5) * 0.3;
 
-            scene.add(particle);
-            particles.push({
-                mesh: particle,
-                speed: 6 + Math.random() * 55,
-                hueOffset: Math.random() * Math.PI * 2 // for color cycling
-            });
-        }
+        scene.add(particle);
+        particles.push({
+            mesh: particle,
+            speed: 6 + Math.random() * 55,
+            hueOffset: Math.random() * Math.PI * 2 // for color cycling
+        });
+    }
     return { ufos, particles };
 }
 
@@ -761,7 +760,7 @@ function animate() {
     if (isMultiplayer) {
         updateOtherPlayerAnimations(delta);
     }
-    
+
     // NIEUW: Update animations (Enemies)
     enemies.forEach(e => {
         if (e.userData.mixer) {
@@ -813,7 +812,7 @@ function animate() {
         if (moveB) velocity.add(fwd.clone().multiplyScalar(-currentSpeed * delta * 10));
         if (moveL) velocity.add(right.clone().multiplyScalar(-currentSpeed * delta * 10));
         if (moveR) velocity.add(right.clone().multiplyScalar(currentSpeed * delta * 10));
-        
+
         player.position.add(velocity.clone().multiplyScalar(delta));
 
         updateAnimation(isMoving);
@@ -834,16 +833,16 @@ function animate() {
 
         if (intersects.length > 0) {
             const hit = intersects[0];
-            
+
             // MATH FIX:
             // Ray starts at y+2.5. Feet are at y-1.1.
             // Perfect standing distance = 2.5 - (-1.1) = 3.6.
             // We check for < 4.0 to allow for bumps and slopes without falling.
             if (hit.distance < 4.0 && velocity.y <= 0) {
-                
+
                 // Set player Y so feet (-1.1) are exactly on the hit point
-                player.position.y = hit.point.y + 1.1; 
-                
+                player.position.y = hit.point.y + 1.1;
+
                 velocity.y = 0;
                 isGrounded = true;
                 onSolidGround = true;
@@ -874,7 +873,7 @@ function animate() {
         // --- COIN PICKUP & ROTATION ---
         for (let i = coins.length - 1; i >= 0; i--) {
             // 1. ROTATION: Spin the coin using the CONFIG value
-            coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta; 
+            coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
 
             // 2. PICKUP CHECK (unchanged)
             if (player.position.distanceTo(coins[i].position) < 1.5) {
@@ -915,6 +914,11 @@ function animate() {
             let hit = false;
             for (let j = enemies.length - 1; j >= 0; j--) {
                 if (p.mesh.position.distanceTo(enemies[j].position) < 2.0) {
+                    // Spawn a coin at the enemy's position before removing
+                    spawnCoinAtPosition(enemies[j].position.x,
+                        enemies[j].position.y + 1, // raise coin slightly above enemy
+                        enemies[j].position.z, scene, coins);
+
                     scene.remove(enemies[j]);
                     enemies.splice(j, 1);
                     hit = true;
@@ -930,10 +934,10 @@ function animate() {
 
         // We berekenen de positie van de camera ten opzichte van de speler
         const camOffset = new THREE.Vector3(0, 4, 8); // Basis positie (achter/boven speler)
-        
+
         // 1. Eerst kantelen we de offset voor omhoog/omlaag kijken (rond de X-as)
         camOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
-        
+
         // 2. Daarna draaien we mee met de speler (rond de Y-as)
         camOffset.applyEuler(player.rotation);
 
@@ -1048,10 +1052,12 @@ function setupInputs() {
         if (e.code === 'ShiftLeft') isSprinting = false;
     });
     document.addEventListener('mousemove', e => {
-        if (window.gameState === 'playing') 
+        if (window.gameState === 'playing') {
             player.rotation.y -= e.movementX * 0.002;
             cameraPitch -= e.movementY * 0.002;
             cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
+        }
+
     });
     document.addEventListener('mousedown', () => {
         if (window.gameState === 'playing') {
