@@ -14,7 +14,8 @@
 - Mountains! 
 - Progress bar and Version number to make sure you are on the latest version!
 - Equalized the diversity quota by adding a second character to leib weissman's universe! 
-- New and improved Castle of Willem! 
+- New and improved Castle of Willem!
+- Donation option
 
 
 # Images
