@@ -223,7 +223,8 @@ export function generateWorldData(CASTLE_Z) {
         let d = 4 + Math.random() * 4;
 
         data.platforms.push({ x, y, z, w, h, d });
-        // REMOVED: No longer spawning coins here
+
+        // spawning coins here
         if (Math.random() > 0.4) data.coins.push({ x, y: y + 3, z }); 
         if (Math.random() > 0.7) data.enemies.push({ x, y: y + 3, z });
         z -= (5 + Math.random() * 4);
