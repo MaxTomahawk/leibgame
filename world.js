@@ -66,7 +66,7 @@ gltfLoader.load('assets/enemy.glb', (gltf) => {
 
 
 // --- WORLD SYNC LOGIC ---
-export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader) {
+export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles,CASTLE_Z, platformTexture, textureLoader) {
     ui.status.innerText = "Loading world...";
 
     // Clean up existing objects (Essential for memory management)
@@ -89,56 +89,7 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
     
     projectiles.forEach(p => scene.remove(p.mesh)); projectiles.length = 0;
 
-    let worldData = null;
-
-    if (isMultiplayer) {
-        try {
-            const worldDocRef = doc(db, "levels", "main_world");
-            
-            // OPTIMIZATION: Try to load from localStorage first to avoid read
-            const cachedWorld = localStorage.getItem('cachedWorld');
-            if (cachedWorld) {
-                try {
-                    const cached = JSON.parse(cachedWorld);
-                    console.log("📦 Using cached world data (no read needed)");
-                    worldData = cached;
-                } catch (e) {
-                    console.warn("Failed to parse cached world, fetching from Firebase");
-                }
-            }
-
-            // Only fetch from Firebase if no cache
-            if (!worldData) {
-                const docSnap = await getDoc(worldDocRef);
-
-                if (docSnap.exists()) {
-                    console.log("☁️ Fetched world from Firebase (1 read)");
-                    worldData = docSnap.data();
-                    
-                    // Cache it for next time
-                    localStorage.setItem('cachedWorld', JSON.stringify(worldData));
-                } else {
-                    console.log("No world found, generating new one...");
-                    worldData = generateWorldData(CASTLE_Z);
-                    await setDoc(worldDocRef, worldData);
-                    localStorage.setItem('cachedWorld', JSON.stringify(worldData));
-                }
-            }
-
-            // OPTIMIZATION: Only listen if not already listening
-            if (!worldUnsubscribe) {
-                worldUnsubscribe = setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
-            }
-
-        } catch (e) {
-            console.error("Error fetching world (likely permissions):", e);
-            ui.status.innerHTML = "⚠️ <strong>Database Error:</strong> Access denied.<br><small>Check your Firestore Rules in the Console.</small>";
-            ui.status.className = "bg-red-100 text-red-800 p-3 rounded mb-4 border border-red-400";
-            worldData = generateWorldData(CASTLE_Z);
-        }
-    } else {
-        worldData = generateWorldData(CASTLE_Z);
-    }
+    let worldData = generateWorldData(CASTLE_Z);
 
     // Fallback if data is empty
     if (!worldData || !worldData.platforms || worldData.platforms.length === 0) {
