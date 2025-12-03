@@ -11,7 +11,7 @@ test('toont fallback melding wanneer modellen niet laden', async ({ page }) => {
   await expect(warning).not.toBeVisible();
 
   // Controleer of de multiplayer verbinding nog steeds werkt
-  const multiplayer = page.locator('text=Multiplayer verbonden!');
+  const multiplayer = page.locator('text=Multiplayer connected!');
   await expect(multiplayer).toBeVisible();
 
   // Optioneel: controleer of de startknop aanwezig is
