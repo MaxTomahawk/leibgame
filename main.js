@@ -13,10 +13,11 @@ let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 
 // Settings (unchanged)
-const BASE_GRAVITY = 30.0;
+const BASE_GRAVITY = 20.0;
 const TRIP_GRAVITY = 10.0;
-const JUMP_SPEED = 15.0;
-const MOVE_SPEED = 12.0;
+const JUMP_SPEED = 14.0;
+const WALK_SPEED = 12.0;
+const RUN_SPEED = 16.0;
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
@@ -28,6 +29,8 @@ let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [
 window.gameState = 'start';
 let coinsCollected = 0;
 let moveF = false, moveB = false, moveL = false, moveR = false;
+let isSprinting = false; 
+let cameraPitch = 0;
 let textureLoader;
 let currentAction = null;
 let modelLoaded = false;
@@ -774,8 +777,9 @@ function animate() {
         scene.background.lerp(isTripping ? tripBg : baseBg, delta * 2);
 
         velocity.y -= currentGravity * delta;
-        velocity.x -= velocity.x * 10 * delta;
-        velocity.z -= velocity.z * 10 * delta;
+        const drag = isGrounded ? 4.0 : 1.8;
+        velocity.x -= velocity.x * 10 * drag * delta;
+        velocity.z -= velocity.z * 10 * drag * delta;
 
         const fwd = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
         const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
@@ -803,12 +807,13 @@ function animate() {
 
 
         const isMoving = moveF || moveB || moveL || moveR;
+        const currentSpeed = isSprinting ? RUN_SPEED : WALK_SPEED;
 
-        if (moveF) velocity.add(fwd.clone().multiplyScalar(MOVE_SPEED * delta * 10));
-        if (moveB) velocity.add(fwd.clone().multiplyScalar(-MOVE_SPEED * delta * 10));
-        if (moveL) velocity.add(right.clone().multiplyScalar(-MOVE_SPEED * delta * 10));
-        if (moveR) velocity.add(right.clone().multiplyScalar(MOVE_SPEED * delta * 10));
-
+        if (moveF) velocity.add(fwd.clone().multiplyScalar(currentSpeed * delta * 10));
+        if (moveB) velocity.add(fwd.clone().multiplyScalar(-currentSpeed * delta * 10));
+        if (moveL) velocity.add(right.clone().multiplyScalar(-currentSpeed * delta * 10));
+        if (moveR) velocity.add(right.clone().multiplyScalar(currentSpeed * delta * 10));
+        
         player.position.add(velocity.clone().multiplyScalar(delta));
 
         updateAnimation(isMoving);
@@ -923,7 +928,20 @@ function animate() {
             }
         }
 
-        camera.position.lerp(player.position.clone().add(new THREE.Vector3(0, 4, 8).applyEuler(player.rotation)), 0.1);
+        // We berekenen de positie van de camera ten opzichte van de speler
+        const camOffset = new THREE.Vector3(0, 4, 8); // Basis positie (achter/boven speler)
+        
+        // 1. Eerst kantelen we de offset voor omhoog/omlaag kijken (rond de X-as)
+        camOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
+        
+        // 2. Daarna draaien we mee met de speler (rond de Y-as)
+        camOffset.applyEuler(player.rotation);
+
+        // 3. Verplaats camera soepel
+        const targetCamPos = player.position.clone().add(camOffset);
+        camera.position.lerp(targetCamPos, 0.1);
+
+        // 4. Kijk altijd naar net boven het hoofd van de speler
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
     }
     renderer.render(scene, camera);
@@ -1015,6 +1033,7 @@ function setupInputs() {
         if (e.code === 'KeyS') moveB = true;
         if (e.code === 'KeyA') moveL = true;
         if (e.code === 'KeyD') moveR = true;
+        if (e.code === 'ShiftLeft') isSprinting = true;
         if (e.code === 'Space') {
             velocity.y = JUMP_SPEED;
             isGrounded = false; // you just left ground
@@ -1026,9 +1045,13 @@ function setupInputs() {
         if (e.code === 'KeyS') moveB = false;
         if (e.code === 'KeyA') moveL = false;
         if (e.code === 'KeyD') moveR = false;
+        if (e.code === 'ShiftLeft') isSprinting = false;
     });
     document.addEventListener('mousemove', e => {
-        if (window.gameState === 'playing') player.rotation.y -= e.movementX * 0.002;
+        if (window.gameState === 'playing') 
+            player.rotation.y -= e.movementX * 0.002;
+            cameraPitch -= e.movementY * 0.002;
+            cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
     });
     document.addEventListener('mousedown', () => {
         if (window.gameState === 'playing') {
