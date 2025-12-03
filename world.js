@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js'; 
+import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
 import { doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
@@ -11,12 +11,12 @@ const ASSET_CONFIG = {
     // COIN SETTINGS
     COIN_SCALE: 0.5,
     COIN_ROTATION_SPEED: 2.0,
-    
+
     // ENEMY SETTINGS
-    ENEMY_SCALE: 1.4,          
-    ENEMY_COLLISION_DISTANCE: 0.3, 
+    ENEMY_SCALE: 1.4,
+    ENEMY_COLLISION_DISTANCE: 0.3,
 };
-export { ASSET_CONFIG }; 
+export { ASSET_CONFIG };
 
 // --- ASSET LOADING ---
 let cachedCoinScene = null;
@@ -32,7 +32,7 @@ gltfLoader.setDRACOLoader(dracoLoader);
 // Load Coin GLB
 gltfLoader.load('assets/coin.glb', (gltf) => {
     cachedCoinScene = gltf.scene;
-    cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE); 
+    cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE);
     cachedCoinScene.traverse((child) => {
         if (child.isMesh) {
             child.castShadow = true;
@@ -68,15 +68,15 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
         if (p.material && !p.material.userData.isShared) p.material.dispose();
     });
     platforms.length = 0;
-    
+
     coins.forEach(c => scene.remove(c)); coins.length = 0;
-    
+
     enemies.forEach(e => {
         scene.remove(e);
         if (e.userData.mixer) e.userData.mixer = null;
-    }); 
+    });
     enemies.length = 0;
-    
+
     projectiles.forEach(p => scene.remove(p.mesh)); projectiles.length = 0;
 
     let worldData = null;
@@ -84,7 +84,7 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
     if (isMultiplayer) {
         try {
             const worldDocRef = doc(db, "levels", "main_world");
-            
+
             const cachedWorld = localStorage.getItem('cachedWorld');
             if (cachedWorld) {
                 try {
@@ -164,10 +164,10 @@ function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enem
                 if (p.material && !p.material.userData.isShared) p.material.dispose();
             });
             platforms.length = 0;
-            
+
             coins.forEach(c => scene.remove(c));
             coins.length = 0;
-            
+
             enemies.forEach(e => {
                 scene.remove(e);
                 if (e.userData.mixer) e.userData.mixer = null;
@@ -204,8 +204,8 @@ function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enem
 // --- WORLD DATA GENERATOR ---
 // No longer generates coins during world generation
 export function generateWorldData(CASTLE_Z) {
-    const data = { 
-        platforms: [], 
+    const data = {
+        platforms: [],
         coins: [], // Keep array but don't populate it here
         enemies: [],
         generatedAt: Date.now()
@@ -218,14 +218,14 @@ export function generateWorldData(CASTLE_Z) {
     while (z > CASTLE_Z + 20) {
         let x = (Math.random() - 0.5) * 30;
         let y = (Math.random() - 0.5) * 6;
-        let w = 4 + Math.random() * 4; 
+        let w = 4 + Math.random() * 4;
         let h = 2 + Math.random() * 2;
         let d = 4 + Math.random() * 4;
 
         data.platforms.push({ x, y, z, w, h, d });
 
         // spawning coins here
-        if (Math.random() > 0.4) data.coins.push({ x, y: y + 3, z }); 
+        if (Math.random() > 0.4) data.coins.push({ x, y: y + 3, z });
         if (Math.random() > 0.7) data.enemies.push({ x, y: y + 3, z });
         z -= (5 + Math.random() * 4);
     }
@@ -253,10 +253,10 @@ function createCastle(scene, CASTLE_Z) {
     const towerMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
 
     const towerOffsets = [
-        [ 5, 5],
+        [5, 5],
         [-5, 5],
-        [ 5,-5],
-        [-5,-5]
+        [5, -5],
+        [-5, -5]
     ];
 
     towerOffsets.forEach(([x, z]) => {
@@ -277,9 +277,9 @@ function createCastle(scene, CASTLE_Z) {
 
     const walls = [
         { x: 0, z: 7, w: 14, h: 6, d: 1 },
-        { x: 0, z:-7, w: 14, h: 6, d: 1 },
-        { x: 7, z: 0, w: 1,  h: 6, d: 14 },
-        { x:-7, z: 0, w: 1,  h: 6, d: 14 }
+        { x: 0, z: -7, w: 14, h: 6, d: 1 },
+        { x: 7, z: 0, w: 1, h: 6, d: 14 },
+        { x: -7, z: 0, w: 1, h: 6, d: 14 }
     ];
 
     walls.forEach(w => {
@@ -298,7 +298,7 @@ function createCastle(scene, CASTLE_Z) {
 
 // --- BUILD WORLD ---
 export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
-    
+
     const sharedCloudMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         roughness: 0.9,
@@ -313,7 +313,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
         });
     }
 
-    scene.updateMatrixWorld(true); 
+    scene.updateMatrixWorld(true);
 
     // // MODIFIED: Only build coins if they exist in data (for backward compatibility)
     // if (data.coins && data.coins.length > 0) {
@@ -323,7 +323,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     if (data.coins && data.coins.length > 0) {
         data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     }
-    
+
     if (data.enemies) {
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
     }
@@ -339,10 +339,10 @@ function createPlat(x, y, z, w, h, d, scene, platforms, material) {
 
     const mainGeo = new THREE.IcosahedronGeometry(baseRadius, 0);
     const mainMesh = new THREE.Mesh(mainGeo, useMat);
-    
+
     mainMesh.scale.set(w / baseRadius * 0.5, h / baseRadius * 0.5, d / baseRadius * 0.5);
     mainMesh.position.set(x, y, z);
-    
+
     mainMesh.castShadow = true;
     mainMesh.receiveShadow = true;
     mainMesh.userData.isPlatform = true;
@@ -359,18 +359,18 @@ function createPlat(x, y, z, w, h, d, scene, platforms, material) {
 
         puffMesh.position.set(
             x + (Math.random() - 0.5) * w * 0.8,
-            y + (Math.random() - 0.5) * h * 0.5, 
+            y + (Math.random() - 0.5) * h * 0.5,
             z + (Math.random() - 0.5) * d * 0.8
         );
 
-        puffMesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+        puffMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
 
         puffMesh.castShadow = true;
         puffMesh.receiveShadow = true;
         puffMesh.userData.isPlatform = true;
 
         scene.add(puffMesh);
-        platforms.push(puffMesh); 
+        platforms.push(puffMesh);
     }
 }
 
@@ -393,7 +393,8 @@ function createStar(x, y, z, scene, coins) {
     if (cachedCoinScene) {
         mesh = cachedCoinScene.clone();
         mesh.position.set(x, y, z);
-        
+        mesh.userData.isStar = true; // ✅ MARK AS STAR
+
     } else {
         mesh = new THREE.Mesh(
             new THREE.CylinderGeometry(0.5 * ASSET_CONFIG.COIN_SCALE, 0.5 * ASSET_CONFIG.COIN_SCALE, 0.1 * ASSET_CONFIG.COIN_SCALE, 12),
@@ -401,6 +402,7 @@ function createStar(x, y, z, scene, coins) {
         );
         mesh.position.set(x, y, z);
         mesh.rotation.x = Math.PI / 2;
+        mesh.userData.isStar = true; // ✅ MARK AS STAR
     }
 
     mesh.castShadow = true;
@@ -421,12 +423,12 @@ function createEnemy(x, y, z, scene, enemies, platforms) {
     if (cachedEnemyGLTF) {
         mesh = SkeletonUtils.clone(cachedEnemyGLTF.scene);
         mesh.scale.set(ASSET_CONFIG.ENEMY_SCALE, ASSET_CONFIG.ENEMY_SCALE, ASSET_CONFIG.ENEMY_SCALE);
-        
+
         if (cachedEnemyGLTF.animations && cachedEnemyGLTF.animations.length > 0) {
             const mixer = new THREE.AnimationMixer(mesh);
-            const action = mixer.clipAction(cachedEnemyGLTF.animations[0]); 
+            const action = mixer.clipAction(cachedEnemyGLTF.animations[0]);
             action.play();
-            mesh.userData.mixer = mixer; 
+            mesh.userData.mixer = mixer;
         }
 
     } else {
@@ -437,7 +439,7 @@ function createEnemy(x, y, z, scene, enemies, platforms) {
     }
 
     mesh.position.set(x, y, z);
-    
+
     const raycaster = new THREE.Raycaster();
     const rayOrigin = new THREE.Vector3(x, y + 10, z);
     const rayDirection = new THREE.Vector3(0, -1, 0);
@@ -449,7 +451,7 @@ function createEnemy(x, y, z, scene, enemies, platforms) {
         const groundY = intersects[0].point.y;
         mesh.position.y = groundY;
     }
-    
+
     scene.add(mesh);
     enemies.push(mesh);
 }

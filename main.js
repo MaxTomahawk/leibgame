@@ -27,6 +27,7 @@ let velocity = new THREE.Vector3();
 let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [];
 window.gameState = 'start';
 let coinsCollected = 0;
+let starsCollected = 0;
 let moveF = false, moveB = false, moveL = false, moveR = false;
 let isSprinting = false;
 let cameraPitch = 0;
@@ -61,6 +62,7 @@ const ui = {
     resumeBtn: document.getElementById('resume-btn'),
     pauseScreen: document.getElementById('pause-screen'),
     coins: document.getElementById('coin-display'),
+    stars: document.getElementById('star-display'),
     peers: document.getElementById('peer-count'),
     nameDisplay: document.getElementById('player-name-display'),
     nameInput: document.getElementById('username-input'),
@@ -872,15 +874,25 @@ function animate() {
 
         // --- COIN PICKUP & ROTATION ---
         for (let i = coins.length - 1; i >= 0; i--) {
-            // 1. ROTATION: Spin the coin using the CONFIG value
+            // 1. ROTATION: Spin the coin
             coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
 
-            // 2. PICKUP CHECK (unchanged)
+            // 2. PICKUP CHECK - differentiate between regular coins and stars
             if (player.position.distanceTo(coins[i].position) < 1.5) {
+                // Check if this is a star (from enemy) or regular coin
+                // Stars are cloned from cachedCoinScene, regular coins are cylinders
+                const isStar = coins[i].userData.isStar || (coins[i].children && coins[i].children.length > 0);
+
                 scene.remove(coins[i]);
                 coins.splice(i, 1);
-                coinsCollected++;
-                ui.coins.innerText = coinsCollected;
+
+                if (isStar) {
+                    starsCollected++;
+                    ui.stars.innerText = starsCollected;
+                } else {
+                    coinsCollected++;
+                    ui.coins.innerText = coinsCollected;
+                }
             }
         }
 
