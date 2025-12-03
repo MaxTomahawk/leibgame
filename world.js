@@ -319,6 +319,10 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     //     data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     // }
     
+    if (data.coins && data.coins.length > 0) {
+        data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
+    }
+    
     if (data.enemies) {
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
     }
@@ -369,8 +373,19 @@ function createPlat(x, y, z, w, h, d, scene, platforms, material) {
     }
 }
 
-// --- COIN GENERATION (Uses GLB or Fallback) ---
 function createCoin(x, y, z, scene, coins) {
+    const mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.5, 0.1),
+        new THREE.MeshPhongMaterial({ color: 0xffd700 })
+    );
+    mesh.position.set(x, y, z);
+    mesh.rotation.x = Math.PI / 2;
+    scene.add(mesh);
+    coins.push(mesh);
+}
+
+// --- Star GENERATION (Uses GLB or Fallback) ---
+function createStar(x, y, z, scene, coins) {
     let mesh;
 
     if (cachedCoinScene) {
@@ -393,7 +408,7 @@ function createCoin(x, y, z, scene, coins) {
 
 // Export function to spawn coin at enemy position
 export function spawnCoinAtPosition(x, y, z, scene, coins) {
-    createCoin(x, y, z, scene, coins);
+    createStar(x, y, z, scene, coins);
     console.log(`🪙 Coin spawned at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
 }
 
