@@ -339,6 +339,8 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
         });
     }
 
+    scene.updateMatrixWorld(true); 
+
     // 3. BUILD OTHERS
     if (data.coins) data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     
