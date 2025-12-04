@@ -959,19 +959,8 @@ function animate() {
 
         // 4. Kijk altijd naar net boven het hoofd van de speler
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
-    } if (MobileControls && MobileControls.enabled) {
-        const m = MobileControls.update();
-
-        moveF = m.forward > 0.2;
-        moveB = m.backward > 0.2;
-        moveL = m.left > 0.2;
-        moveR = m.right > 0.2;
-
-        // Also apply camera look
-        camera.rotation.order = "YXZ";
-        camera.rotation.y -= m.look;
-        camera.rotation.x -= m.lookUpDown;
-    }
+    } 
+    
     renderer.render(scene, camera);
 }
 
