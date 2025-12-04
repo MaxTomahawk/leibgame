@@ -127,7 +127,8 @@ window.onload = async () => {
                     <li>🕹️ <strong>Linker kant:</strong> Joystick (Lopen)</li>
                     <li>👆 <strong>Rechter kant:</strong> Slepen om te kijken</li>
                     <li>⚡ <strong>Dubbel Tik (Rechts):</strong> Springen</li>
-                    <li>💥 <strong>Knop:</strong> Spuug | 🍃 <strong>Knop:</strong> Smoke</li>
+                    <li>💥 <strong>Knop:</strong> Spuug</li>
+                    <li>🍃 <strong>Knop:</strong> Smoke</li>
                 </ul>`;
         } else {
             // Instructies voor Desktop (PC)
