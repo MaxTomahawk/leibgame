@@ -1,50 +1,62 @@
 // mobile-controls.js
-// Virtual joystick + camera drag + buttons for mobile devices
 export class MobileControls {
     constructor() {
         this.enabled = this.isMobile();
+        
+        // Movement (Left Stick)
         this.move = { x: 0, y: 0 };
-        this.lookDelta = 0;
-        this.lookUpDown = 0;
+        this.stickCenter = { x: 0, y: 0 };
+        this.touchId = null; 
+
+        // Camera (Right Stick)
+        this.look = { x: 0, y: 0 };
+        this.lookCenter = { x: 0, y: 0 };
+        this.lookTouchId = null;
+
+        this.maxDragDistance = 60; // Max distance for visual joystick
 
         if (!this.enabled) return;
 
         this.uiBuilt = false;
-        
-        // NEW: Store the dynamic center of the joystick and the touch ID
-        this.stickCenter = { x: 0, y: 0 }; 
-        this.touchId = null; // Ensures only one finger controls the joystick
-        this.maxDragDistance = 60; // Max distance for full speed
-
         this.onJump = () => {};
         this.onShoot = () => {};
         this.onAbility = () => {};
-        
-        // Create the visual elements of the joystick (but do not add them to the DOM yet)
+
         this._createStickElements();
     }
 
     isMobile() {
         return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     }
-    
-    // NEW: Creates the visual elements of the joystick
+
     _createStickElements() {
-        // ----- LEFT JOYSTICK ELEMENTS (Invisible until touched) -----
-        this.stickOuter = document.createElement("div");
-        this.stickInner = document.createElement("div");
-        Object.assign(this.stickOuter.style, {
-            position: "absolute", // Use absolute for dynamic positioning
+        // --- LEFT STICK (Movement) ---
+        this.stickOuter = this._createStickVisual();
+        this.stickInner = this.stickOuter.firstChild;
+
+        // --- RIGHT STICK (Camera) ---
+        this.lookOuter = this._createStickVisual();
+        this.lookInner = this.lookOuter.firstChild;
+    }
+
+    _createStickVisual() {
+        const outer = document.createElement("div");
+        const inner = document.createElement("div");
+        
+        Object.assign(outer.style, {
+            position: "absolute",
             width: "140px",
             height: "140px",
             borderRadius: "50%",
             background: "rgba(255,255,255,0.15)",
             touchAction: "none",
-            zIndex: 9999,
-            opacity: 0, // Start invisible
-            transition: 'opacity 0.1s' 
+            pointerEvents: "none", // Belangrijk: visueel element blokkeert geen clicks
+            zIndex: 11, // Iets hoger dan de touch areas
+            opacity: 0,
+            transition: 'opacity 0.1s'
         });
-        Object.assign(this.stickInner.style, {
+
+        Object.assign(inner.style, {
             position: "absolute",
             left: "45px",
             top: "45px",
@@ -53,18 +65,19 @@ export class MobileControls {
             borderRadius: "50%",
             background: "rgba(255,255,255,0.35)"
         });
-        this.stickOuter.appendChild(this.stickInner);
+
+        outer.appendChild(inner);
+        return outer;
     }
 
-    // Call after pressing Start
     start() {
         if (!this.enabled || this.uiBuilt) return;
 
-        this._buildUI(); 
+        this._buildUI();
         this._attachEvents();
         this.uiBuilt = true;
 
-        // Fade in only the buttons
+        // Fade in buttons
         [this.btnJump, this.btnShoot, this.btnAbility].forEach(el => {
             el.style.opacity = 0;
             el.style.transition = 'opacity 0.3s';
@@ -73,35 +86,42 @@ export class MobileControls {
     }
 
     _buildUI() {
-        // ----- LEFT TOUCH AREA (Movement) -----
+        // --- TOUCH AREAS (Laag Z-Level zodat UI er boven kan) ---
+        // Links (Movement)
         this.moveArea = document.createElement("div");
         Object.assign(this.moveArea.style, {
             position: "fixed",
             left: "0",
             top: "0",
             height: "100%",
-            width: "50%", // Use 50% for a clear half (works for both portrait and landscape)
-            zIndex: 9998,
-            // background: "rgba(255, 0, 0, 0.1)" // For debugging
+            width: "50%",
+            zIndex: 10, // Laag genoeg zodat Game Over screens (vaak hoger) eroverheen vallen
+            touchAction: "none"
         });
         document.body.appendChild(this.moveArea);
-        
-        // ----- RIGHT DRAG AREA (Camera) -----
+
+        // Rechts (Camera)
         this.dragArea = document.createElement("div");
         Object.assign(this.dragArea.style, {
             position: "fixed",
             right: "0",
-            top: "0", 
+            top: "0",
             width: "50%",
             height: "100%",
-            zIndex: 9998
+            zIndex: 10,
+            touchAction: "none"
         });
         document.body.appendChild(this.dragArea);
 
-        // ----- BUTTONS (No change in position) -----
-        this.btnJump = this._makeButton("Jump", 90, 20);
-        this.btnShoot = this._makeButton("Shoot", 90, 140);
-        this.btnAbility = this._makeButton("Boost", 200, 20);
+        // --- KNOPPEN (Layout update) ---
+        // Jump: Rechtsonder, makkelijkst bereikbaar
+        this.btnJump = this._makeButton("Jump", 40, 30); 
+        
+        // Shoot: Links naast Jump
+        this.btnShoot = this._makeButton("Shoot", 40, 120); 
+
+        // Ability: Iets erboven
+        this.btnAbility = this._makeButton("Boost", 130, 30);
     }
 
     _makeButton(text, bottom, right) {
@@ -120,184 +140,131 @@ export class MobileControls {
             fontSize: "18px",
             userSelect: "none",
             touchAction: "none",
-            zIndex: 9999
+            zIndex: 20 // Hoger dan touch areas, zodat je ze kunt indrukken
         });
         document.body.appendChild(btn);
         return btn;
     }
 
     _attachEvents() {
-        // ----- NEW JOYSTICK LOGIC on moveArea -----
-
+        // --- LEFT STICK LOGIC ---
         this.moveArea.addEventListener("touchstart", e => {
-            // Ignore if a touch is already active for the joystick
             if (this.touchId !== null) return;
-            e.preventDefault(); 
-
-            // Use the last touch for the joystick
-            const touch = e.touches[e.touches.length - 1]; 
+            e.preventDefault();
+            const touch = e.touches[e.touches.length - 1];
             this.touchId = touch.identifier;
-
-            // 1. Set the dynamic center to the touch position
-            this.stickCenter.x = touch.clientX;
-            this.stickCenter.y = touch.clientY;
             
-            // 2. Show the joystick at the center point
-            // 70px is half of the 140px width
-            this.stickOuter.style.left = (this.stickCenter.x - 70) + "px"; 
-            this.stickOuter.style.top = (this.stickCenter.y - 70) + "px";
-            this.stickInner.style.left = "45px";
-            this.stickInner.style.top = "45px";
-            
-            // 3. Add to DOM and make visible
-            document.body.appendChild(this.stickOuter);
-            this.stickOuter.style.opacity = 1;
-
+            this.stickCenter = { x: touch.clientX, y: touch.clientY };
+            this._showStick(this.stickOuter, this.stickInner, this.stickCenter);
+            document.body.appendChild(this.stickOuter); // Add visual
         }, { passive: false });
 
         this.moveArea.addEventListener("touchmove", e => {
-            if (this.touchId === null) return;
-
-            // Find the touch matching the joystick ID
-            let currentTouch = null;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === this.touchId) {
-                    currentTouch = e.changedTouches[i];
-                    break;
-                }
-            }
-            if (!currentTouch) return;
-            e.preventDefault(); 
-
-            this._updateStickDynamic(currentTouch, this.maxDragDistance);
+            const touch = this._findTouch(e, this.touchId);
+            if (!touch) return;
+            e.preventDefault();
+            this.move = this._updateStickMath(touch, this.stickCenter, this.stickInner);
         }, { passive: false });
 
         this.moveArea.addEventListener("touchend", e => {
-            let endedTouch = null;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === this.touchId) {
-                    endedTouch = e.changedTouches[i];
-                    break;
-                }
-            }
-            if (!endedTouch) return;
-
-            // 1. Reset movement
-            this.move.x = 0;
-            this.move.y = 0;
-            
-            // 2. Hide and remove from the DOM
-            this.stickOuter.style.opacity = 0;
-            setTimeout(() => {
-                if (this.stickOuter.parentNode === document.body) {
-                    document.body.removeChild(this.stickOuter);
-                }
-            }, 150); // Wait briefly for the fade-out
-            
+            if (!this._findTouch(e, this.touchId)) return;
+            this.move = { x: 0, y: 0 };
+            this._hideStick(this.stickOuter);
             this.touchId = null;
         });
 
-        // ----- LOOK DRAG (Right Touch Area) -----
-        let lookTouchId = null;
-        let lastX = null, lastY = null;
-
+        // --- RIGHT STICK LOGIC (Camera) ---
         this.dragArea.addEventListener("touchstart", e => {
-            if (lookTouchId !== null) return;
-            e.preventDefault(); 
-            // Use the last touch for the camera
+            if (this.lookTouchId !== null) return;
+            e.preventDefault();
             const touch = e.touches[e.touches.length - 1];
-            lookTouchId = touch.identifier;
-            lastX = touch.clientX;
-            lastY = touch.clientY;
+            this.lookTouchId = touch.identifier;
+
+            this.lookCenter = { x: touch.clientX, y: touch.clientY };
+            this._showStick(this.lookOuter, this.lookInner, this.lookCenter);
+            document.body.appendChild(this.lookOuter); // Add visual
         }, { passive: false });
 
         this.dragArea.addEventListener("touchmove", e => {
-            if (lookTouchId === null) return;
-
-            let currentTouch = null;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === lookTouchId) {
-                    currentTouch = e.changedTouches[i];
-                    break;
-                }
-            }
-            if (!currentTouch) return;
-            e.preventDefault(); 
-            
-            const x = currentTouch.clientX;
-            const y = currentTouch.clientY;
-
-            if (lastX != null && lastY != null) {
-                const dx = x - lastX;
-                const dy = y - lastY;
-
-                this.lookDelta = dx * 0.0025;
-                this.lookUpDown = dy * 0.0025;
-            }
-
-            lastX = x;
-            lastY = y;
+            const touch = this._findTouch(e, this.lookTouchId);
+            if (!touch) return;
+            e.preventDefault();
+            this.look = this._updateStickMath(touch, this.lookCenter, this.lookInner);
         }, { passive: false });
 
         this.dragArea.addEventListener("touchend", e => {
-            let endedTouch = null;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === lookTouchId) {
-                    endedTouch = e.changedTouches[i];
-                    break;
-                }
-            }
-            if (!endedTouch) return;
-            
-            lookTouchId = null;
-            lastX = null;
-            lastY = null;
-            this.lookDelta = 0;
-            this.lookUpDown = 0;
+            if (!this._findTouch(e, this.lookTouchId)) return;
+            this.look = { x: 0, y: 0 };
+            this._hideStick(this.lookOuter);
+            this.lookTouchId = null;
         });
 
-        // ----- BUTTON ACTIONS (Add preventDefault to prevent buttons from triggering touches in the dragArea) -----
-        this.btnJump.addEventListener("touchstart", (e) => { e.preventDefault(); this.onJump(); }, { passive: false });
-        this.btnShoot.addEventListener("touchstart", (e) => { e.preventDefault(); this.onShoot(); }, { passive: false });
-        this.btnAbility.addEventListener("touchstart", (e) => { e.preventDefault(); this.onAbility(); }, { passive: false });
+        // --- BUTTONS ---
+        // stopPropagation is cruciaal! Anders triggert de knop OOK de camera-stick eronder.
+        const bindBtn = (btn, action) => {
+            btn.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                e.stopPropagation(); 
+                action();
+            }, { passive: false });
+        };
+
+        bindBtn(this.btnJump, () => this.onJump());
+        bindBtn(this.btnShoot, () => this.onShoot());
+        bindBtn(this.btnAbility, () => this.onAbility());
     }
 
-    // NEW: Dynamic update based on touch position and dynamic center
-    _updateStickDynamic(touch, max) {
-        // Calculate position relative to the dynamic center
-        const x = touch.clientX - this.stickCenter.x;
-        const y = touch.clientY - this.stickCenter.y;
+    // Helper: Find touch by ID
+    _findTouch(e, id) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === id) return e.changedTouches[i];
+        }
+        return null;
+    }
 
+    // Helper: Show/Hide visuals
+    _showStick(outer, inner, center) {
+        outer.style.left = (center.x - 70) + "px";
+        outer.style.top = (center.y - 70) + "px";
+        inner.style.left = "45px";
+        inner.style.top = "45px";
+        outer.style.opacity = 1;
+    }
+
+    _hideStick(outer) {
+        outer.style.opacity = 0;
+        setTimeout(() => {
+            if (outer.parentNode === document.body) document.body.removeChild(outer);
+        }, 150);
+    }
+
+    // Helper: Calculate stick physics
+    _updateStickMath(touch, center, innerElement) {
+        const x = touch.clientX - center.x;
+        const y = touch.clientY - center.y;
         const dist = Math.hypot(x, y);
+        const clampedX = (x / dist) * Math.min(dist, this.maxDragDistance);
+        const clampedY = (y / dist) * Math.min(dist, this.maxDragDistance);
 
-        // Clamp the position to the max DragDistance for the visual inner stick
-        const clampedX = (x / dist) * Math.min(dist, max);
-        const clampedY = (y / dist) * Math.min(dist, max);
+        innerElement.style.left = clampedX + 45 + "px";
+        innerElement.style.top = clampedY + 45 + "px";
 
-        // Position the inner stick relative to the outer stick
-        this.stickInner.style.left = clampedX + 45 + "px";
-        this.stickInner.style.top = clampedY + 45 + "px";
-
-        // The magnitude for speed is the distance clamped between 0 and 1
-        const mag = Math.min(1.0, dist / max);
-        
-        // Store the normalized direction (this scales the speed from 0 to 1)
-        this.move.x = (x / dist) * mag;
-        this.move.y = (y / dist) * mag;
+        const mag = Math.min(1.0, dist / this.maxDragDistance);
+        return {
+            x: (x / dist) * mag,
+            y: (y / dist) * mag
+        };
     }
 
     update() {
         const { x, y } = this.move;
-
-        // Remains unchanged: this returns the movement vectors
-        // The magnitude (speed scale) is embedded in -y, y>0?y:0, etc.
         return {
             forward: -y,
             backward: y > 0 ? y : 0,
             left: x < 0 ? -x : 0,
             right: x > 0 ? x : 0,
-            look: this.lookDelta,
-            lookUpDown: this.lookUpDown
+            lookX: this.look.x,   // Directe joystick output (-1 tot 1)
+            lookY: this.look.y    // Directe joystick output (-1 tot 1)
         };
     }
 }
