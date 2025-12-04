@@ -5,7 +5,7 @@ import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from 
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
-
+import { AudioManager } from './audio-manager.js';
 
 let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
@@ -36,6 +36,8 @@ let currentAction = null;
 let modelLoaded = false;
 let platformTexture = null;
 let mobile = null // mobile support
+let audioManager;
+
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
 
@@ -372,6 +374,29 @@ function animateAtmosphere(atmosphereObjects, delta) {
     }
 }
 
+const AUDIO_ASSETS = {
+    bgm: 'assets/sounds/soundtrack/hava_leib.mp3',
+    jump: 'assets/sounds/jump.wav',
+    coin: 'assets/sounds/coin.wav',
+    shoot: 'assets/sounds/shoot.wav',
+    gameover: 'assets/sounds/fail.wav'
+};
+
+async function setupAudio() {
+    audioManager = new AudioManager(camera);
+
+    const loadPromises = Object.entries(AUDIO_ASSETS).map(([key, path]) => {
+        return audioManager.load(key, path);
+    });
+
+    try {
+        await Promise.all(loadPromises);
+        console.log("🔊 Audio systeem klaar en geladen!");
+    } catch (error) {
+        console.warn("⚠️ Sommige geluiden konden niet laden:", error);
+    }
+}
+
 function initThreeJS() {
     scene = new THREE.Scene();
     scene.background = baseBg.clone();
@@ -462,6 +487,7 @@ function initThreeJS() {
     });
 
     animate();
+    setupAudio();
 }
 
 function addPlayerLights() {
