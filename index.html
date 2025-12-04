@@ -18,40 +18,45 @@
 
 <body>
 
-    <div class="ui-container">
-        <div class="flex justify-between p-4 bg-gray-900 bg-opacity-70 text-white rounded-b-lg mx-auto max-w-2xl mt-0">
-            <div>
-                <span class="text-xs font-semibold uppercase block opacity-70">Player</span>
-                <span id="player-name-display" class="text-yellow-400 font-bold">Guest</span>
-                <span class="text-green-400 text-sm mt-1 block">(Online: <span id="peer-count">0</span>)</span>
-            </div>
-            <div class="text-right">
-                <div class="mb-2">
-                    <span class="text-xs font-semibold uppercase block opacity-70">⭐ Stars</span>
-                    <span id="star-display" class="text-2xl font-bold text-yellow-300">0</span>
+    <div class="ui-container w-full fixed top-0 left-0 z-50">
+        <div class="relative w-full bg-gray-900 bg-opacity-90 text-white shadow-md border-b border-gray-800">
+            
+            <div class="flex justify-between items-center px-4 py-2 h-14">
+                
+                <div class="flex items-center gap-2 text-sm overflow-hidden">
+                    <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Player</span>
+                    <span id="player-name-display" class="text-yellow-400 font-bold truncate max-w-[100px] sm:max-w-none">Guest</span>
+                    <span class="text-green-400 text-xs whitespace-nowrap opacity-80">(Online: <span id="peer-count">0</span>)</span>
                 </div>
-                <div>
-                    <span class="text-xs font-semibold uppercase block opacity-70">🪙 Coins</span>
-                    <span id="coin-display" class="text-2xl font-bold text-amber-400">0</span>
+
+                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <span id="progress-text" class="text-xs font-bold text-green-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"></span>
+                </div>
+
+                <div class="flex items-center gap-4 text-sm">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Stars</span>
+                        <span class="text-lg">⭐</span>
+                        <span id="star-display" class="font-bold text-yellow-300">0</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Coins</span>
+                        <span class="text-lg">🪙</span>
+                        <span id="coin-display" class="font-bold text-amber-400">0</span>
+                    </div>
+
+                    <span id="version-display" class="text-[10px] opacity-30 font-mono hidden md:block">v...</span>
                 </div>
             </div>
-        </div>
-        <div class="text-center mt-2">
-            <span id="version-display" class="text-white text-xs opacity-50 font-mono cursor-help"
-                style="text-shadow: 1px 1px 2px black;">
-                v...
-            </span>
-        </div>
-        <div id="progress-bar"
-            style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); width: 300px; height: 30px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 15px; overflow: hidden; z-index: 1000; display: none;">
-            <div id="progress-fill"
-                style="height: 100%; width: 0%; background: linear-gradient(90deg, #4ade80, #22c55e); transition: width 0.3s ease;">
+
+            <div id="progress-bar" class="absolute bottom-0 left-0 w-full h-[2px] bg-gray-700" style="display: none;">
+                <div id="progress-fill" class="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-300" style="width: 0%;"></div>
             </div>
-            <div id="progress-text"
-                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px black;">
-                0%</div>
+
         </div>
-        <div id="status-msg" class="text-center mt-2 text-white font-bold text-lg drop-shadow-lg"></div>
+
+        <div id="status-msg" class="text-center mt-4 text-white font-bold text-lg drop-shadow-md pointer-events-none"></div>
     </div>
 
     <div id="start-screen" class="overlay active">
