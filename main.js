@@ -789,35 +789,32 @@ function animate() {
         // mobile controls
         if (mobile.enabled) {
             const m = mobile.update();
-            const mobileBaseSpeed = RUN_SPEED; // Gebruik RUN_SPEED voor volledige range
+            const mobileBaseSpeed = RUN_SPEED;
 
-            // Movement
+            // Movement (ongewijzigd)
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
             if (m.left) velocity.add(right.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.left));
             if (m.right) velocity.add(right.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.right));
 
-            // --- CAMERA UPDATED LOGIC ---
+            // --- NIEUWE CAMERA LOGICA (Directe Muis-achtige besturing) ---
             
-            // 1. Horizontale rotatie (Speler)
-            // Vermenigvuldig met een factor (bijv. 0.05) om de draaisnelheid lekker te laten voelen
-            if (m.lookX) {
-                player.rotation.y -= m.lookX * 0.05; 
+            // Sensitivity factor: bepaalt hoe snel de camera reageert op vingerbeweging.
+            // 0.004 is een goed startpunt, pas aan naar smaak.
+            const touchSensitivity = 0.004; 
+
+            if (m.lookDeltaX) {
+                // Horizontaal: trek de beweging af van de rotatie
+                player.rotation.y -= m.lookDeltaX * touchSensitivity;
             }
 
-            // 2. Verticale rotatie (Camera Pitch)
-            // Gebruik m.lookY als snelheid.
-            if (m.lookY) {
-                cameraPitch -= m.lookY * 0.05;
+            if (m.lookDeltaY) {
+                // Verticaal: trek de beweging af van de pitch
+                cameraPitch -= m.lookDeltaY * touchSensitivity;
             }
-            
-            // EXACTE PC LIMITIETEN BEHOUDEN
-            // In PC code: cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
-            // In eerdere mobile code stond PI/4 (0.785), we zetten dit nu gelijk aan PC (0.8)
+
+            // CLAMPING (Exacte PC limieten)
             cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
-
-            // Apply to camera (Dit gebeurt al verderop in je main.js animate loop, 
-            // maar het updaten van cameraPitch variabele is hierboven gedaan).
         }
 
 
