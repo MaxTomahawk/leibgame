@@ -111,13 +111,13 @@ export class MobileControls {
         // Geplaatst in een ergonomische boog rechtsonder.
 
         // Jump (⬆️): 
-        this.btnJump = this._makeButton("⬆️", 30, 100); 
+        this.btnJump = this._makeButton("⬆️", 70, 120); 
         
         // Shoot (💥): 
-        this.btnShoot = this._makeButton("💥", 110, 75); 
+        this.btnShoot = this._makeButton("💥", 145, 95); 
 
         // Ability (🍃):
-        this.btnAbility = this._makeButton("🍃", 180, 50);
+        this.btnAbility = this._makeButton("🍃", 212, 52);
     }
 
     // Helper om een knop te maken
