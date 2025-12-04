@@ -787,34 +787,30 @@ function animate() {
 
 
         // mobile controls
-        if (mobile.enabled) {
+        if (mobile && mobile.enabled) {
             const m = mobile.update();
-            const mobileBaseSpeed = RUN_SPEED;
+            // Gebruik RUN_SPEED zodat de joystick de volledige snelheidsschaal benut
+            const mobileBaseSpeed = RUN_SPEED; 
 
-            // Movement (ongewijzigd)
+            // 1. Beweging (Velocity based op joystick uitslag)
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
             if (m.left) velocity.add(right.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.left));
             if (m.right) velocity.add(right.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.right));
 
-            // --- NIEUWE CAMERA LOGICA (Directe Muis-achtige besturing) ---
-            
-            // Sensitivity factor: bepaalt hoe snel de camera reageert op vingerbeweging.
-            // 0.004 is een goed startpunt, pas aan naar smaak.
-            const touchSensitivity = 0.004; 
+            // 2. Camera Rotatie (Delta based, "drag-to-look")
+            if (m.lookDeltaX || m.lookDeltaY) {
+                // Horizontaal draaien (Y-as van speler)
+                // We trekken de delta af omdat naar links slepen (negatieve X) moet zorgen voor draai naar links (positieve rotatie)
+                player.rotation.y -= m.lookDeltaX * m.sensitivity;
 
-            if (m.lookDeltaX) {
-                // Horizontaal: trek de beweging af van de rotatie
-                player.rotation.y -= m.lookDeltaX * touchSensitivity;
+                // Verticaal kijken (X-as van camera)
+                cameraPitch -= m.lookDeltaY * m.sensitivity;
+
+                // Klem de verticale rotatie af om 'over de kop' gaan te voorkomen
+                // (Dezelfde limieten als de PC-muisbesturing: -0.8 tot 0.8 radialen)
+                cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
             }
-
-            if (m.lookDeltaY) {
-                // Verticaal: trek de beweging af van de pitch
-                cameraPitch -= m.lookDeltaY * touchSensitivity;
-            }
-
-            // CLAMPING (Exacte PC limieten)
-            cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
         }
 
 
