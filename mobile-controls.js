@@ -60,7 +60,7 @@ export class MobileControls {
         this._attachEvents();
         this.uiBuilt = true;
 
-        [this.btnJump, this.btnShoot, this.btnAbility].forEach(el => {
+        [this.btnShoot, this.btnAbility].forEach(el => {
             el.style.opacity = 0;
             el.style.transition = 'opacity 0.3s';
             setTimeout(() => el.style.opacity = 1, 50);
@@ -85,10 +85,8 @@ export class MobileControls {
         document.body.appendChild(this.dragArea);
 
         // 3. Knoppen (Unified)
-        // Posities iets aangepast voor betere ergonomie
-        this.btnJump = this._makeButton("⬆️", 50, 40);      // Dichter bij de duim
-        this.btnShoot = this._makeButton("💥", 130, 60);    // Erboven
-        this.btnAbility = this._makeButton("🍃", 210, 80);  // Nog hoger
+        this.btnShoot = this._makeButton("💥", 130, 120);
+        this.btnAbility = this._makeButton("🍃", 210, 55);
     }
 
     _makeButton(text, bottom, right) {
@@ -229,7 +227,6 @@ export class MobileControls {
             });
         };
 
-        bindBtn(this.btnJump, () => this.onJump());
         bindBtn(this.btnShoot, () => this.onShoot());
         bindBtn(this.btnAbility, () => this.onAbility());
     }
