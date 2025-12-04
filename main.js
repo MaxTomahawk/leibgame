@@ -789,16 +789,20 @@ function animate() {
         // mobile controls
         if (mobile.enabled) {
             const m = mobile.update();
+            
+            // CHANGE THIS LINE: Use RUN_SPEED to reach the maximum speed of 18.0.
+            // The m.forward/backward/left/right values now scale this from 0 to 18.0
+            const mobileBaseSpeed = RUN_SPEED; 
 
-            if (m.forward) velocity.add(fwd.clone().multiplyScalar(WALK_SPEED * delta * 10 * m.forward));
-            if (m.backward) velocity.add(fwd.clone().multiplyScalar(-WALK_SPEED * delta * 10 * m.backward));
-            if (m.left) velocity.add(right.clone().multiplyScalar(-WALK_SPEED * delta * 10 * m.left));
-            if (m.right) velocity.add(right.clone().multiplyScalar(WALK_SPEED * delta * 10 * m.right));
+            if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
+            if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
+            if (m.left) velocity.add(right.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.left));
+            if (m.right) velocity.add(right.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.right));
 
-            // Horizontal rotation
+            // Horizontal rotation (unchanged)
             player.rotation.y -= m.look;
 
-            // **Vertical rotation**
+            // **Vertical rotation** (unchanged)
             camera.rotation.x = THREE.MathUtils.clamp(
                 camera.rotation.x - m.lookUpDown,
                 -Math.PI / 4,
