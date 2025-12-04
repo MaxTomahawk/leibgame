@@ -52,31 +52,41 @@ function listenToPlayers(scene, userId, ui, db) {
                             mesh.rotation.y = data.rot || 0;
                             container.add(mesh);
 
-                            // Setup animations for other players
-                            let mixer = null;
-                            let animations = {};
-                            if (gltf.animations && gltf.animations.length > 0) {
-                                mixer = new THREE.AnimationMixer(mesh);
+                                // Setup animations for other players
+                                let mixer = null;
+                                let animations = {};
+                                if (gltf.animations && gltf.animations.length > 0) {
+                                    mixer = new THREE.AnimationMixer(mesh);
 
-                                const ANIMATION_MAPPING = {
-                                    'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
-                                    'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
-                                    'assets/leib.glb': { idle: 7, run: 2, jump: 6 }
-                                };
-                                const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/option2.glb'];
+                                    const ANIMATION_MAPPING = {
+                                        'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
+                                        'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
+                                        'assets/leib.glb': { idle: 7, run: 2, jump: 6 },
+                                        // <-- TOEGEVOEGD: Weissman animaties (indexen zijn aangenomen)
+                                        'assets/weissman.glb': { idle: 0, run: 1, walk: 2, walk_backwards: 3, jump: 4 }, 
+                                    };
+                                    const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/option2.glb'];
+                                    
+                                    // Dynamische creatie van animaties
+                                    for (const animName in mapping) {
+                                        const index = mapping[animName];
+                                        if (gltf.animations[index]) {
+                                            animations[animName] = mixer.clipAction(gltf.animations[index]);
+                                        }
+                                    }
 
-                                animations = {
-                                    idle: mixer.clipAction(gltf.animations[mapping.idle] || gltf.animations[0]),
-                                    run: mixer.clipAction(gltf.animations[mapping.run] || gltf.animations[0]),
-                                    jump: mixer.clipAction(gltf.animations[mapping.jump] || gltf.animations[0])
-                                };
+                                    for (const action of Object.values(animations)) {
+                                        // Jump animatie van Weissman moet eenmalig afspelen en bevriezen
+                                        if (appearance.model === 'assets/weissman.glb' && action.getClip().name === 'jump') {
+                                            action.setLoop(THREE.LoopOnce);
+                                            action.clampWhenFinished = true;
+                                        } else {
+                                            action.setLoop(THREE.LoopRepeat);
+                                        }
+                                    }
 
-                                for (const action of Object.values(animations)) {
-                                    action.setLoop(THREE.LoopRepeat);
-                                }
-
-                                const initialAnim = data.currentAnimation || 'idle';
-                                if (animations[initialAnim]) {
+                                    const initialAnim = data.currentAnimation || 'idle';
+                                    if (animations[initialAnim]) {
                                     animations[initialAnim].play();
                                 }
                             }

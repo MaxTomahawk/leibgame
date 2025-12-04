@@ -45,6 +45,7 @@ const MODEL_SCALES = {
     'assets/option2.glb': 0.45,
     'assets/medieval_luuk.glb': 1.3,
     'assets/leib.glb': 1.3,
+    'assets/weissman.glb': 1.3,
 };
 
 // Trip Mode Variables (unchanged)
@@ -540,7 +541,8 @@ function loadPlayerModel(model) {
     const ANIMATION_MAPPING = {
         'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
         'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
-        'assets/leib.glb': { idle: 7, run: 2, jump: 6 }
+        'assets/leib.glb': { idle: 7, run: 2, jump: 6 },
+        'assets/weissman.glb': { idle: 0, run: 1, walk: 2, walk_backwards: 3, jump: 4 }
     };
     // -----------------------------------------
 
@@ -579,21 +581,30 @@ function loadPlayerModel(model) {
                 mixer = new THREE.AnimationMixer(playerModel);
 
                 // 1. Get correct mapping. Fallback to 'option2.glb' defaults.
-                const mapping = ANIMATION_MAPPING[model] || ANIMATION_MAPPING['option2.glb'];
+                const mapping = ANIMATION_MAPPING[model] || ANIMATION_MAPPING['assets/option2.glb'];
                 console.log(`Used animation indices for ${model}:`, mapping);
 
-                // 2. Apply indices
-                // Use (|| gltf.animations[0]) as safety if index doesn't exist
-                animations = {
-                    idle: mixer.clipAction(gltf.animations[mapping.idle] || gltf.animations[0]),
-                    run: mixer.clipAction(gltf.animations[mapping.run] || gltf.animations[0]),
-                    jump: mixer.clipAction(gltf.animations[mapping.jump] || gltf.animations[0])
-                };
+                // 2. Apply indices (Dynamisch om alle types te ondersteunen)
+                animations = {};
+                for (const animName in mapping) {
+                    const index = mapping[animName];
+                    if (gltf.animations[index]) {
+                        animations[animName] = mixer.clipAction(gltf.animations[index]);
+                    } else if (animName === 'run' || animName === 'idle' || animName === 'jump') { 
+                        // Fallback op index 0 voor essentiële animaties als de gespecificeerde index ontbreekt
+                        animations[animName] = mixer.clipAction(gltf.animations[0]); 
+                    }
+                }
 
                 // Set looping for animations
                 for (const action of Object.values(animations)) {
-                    action.setLoop(THREE.LoopRepeat);
-                    action.clampWhenFinished = true;
+                    // Jump animatie van Weissman moet eenmalig afspelen en bevriezen
+                    if (model === 'assets/weissman.glb' && action.getClip().name === 'jump') {
+                        action.setLoop(THREE.LoopOnce);
+                        action.clampWhenFinished = true;
+                    } else {
+                        action.setLoop(THREE.LoopRepeat);
+                    }
                 }
 
                 // Play idle by default
@@ -740,25 +751,41 @@ async function regenerateWorld() {
 }
 
 function updateAnimation(isMoving) {
+    const isWeissman = selectedModelFile === 'assets/weissman.glb';
+    let nextAnimation = currentAnimation;
+    
+    // 1. Springen (altijd prioriteit)
     if (!isGrounded) {
-        if (currentAnimation !== 'jump') {
-            playAnimation('jump');
-            currentAnimation = 'jump';
-            player.userData.currentAnimation = 'jump';
+        nextAnimation = 'jump';
+    } 
+    // 2. Beweging (Lopen/Rennen/Achteruit)
+    else if (isMoving) {
+        if (isWeissman) {
+            // Weissman specifieke logica
+            if (moveB) {
+                nextAnimation = 'walk_backwards';
+            } else if (isSprinting) {
+                // Alleen rennen bij vooruit/zijwaartse beweging + Shift
+                nextAnimation = 'run';
+            } else {
+                // Lopen (vooruit/zijwaarts, zonder sprint)
+                nextAnimation = 'walk';
+            }
+        } else {
+            // Bestaande modellen: alleen Run voor elke beweging
+            nextAnimation = 'run';
         }
-    } else if (isMoving) {
-        if (currentAnimation !== 'run') {
-            playAnimation('run');
-            currentAnimation = 'run';
-            player.userData.currentAnimation = 'run';
-
-        }
-    } else {
-        if (currentAnimation !== 'idle') {
-            playAnimation('idle');
-            currentAnimation = 'idle';
-            player.userData.currentAnimation = 'idle';
-        }
+    } 
+    // 3. Stilstaan
+    else {
+        nextAnimation = 'idle';
+    }
+    
+    // Speel animatie alleen af als deze veranderd is
+    if (nextAnimation !== currentAnimation) {
+        playAnimation(nextAnimation);
+        currentAnimation = nextAnimation;
+        player.userData.currentAnimation = nextAnimation;
     }
 }
 
