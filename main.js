@@ -792,7 +792,7 @@ function animate() {
             
             // CHANGE THIS LINE: Use RUN_SPEED to reach the maximum speed of 18.0.
             // The m.forward/backward/left/right values now scale this from 0 to 18.0
-            const mobileBaseSpeed = RUN_SPEED; 
+            const mobileBaseSpeed = RUN_SPEED + 4; 
 
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
