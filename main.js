@@ -117,6 +117,27 @@ window.onload = async () => {
     mobile = new MobileControls();
     handleMobileControls(mobile)
 
+    const hintEl = document.getElementById('controls-hint');
+    if (hintEl) {
+        if (mobile.enabled) {
+            // Instructies voor Mobiel (gebaseerd op je mobile-controls.js logica)
+            hintEl.innerHTML = `
+                <p><strong>Mobile Controls:</strong></p>
+                <ul class="list-disc pl-4 mt-1">
+                    <li>🕹️ <strong>Linker kant:</strong> Joystick (Lopen)</li>
+                    <li>👆 <strong>Rechter kant:</strong> Slepen om te kijken</li>
+                    <li>⚡ <strong>Dubbel Tik (Rechts):</strong> Springen</li>
+                    <li>💥 <strong>Knop:</strong> Spuug | 🍃 <strong>Knop:</strong> Smoke</li>
+                </ul>`;
+        } else {
+            // Instructies voor Desktop (PC)
+            hintEl.innerHTML = `
+                <p><strong>PC Controls:</strong></p>
+                <p>WASD (Loop) | Spatie (Spring) | Muis (Kijk) | Shift (Ren)</p>
+                <p>LMB (Spuug) | RMB (Smoke)</p>`;
+        }
+    }
+
     try {
         updateStatus("firebase", "🔌 Connecting...", "blue");
 
