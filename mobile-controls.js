@@ -99,18 +99,24 @@ export class MobileControls {
         document.body.appendChild(this.dragArea);
 
         // 3. Buttons (Unified)
-        this.btnShoot = this._makeButton("💥", 130, 120);
-        this.btnAbility = this._makeButton("🍃", 210, 55);
+        this.btnShoot = this._makeButton("💥", "24vh", "28w");
+        this.btnAbility = this._makeButton("🍃", "33vh", "15vw");
     }
 
-    _makeButton(text, bottom, right) {
+    _makeButton(text, bottomUnit, rightUnit) {
         const btn = document.createElement("div");
         btn.innerText = text;
         Object.assign(btn.style, {
-            position: "fixed", right: right + "px", bottom: bottom + "px",
-            width: "70px", height: "70px", lineHeight: "70px",
+            position: "fixed", 
+            right: rightUnit,
+            bottom: bottomUnit,
+            width: this.buttonSize, 
+            height: this.buttonSize, 
+            lineHeight: this.buttonSize,
             background: "rgba(0,0,0,0.4)", color: "#fff", textAlign: "center",
-            borderRadius: "50%", fontSize: "35px", userSelect: "none",
+            borderRadius: "50%", 
+            fontSize: "10vw",
+            userSelect: "none",
             touchAction: "none", zIndex: 20, cursor: "pointer",
             boxShadow: "0px 4px 5px rgba(0,0,0,0.2)",
             webkitTapHighlightColor: "transparent"
