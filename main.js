@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { initFirebase, db, auth } from './firebase.js';
 import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
 import { AudioManager } from './audio-manager.js';
+import { ModelManager, MODEL_SCALES, getModelAppearance } from './model-manager.js';
 
 let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
@@ -22,7 +22,8 @@ const BUFF_DURATION = 8000;
 
 // Globals (unchanged)
 let userId, myName = "Player", isMultiplayer = false;
-let camera, scene, renderer, player, playerModel, mixer, animations = {};
+let camera, scene, renderer, player = {};
+let modelManager = new ModelManager();
 let velocity = new THREE.Vector3();
 let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [];
 window.gameState = 'start';
@@ -32,21 +33,13 @@ let moveF = false, moveB = false, moveL = false, moveR = false;
 let isSprinting = false;
 let cameraPitch = 0;
 let textureLoader;
-let currentAction = null;
 let modelLoaded = false;
 let platformTexture = null;
-let mobile = null // mobile support
+let mobile = null
 let audioManager;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
-
-const MODEL_SCALES = {
-    'assets/option2.glb': 0.45,
-    'assets/medieval_luuk.glb': 1.3,
-    'assets/leib.glb': 1.3,
-    'assets/weissman.glb': 1.3,
-};
 
 // Trip Mode Variables (unchanged)
 let isTripping = false;
@@ -106,7 +99,7 @@ function updateVersionDisplay() {
 
 function handleMobileControls(mobile) {
     mobile.onJump = () => performJump();
-    
+
     mobile.onShoot = () => performShoot();
 
     mobile.onAbility = () => {
@@ -490,8 +483,19 @@ function initThreeJS() {
     scene.add(player);
 
     // Load the GLB model
-    loadPlayerModel(selectedModelFile);
-
+    modelManager.loadPlayerModel(selectedModelFile, player, {
+        onProgress: updateStatus,
+        onLoaded: (type, msg, color) => {
+            updateStatus(type, msg, color);
+            modelLoaded = true;
+            checkIfReadyToStart();
+        },
+        onError: (type, msg, color) => {
+            updateStatus(type, msg, color);
+            modelLoaded = true;
+            checkIfReadyToStart();
+        }
+    });
     setupInputs();
 
     window.addEventListener('resize', () => {
@@ -504,152 +508,6 @@ function initThreeJS() {
     setupAudio();
 }
 
-function addPlayerLights() {
-    if (!player) return;
-
-    // Key light (front, slightly higher)
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    keyLight.position.set(5, 10, 5);
-    keyLight.castShadow = true;
-    keyLight.intensity = 1.2;
-    player.add(keyLight);
-
-    // Fill light (from other side, softer)
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    fillLight.position.set(-5, 5, 5);
-    fillLight.intensity = 0.4;
-    player.add(fillLight);
-
-    // Back light / rim light (behind player, for contours)
-    const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    backLight.position.set(0, 5, -5);
-    backLight.intensity = 0.4;
-    player.add(backLight);
-
-    // Optional: small point light near model for highlights
-    const pointLight = new THREE.PointLight(0xffffff, 0.5, 10);
-    pointLight.position.set(0, 3, 0);
-    pointLight.intensity = 1;
-    player.add(pointLight);
-}
-
-function loadPlayerModel(model) {
-    const loader = new GLTFLoader();
-
-    // --- ANIMATION CONFIGURATION PER MODEL ---
-    // Map filename to correct animation indices
-    const ANIMATION_MAPPING = {
-        'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
-        'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
-        'assets/leib.glb': { idle: 7, run: 2, jump: 6 },
-        'assets/weissman.glb': { idle: 0, run: 1, walk: 2, walk_backwards: 3, jump: 4 }
-    };
-    // -----------------------------------------
-
-    console.log("Starting to load model...", model);
-    updateStatus("model", "🎮 Loading Model... 0%", "purple");
-
-    loader.load(model,
-        (gltf) => {
-            console.log("Model loaded successfully!", gltf);
-            playerModel = gltf.scene;
-
-            // Use per-model scale
-            const scale = MODEL_SCALES[model] || MODEL_SCALES['leib.glb'];
-            playerModel.scale.set(scale, scale, scale);
-            console.log("scale: ", scale)
-
-            // Rotate the model so it faces forward
-            playerModel.rotation.y = Math.PI;
-            playerModel.position.y = -1.1;
-
-            // Add model to the player container
-            player.add(playerModel);
-
-            // Store appearance on player for broadcasting
-            player.userData.appearance = {
-                model: selectedModelFile,
-                scale: scale
-            };
-            console.log("player: ", player)
-
-            // --- ANIMATION SETUP START ---
-            if (gltf.animations && gltf.animations.length > 0) {
-                console.log("Animations found in GLB:", gltf.animations.map((a, i) => `${i}: ${a.name}`));
-
-                // Create a mixer for this model
-                mixer = new THREE.AnimationMixer(playerModel);
-
-                // 1. Get correct mapping. Fallback to 'option2.glb' defaults.
-                const mapping = ANIMATION_MAPPING[model] || ANIMATION_MAPPING['assets/option2.glb'];
-                console.log(`Used animation indices for ${model}:`, mapping);
-
-                // 2. Apply indices (Dynamisch om alle types te ondersteunen)
-                animations = {};
-                for (const animName in mapping) {
-                    const index = mapping[animName];
-                    if (gltf.animations[index]) {
-                        animations[animName] = mixer.clipAction(gltf.animations[index]);
-                    } else if (animName === 'run' || animName === 'idle' || animName === 'jump') { 
-                        // Fallback op index 0 voor essentiële animaties als de gespecificeerde index ontbreekt
-                        animations[animName] = mixer.clipAction(gltf.animations[0]); 
-                    }
-                }
-
-                // Set looping for animations
-                for (const action of Object.values(animations)) {
-                    // Jump animatie van Weissman moet eenmalig afspelen en bevriezen
-                    if (model === 'assets/weissman.glb' && action.getClip().name === 'jump') {
-                        action.setLoop(THREE.LoopOnce);
-                        action.clampWhenFinished = true;
-                    } else {
-                        action.setLoop(THREE.LoopRepeat);
-                    }
-                }
-
-                // Play idle by default
-                playAnimation('idle');
-
-            } else {
-                console.warn("No animations found in this GLB file.");
-            }
-
-
-            modelLoaded = true;
-            updateStatus("model", "✅ Model loaded!", "green");
-            checkIfReadyToStart();
-        },
-        (progress) => {
-            if (progress.total > 0) {
-                const percent = Math.round(progress.loaded / progress.total * 100);
-                updateStatus("model", `🎮 Loading Model... ${percent}%`, "purple");
-                console.log('Loading model:', percent + '%');
-            }
-        },
-        (error) => {
-            console.error('Error loading model:', error);
-            updateStatus("model", "⚠️ Model load failed (using fallback)", "yellow");
-
-            // Fallback: simple box model
-            const fallbackGeo = new THREE.BoxGeometry(1, 2, 1);
-            const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-            playerModel = new THREE.Mesh(fallbackGeo, fallbackMat);
-            player.add(playerModel);
-            addPlayerLights();
-
-            playerModel.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    if (child.material) child.material.needsUpdate = true;
-                }
-            });
-
-            modelLoaded = true;
-            checkIfReadyToStart();
-        }
-    );
-}
 
 
 // Helper function to combine status messages (unchanged)
@@ -685,26 +543,6 @@ function updateStatus(type, message, color) {
 
     ui.status.innerHTML = messages.join("<br>");
     ui.status.className = `text-sm p-3 mb-4 rounded-lg border ${colorClasses[finalColor]}`;
-}
-
-function playAnimation(name) {
-    if (!mixer || !animations[name]) return;
-
-    // If already playing, do nothing (unless jump, which can reset)
-    if (currentAction === animations[name] && name !== 'jump') return;
-
-    console.log(`%c 🎬 Switching to animation: ${name}`, 'color: yellow; font-weight: bold;');
-
-    const nextAction = animations[name];
-
-    if (currentAction) {
-        // Fade out previous
-        currentAction.fadeOut(0.2);
-    }
-
-    // Reset, fade in and play new
-    nextAction.reset().fadeIn(0.2).play();
-    currentAction = nextAction;
 }
 
 // --- GAMEPLAY FUNCTIONS (unchanged) ---
@@ -750,44 +588,6 @@ async function regenerateWorld() {
     }
 }
 
-function updateAnimation(isMoving) {
-    const isWeissman = selectedModelFile === 'assets/weissman.glb';
-    let nextAnimation = currentAnimation;
-    
-    // 1. Springen (altijd prioriteit)
-    if (!isGrounded) {
-        nextAnimation = 'jump';
-    } 
-    // 2. Beweging (Lopen/Rennen/Achteruit)
-    else if (isMoving) {
-        if (isWeissman) {
-            // Weissman specifieke logica
-            if (moveB) {
-                nextAnimation = 'walk_backwards';
-            } else if (isSprinting) {
-                // Alleen rennen bij vooruit/zijwaartse beweging + Shift
-                nextAnimation = 'run';
-            } else {
-                // Lopen (vooruit/zijwaarts, zonder sprint)
-                nextAnimation = 'walk';
-            }
-        } else {
-            // Bestaande modellen: alleen Run voor elke beweging
-            nextAnimation = 'run';
-        }
-    } 
-    // 3. Stilstaan
-    else {
-        nextAnimation = 'idle';
-    }
-    
-    // Speel animatie alleen af als deze veranderd is
-    if (nextAnimation !== currentAnimation) {
-        playAnimation(nextAnimation);
-        currentAnimation = nextAnimation;
-        player.userData.currentAnimation = nextAnimation;
-    }
-}
 
 // --- HELPER FOR NEAREST PLAYER ---
 // New helper function to find nearest player
@@ -811,7 +611,6 @@ function getNearestPlayerPosition(enemyPosition) {
 }
 
 // --- GAME LOOP ---
-let currentAnimation = '';
 let isGrounded = false;
 
 function animate() {
@@ -822,8 +621,7 @@ function animate() {
     if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
 
     // Update animations (Player)
-    if (mixer) mixer.update(delta);
-
+    modelManager.update(delta);
     // Update animations (Other Players)
     if (isMultiplayer) {
         updateOtherPlayerAnimations(delta);
@@ -856,7 +654,7 @@ function animate() {
         if (mobile && mobile.enabled) {
             const m = mobile.update();
             // Gebruik RUN_SPEED zodat de joystick de volledige snelheidsschaal benut
-            const mobileBaseSpeed = RUN_SPEED + 4; 
+            const mobileBaseSpeed = RUN_SPEED + 4;
 
             // 1. Beweging (Velocity based op joystick uitslag)
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
@@ -890,7 +688,13 @@ function animate() {
 
         player.position.add(velocity.clone().multiplyScalar(delta));
 
-        updateAnimation(isMoving);
+        const currentAnim = modelManager.updateAnimation({
+            isMoving: isMoving,
+            isGrounded: isGrounded,
+            moveB: moveB,
+            isSprinting: isSprinting,
+            modelFile: selectedModelFile
+        });
 
         // FALL CHECK
         if (player.position.y < -30) {
@@ -1034,8 +838,8 @@ function animate() {
 
         // 4. Kijk altijd naar net boven het hoofd van de speler
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
-    } 
-    
+    }
+
     renderer.render(scene, camera);
 }
 
@@ -1075,16 +879,16 @@ function setupInputs() {
             selectedModelFile = btn.dataset.model;
 
             // Remove previous model
-            if (playerModel) {
-                player.remove(playerModel);
-                playerModel.traverse(child => {
-                    if (child.isMesh) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
+            modelManager.dispose();
+            if (modelManager.playerModel) {
+                player.remove(modelManager.playerModel);
             }
 
-            // Load the new model
-            loadPlayerModel(selectedModelFile);
+            modelManager.loadPlayerModel(selectedModelFile, player, {
+                onProgress: updateStatus,
+                onLoaded: updateStatus,
+                onError: updateStatus
+            });
 
             // Highlight selected button
             charButtons.forEach(b => b.classList.remove('selected'));
@@ -1121,7 +925,7 @@ function setupInputs() {
         }
 
         if (audioManager) {
-            audioManager.playMusic('bgm'); 
+            audioManager.playMusic('bgm');
         }
 
         await syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
@@ -1139,7 +943,7 @@ function setupInputs() {
 
     ui.mobileMenuBtn.addEventListener('click', () => {
         const isPaused = ui.pauseScreen.classList.contains('active');
-    
+
         if (isPaused) {
             // SCENARIO 1: Menu is open -> Hervat de game
             // Roep dezelfde actie aan als de "Resume" knop: Vraag Pointer Lock aan.
@@ -1151,24 +955,24 @@ function setupInputs() {
             }
         } else {
             // SCENARIO 2: Menu is gesloten -> Pauzeer de game
-            
+
             // De meest consistente methode is om Pointer Lock te verlaten, wat de 
             // 'pointerlockchange' listener activeert en de PAUZE-logica afhandelt.
             if (document.exitPointerLock) {
                 document.exitPointerLock();
-            } 
-            
+            }
+
             // Fallback voor mobiel/browsers waar Pointer Lock niet is geactiveerd/bestaat:
             // Voer de PAUZE-logica direct uit, omdat de pointerlockchange listener dit niet zal doen.
             if (!document.pointerLockElement) {
-                 if (window.gameState === 'playing' && window.gameState !== 'ended') {
+                if (window.gameState === 'playing' && window.gameState !== 'ended') {
                     window.gameState = 'paused';
                     ui.pauseScreen.classList.add('active');
                 }
             }
         }
     });
-    
+
     ui.resumeBtn.addEventListener('click', () => {
         if (!mobile || !mobile.enabled) {
             document.body.requestPointerLock();
@@ -1233,85 +1037,38 @@ function setupInputs() {
 
     document.addEventListener('mousedown', (e) => {
         if (window.gameState !== 'playing') return;
-    
+
         switch (e.button) {
             case 0: // Linker muisknop
-                performShoot(); 
+                performShoot();
                 break;
-                
+
             case 2: // Rechter muisknop
                 activateWeed();
                 break;
         }
     });
-    document.querySelectorAll('.char-preview').forEach((el, i) => {
+    document.querySelectorAll('.char-preview').forEach(el => {
         el.addEventListener('click', () => {
             selectedModelFile = el.dataset.model;
 
-            // Remove old player model
-            if (playerModel) {
-                player.remove(playerModel);
-                playerModel.traverse(child => {
-                    if (child.isMesh) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
+            modelManager.dispose();
+            if (modelManager.playerModel) {
+                player.remove(modelManager.playerModel);
             }
 
-            loadPlayerModel(selectedModelFile);
+            modelManager.loadPlayerModel(selectedModelFile, player, {
+                onProgress: updateStatus,
+                onLoaded: updateStatus,
+                onError: updateStatus
+            });
 
-            // Highlight selected preview
             document.querySelectorAll('.char-preview').forEach(e => e.classList.remove('selected'));
             el.classList.add('selected');
         });
     });
+
     document.querySelectorAll('.char-preview').forEach(el => {
-        loadPreviewModel(el, el.dataset.model);
+        modelManager.loadPreviewModel(el, el.dataset.model);
     });
-}
-
-function loadPreviewModel(el, modelFile) {
-    // Clean old
-    if (el.previewRenderer) el.removeChild(el.previewRenderer.domElement);
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, el.clientWidth / el.clientHeight, 0.1, 100);
-    camera.position.set(0, 1.5, 3);
-    camera.lookAt(0, 1, 0);
-
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(el.clientWidth, el.clientHeight);
-    el.appendChild(renderer.domElement);
-
-    const light = new THREE.DirectionalLight(0xffffff, 2.2);
-    light.position.set(5, 10, 5);
-    scene.add(light);
-    const fill = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(fill);
-
-    const loader = new GLTFLoader();
-    loader.load(modelFile, (gltf) => {
-        const container = new THREE.Object3D();
-        container.add(gltf.scene);
-
-        const scale = MODEL_SCALES[modelFile] || MODEL_SCALES['default'];
-        container.scale.set(scale, scale, scale);
-
-        container.rotation.y = Math.PI;
-        scene.add(container);
-
-        // store for animation
-        el.previewRenderer = renderer;
-        el.previewModel = container;
-        el.previewScene = scene;
-        el.previewCamera = camera;
-
-        animatePreview(el);
-    });
-}
-function animatePreview(el) {
-    if (!el.previewModel) return;
-    el.previewModel.rotation.y += 0.01;
-    el.previewRenderer.render(el.previewScene, el.previewCamera);
-    requestAnimationFrame(() => animatePreview(el));
-
 }
