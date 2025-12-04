@@ -790,10 +790,10 @@ function animate() {
         if (mobile.enabled) {
             const m = mobile.update();
 
-            if (m.forward) velocity.add(fwd.clone().multiplyScalar(MOVE_SPEED * delta * 10 * m.forward));
-            if (m.backward) velocity.add(fwd.clone().multiplyScalar(-MOVE_SPEED * delta * 10 * m.backward));
-            if (m.left) velocity.add(right.clone().multiplyScalar(-MOVE_SPEED * delta * 10 * m.left));
-            if (m.right) velocity.add(right.clone().multiplyScalar(MOVE_SPEED * delta * 10 * m.right));
+            if (m.forward) velocity.add(fwd.clone().multiplyScalar(WALK_SPEED * delta * 10 * m.forward));
+            if (m.backward) velocity.add(fwd.clone().multiplyScalar(-WALK_SPEED * delta * 10 * m.backward));
+            if (m.left) velocity.add(right.clone().multiplyScalar(-WALK_SPEED * delta * 10 * m.left));
+            if (m.right) velocity.add(right.clone().multiplyScalar(WALK_SPEED * delta * 10 * m.right));
 
             // Horizontal rotation
             player.rotation.y -= m.look;
