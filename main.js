@@ -116,7 +116,7 @@ window.onload = async () => {
     const hintEl = document.getElementById('controls-hint');
     if (hintEl) {
         if (mobile.enabled) {
-            // Instructies voor Mobiel (gebaseerd op je mobile-controls.js logica)
+            // Instructions for Mobile
             hintEl.innerHTML = `
                 <p><strong>Mobile Controls:</strong></p>
                 <ul class="list-disc pl-4 mt-1">
@@ -127,7 +127,7 @@ window.onload = async () => {
                     <li>🍃 <strong>Knop:</strong> Smoke</li>
                 </ul>`;
         } else {
-            // Instructies voor Desktop (PC)
+            // Instructions for PC
             hintEl.innerHTML = `
                 <p><strong>PC Controls:</strong></p>
                 <p>WASD (Loop) | Spatie (Spring) | Muis (Kijk) | Shift (Ren) | LMB (Spuug) | RMB (Smoke)</p>`;
@@ -398,9 +398,9 @@ async function setupAudio() {
 
     try {
         await Promise.all(loadPromises);
-        console.log("🔊 Audio systeem klaar en geladen!");
+        console.log("🔊 Audio system ready and loaded!");
     } catch (error) {
-        console.warn("⚠️ Sommige geluiden konden niet laden:", error);
+        console.warn("⚠️ Some sounds failed to load:", error);
     }
 }
 
@@ -627,7 +627,7 @@ function animate() {
         updateOtherPlayerAnimations(delta);
     }
 
-    // NIEUW: Update animations (Enemies)
+    // UPDATE animations (Enemies)
     enemies.forEach(e => {
         if (e.userData.mixer) {
             e.userData.mixer.update(delta);
@@ -653,26 +653,26 @@ function animate() {
         // mobile controls
         if (mobile && mobile.enabled) {
             const m = mobile.update();
-            // Gebruik RUN_SPEED zodat de joystick de volledige snelheidsschaal benut
+            // Use RUN_SPEED so joystick uses full speed scale
             const mobileBaseSpeed = RUN_SPEED + 4;
 
-            // 1. Beweging (Velocity based op joystick uitslag)
+            // 1. Movement (Velocity based on joystick deflection)
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
             if (m.left) velocity.add(right.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.left));
             if (m.right) velocity.add(right.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.right));
 
-            // 2. Camera Rotatie (Delta based, "drag-to-look")
+            // 2. Camera Rotation (Delta based, "drag-to-look")
             if (m.lookDeltaX || m.lookDeltaY) {
-                // Horizontaal draaien (Y-as van speler)
-                // We trekken de delta af omdat naar links slepen (negatieve X) moet zorgen voor draai naar links (positieve rotatie)
+                // Horizontal rotation (Player Y-axis)
+                // Subtract delta because dragging left (negative X) should rotate left (positive rotation)
                 player.rotation.y -= m.lookDeltaX * m.sensitivity;
 
-                // Verticaal kijken (X-as van camera)
+                // Vertical look (Camera X-axis)
                 cameraPitch -= m.lookDeltaY * m.sensitivity;
 
-                // Klem de verticale rotatie af om 'over de kop' gaan te voorkomen
-                // (Dezelfde limieten als de PC-muisbesturing: -0.8 tot 0.8 radialen)
+                // Clamp vertical rotation to prevent flipping
+                // (Same limits as PC mouse control: -0.8 to 0.8 radians)
                 cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
             }
         }
@@ -783,6 +783,15 @@ function animate() {
             e.lookAt(targetPos.x, e.position.y, targetPos.z);
         });
 
+        // --- BILLBOARD LOGIC (Look At Camera) ---
+        if (window.castle) {
+            const billboard = window.castle.getObjectByName('TaartBillboard');
+            if (billboard) {
+                // Make the billboard look at the player's camera
+                billboard.lookAt(camera.position); 
+            }
+        }
+
         // ENEMY COLLISIONS
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (player.position.distanceTo(enemies[i].position) < 2.0) {
@@ -823,50 +832,50 @@ function animate() {
             }
         }
 
-        // We berekenen de positie van de camera ten opzichte van de speler
-        const camOffset = new THREE.Vector3(0, 4, 8); // Basis positie (achter/boven speler)
+        // Calculate camera position relative to player
+        const camOffset = new THREE.Vector3(0, 4, 8); // Base position (behind/above player)
 
-        // 1. Eerst kantelen we de offset voor omhoog/omlaag kijken (rond de X-as)
+        // 1. Tilt offset for looking up/down (around X-axis)
         camOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
 
-        // 2. Daarna draaien we mee met de speler (rond de Y-as)
+        // 2. Rotate with player (around Y-axis)
         camOffset.applyEuler(player.rotation);
 
-        // 3. Verplaats camera soepel
+        // 3. Move camera smoothly
         const targetCamPos = player.position.clone().add(camOffset);
         camera.position.lerp(targetCamPos, 0.1);
 
-        // 4. Kijk altijd naar net boven het hoofd van de speler
+        // 4. Always look just above the player's head
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
     }
 
     renderer.render(scene, camera);
 }
 
-// Actie: Springen
+// Action: Jump
 function performJump() {
-    // Alleen springen als we op de grond staan (of logic die je wilt)
-    // Let op: in je huidige code zet je velocity direct, dus dat nemen we over:
+    // Only jump if grounded (or whatever logic you prefer)
+    // Note: your current code sets velocity directly, so we keep that:
     velocity.y = JUMP_SPEED;
     isGrounded = false;
 
-    // Geluid triggeren (werkt nu voor ALLES: spatie, mobiel, gamepad, etc.)
+    // Trigger sound (works for EVERYTHING: space, mobile, gamepad, etc.)
     if (audioManager) audioManager.playSFX('jump');
 }
 
-// Actie: Schieten
+// Action: Shoot
 function performShoot() {
-    // 1. Visuele kogel maken
+    // 1. Create visual bullet
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
     ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
     scene.add(ball);
 
-    // 2. Richting bepalen
+    // 2. Determine direction
     let dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
     projectiles.push({ mesh: ball, velocity: dir.multiplyScalar(30), life: 2.0 });
 
-    // 3. Geluid
+    // 3. Sound
     if (audioManager) audioManager.playSFX('shoot');
 }
 
@@ -945,8 +954,8 @@ function setupInputs() {
         const isPaused = ui.pauseScreen.classList.contains('active');
 
         if (isPaused) {
-            // SCENARIO 1: Menu is open -> Hervat de game
-            // Roep dezelfde actie aan als de "Resume" knop: Vraag Pointer Lock aan.
+            // SCENARIO 1: Menu is open -> Resume game
+            // Call same action as "Resume" button: Request Pointer Lock.
             if (!mobile || !mobile.enabled) {
                 document.body.requestPointerLock();
             } else {
@@ -954,16 +963,16 @@ function setupInputs() {
                 ui.pauseScreen.classList.remove('active');
             }
         } else {
-            // SCENARIO 2: Menu is gesloten -> Pauzeer de game
+            // SCENARIO 2: Menu is closed -> Pause game
 
-            // De meest consistente methode is om Pointer Lock te verlaten, wat de 
-            // 'pointerlockchange' listener activeert en de PAUZE-logica afhandelt.
+            // Most consistent method is to exit Pointer Lock, which triggers 
+            // 'pointerlockchange' listener and handles PAUSE logic.
             if (document.exitPointerLock) {
                 document.exitPointerLock();
             }
 
-            // Fallback voor mobiel/browsers waar Pointer Lock niet is geactiveerd/bestaat:
-            // Voer de PAUZE-logica direct uit, omdat de pointerlockchange listener dit niet zal doen.
+            // Fallback for mobile/browsers where Pointer Lock isn't active/doesn't exist:
+            // Execute PAUSE logic directly, because pointerlockchange listener won't do it.
             if (!document.pointerLockElement) {
                 if (window.gameState === 'playing' && window.gameState !== 'ended') {
                     window.gameState = 'paused';
@@ -1039,11 +1048,11 @@ function setupInputs() {
         if (window.gameState !== 'playing') return;
 
         switch (e.button) {
-            case 0: // Linker muisknop
+            case 0: // Left mouse button
                 performShoot();
                 break;
 
-            case 2: // Rechter muisknop
+            case 2: // Right mouse button
                 activateWeed();
                 break;
         }
@@ -1071,4 +1080,4 @@ function setupInputs() {
     document.querySelectorAll('.char-preview').forEach(el => {
         modelManager.loadPreviewModel(el, el.dataset.model);
     });
-}
+                }
