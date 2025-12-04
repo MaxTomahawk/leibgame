@@ -821,7 +821,6 @@ function animate() {
         }
 
 
-
         const isMoving = moveF || moveB || moveL || moveR;
         const currentSpeed = isSprinting ? RUN_SPEED : WALK_SPEED;
 
