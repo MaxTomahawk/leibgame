@@ -959,8 +959,8 @@ function animate() {
 
         // 4. Kijk altijd naar net boven het hoofd van de speler
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
-    } if (mobileControls && mobileControls.enabled) {
-        const m = mobileControls.update();
+    } if (MobileControls && MobileControls.enabled) {
+        const m = MobileControls.update();
 
         moveF = m.forward > 0.2;
         moveB = m.backward > 0.2;
@@ -1164,3 +1164,4 @@ function animatePreview(el) {
     requestAnimationFrame(() => animatePreview(el));
 
 }
+
