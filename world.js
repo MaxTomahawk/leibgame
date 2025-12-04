@@ -235,65 +235,66 @@ export function generateWorldData(CASTLE_Z) {
     return data;
 }
 
-// --- LOW POLY CASTLE BUILDER ---
+// --- BIRTHDAY CAKE BUILDER (Replaces Castle) ---
 function createCastle(scene, CASTLE_Z) {
-    console.log("creating castle...")
-    const castle = new THREE.Group();
+    console.log("creating birthday cake...")
+    const cake = new THREE.Group();
 
-    // === MAIN KEEP ===
-    const keep = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 12, 10),
-        new THREE.MeshStandardMaterial({ color: 0xbababa })
+    // Materials for the cake
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }); // White (frosting)
+    const layerMat = new THREE.MeshStandardMaterial({ color: 0x87CEEB }); // Light Blue
+
+    // === TIER 1 (Base Layer) ===
+    const tier1 = new THREE.Mesh(
+        new THREE.CylinderGeometry(10, 10, 4, 32),
+        layerMat
     );
-    keep.position.y = 6;
-    castle.add(keep);
+    tier1.position.y = 2;
+    cake.add(tier1);
 
-    // === CORNER TOWERS ===
-    const towerGeo = new THREE.CylinderGeometry(2, 2, 14, 6);
-    const towerMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+    // === TIER 2 (Middle Layer) ===
+    const tier2 = new THREE.Mesh(
+        new THREE.CylinderGeometry(7, 7, 4, 32),
+        baseMat
+    );
+    tier2.position.y = 6;
+    cake.add(tier2);
 
-    const towerOffsets = [
-        [5, 5],
-        [-5, 5],
-        [5, -5],
-        [-5, -5]
-    ];
+    // === TIER 3 (Top Layer) ===
+    const tier3 = new THREE.Mesh(
+        new THREE.CylinderGeometry(4, 4, 4, 32),
+        layerMat
+    );
+    tier3.position.y = 10;
+    cake.add(tier3);
+    
+    // === Large Billboard Text: "GEFELICITEERD LUUK" ===
+    const textBillboard = new THREE.Mesh(
+        new THREE.PlaneGeometry(15, 3), // Wide rectangle
+        // Use a striking color (gold/yellow)
+        new THREE.MeshBasicMaterial({ color: 0xFFD700, side: THREE.DoubleSide }) 
+    );
+    
+    textBillboard.position.set(0, 13, 0); // Position text just above the cake
+    textBillboard.userData.isBillboard = true;
+    textBillboard.name = 'TaartBillboard'; // Essential for lookup in main.js
+    
+    cake.add(textBillboard);
 
-    towerOffsets.forEach(([x, z]) => {
-        const t = new THREE.Mesh(towerGeo, towerMat);
-        t.position.set(x, 7, z);
-        castle.add(t);
-
-        const roof = new THREE.Mesh(
-            new THREE.ConeGeometry(3, 3, 6),
-            new THREE.MeshStandardMaterial({ color: 0x663300 })
-        );
-        roof.position.set(x, 15, z);
-        castle.add(roof);
-    });
-
-    // === WALLS ===
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-
-    const walls = [
-        { x: 0, z: 7, w: 14, h: 6, d: 1 },
-        { x: 0, z: -7, w: 14, h: 6, d: 1 },
-        { x: 7, z: 0, w: 1, h: 6, d: 14 },
-        { x: -7, z: 0, w: 1, h: 6, d: 14 }
-    ];
-
-    walls.forEach(w => {
-        const wall = new THREE.Mesh(
-            new THREE.BoxGeometry(w.w, w.h, w.d),
-            wallMat
-        );
-        wall.position.set(w.x, w.h / 2, w.z);
-        castle.add(wall);
+    // Ensure all parts cast and receive shadows
+    cake.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
     });
 
     // === FINAL POSITION ===
-    castle.position.set(0, 1, CASTLE_Z);
-    scene.add(castle);
+    cake.position.set(0, 1, CASTLE_Z);
+    scene.add(cake);
+    
+    // Return the group so we can reference it in main.js
+    return cake;
 }
 
 // --- BUILD WORLD ---
@@ -315,11 +316,6 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
 
     scene.updateMatrixWorld(true);
 
-    // // MODIFIED: Only build coins if they exist in data (for backward compatibility)
-    // if (data.coins && data.coins.length > 0) {
-    //     data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
-    // }
-
     if (data.coins && data.coins.length > 0) {
         data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
     }
@@ -328,7 +324,8 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
     }
 
-    createCastle(scene, CASTLE_Z);
+    // Store the cake in a global variable to rotate later (in main.js)
+    window.castle = createCastle(scene, CASTLE_Z);
 }
 
 // --- ROUND CLOUD GENERATION ---
@@ -463,4 +460,4 @@ export function cleanupWorldListener() {
         worldUnsubscribe = null;
         console.log("🛑 World listener stopped");
     }
-}
+        }
