@@ -68,32 +68,19 @@ export class MobileControls {
     }
 
     _buildUI() {
-        const header = document.querySelector('.ui-container');
-        const headerHeight = header ? header.offsetHeight : 0;
-        
         // 1. Left zone (Movement)
         this.moveArea = document.createElement("div");
         Object.assign(this.moveArea.style, {
-            position: "fixed",
-            left: "0",
-            top: headerHeight + "px",
-            width: "50%",
-            height: `calc(100% - ${headerHeight}px)`,
-            zIndex: 10,
-            touchAction: "none"
+            position: "fixed", left: "0", top: "0", height: "100%", width: "50%",
+            zIndex: 10, touchAction: "none"
         });
         document.body.appendChild(this.moveArea);
 
         // 2. Right zone (Camera + Double Tap)
         this.dragArea = document.createElement("div");
         Object.assign(this.dragArea.style, {
-            position: "fixed",
-            right: "0",
-            top: headerHeight + "px",
-            width: "50%",
-            height: `calc(100% - ${headerHeight}px)`,
-            zIndex: 10,
-            touchAction: "none"
+            position: "fixed", right: "0", top: "0", width: "50%", height: "100%",
+            zIndex: 10, touchAction: "none"
         });
         document.body.appendChild(this.dragArea);
 
