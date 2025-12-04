@@ -1,8 +1,5 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { initFirebase, db, auth } from './firebase.js';
-import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
-import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
 import { AudioManager } from './audio-manager.js';
@@ -21,7 +18,7 @@ const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
 // Globals (unchanged)
-let userId, myName = "Player", isMultiplayer = false;
+let myName = "Player"
 let camera, scene, renderer, player, playerModel, mixer, animations = {};
 let velocity = new THREE.Vector3();
 let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [];
@@ -140,32 +137,10 @@ window.onload = async () => {
                 <p>WASD (Loop) | Spatie (Spring) | Muis (Kijk) | Shift (Ren) | LMB (Spuug) | RMB (Smoke)</p>`;
         }
     }
-
-    try {
-        updateStatus("firebase", "🔌 Connecting...", "blue");
-
-        const firebaseGlobals = initFirebase((user) => {
-            userId = user.uid;
-            isMultiplayer = true;
-            console.log("Firebase connected! User ID:", userId);
-            updateStatus("firebase", "✅ Multiplayer connected!", "green");
-            checkIfReadyToStart();
-
-            listenToPlayers(scene, userId, ui, db);
-        });
-    } catch (e) {
-        console.error("Firebase init error:", e);
-        updateStatus("firebase", "⚠️ Offline Mode (Config Error)", "yellow");
-        isMultiplayer = false;
-        checkIfReadyToStart();
-    }
 };
 
 function checkIfReadyToStart() {
-    console.log("Ready check: modelLoaded =", modelLoaded, ", isMultiplayer =", isMultiplayer, ", userId =", userId);
-    if (modelLoaded && (!isMultiplayer || (isMultiplayer && userId))) {
-        enableStart();
-    }
+    enableStart();
 }
 
 function enableStart() {
@@ -734,20 +709,14 @@ function endGame(reason, won = false) {
 
     ui.gameOver.classList.add('active');
 
-    if (won && isMultiplayer) {
+    if (won) {
         console.log("🏆 Player won! Regenerating world...");
         regenerateWorld();
     }
 }
 
 async function regenerateWorld() {
-    try {
         const worldData = generateWorldData(CASTLE_Z);
-        await setDoc(doc(db, "levels", "main_world"), worldData);
-        console.log("✅ New world generated and saved!");
-    } catch (e) {
-        console.error("❌ Failed to regenerate world:", e);
-    }
 }
 
 function updateAnimation(isMoving) {
@@ -823,11 +792,6 @@ function animate() {
 
     // Update animations (Player)
     if (mixer) mixer.update(delta);
-
-    // Update animations (Other Players)
-    if (isMultiplayer) {
-        updateOtherPlayerAnimations(delta);
-    }
 
     // NIEUW: Update animations (Enemies)
     enemies.forEach(e => {
@@ -1096,35 +1060,11 @@ function setupInputs() {
         if (inputName) myName = inputName;
         ui.nameDisplay.innerText = myName;
 
-        if (isMultiplayer) {
-            const appearance = player.userData.appearance;
-
-            console.log("🔥 ABOUT TO START BROADCASTING - userId:", userId);
-            console.log("🔥 player object:", player);
-            console.log("🔥 db object:", db);
-            console.log("🔥 auth object:", auth);
-
-            await setDoc(doc(db, "players", userId), {
-                name: myName,
-                x: player.position.x,
-                y: player.position.y,
-                z: player.position.z,
-                rot: player.rotation.y,
-                lastUpdate: Date.now(),
-                player_appearance: appearance
-            }, { merge: true }).catch(e => {
-                console.error("Error sending initial position:", e);
-            });
-            console.log("trying to broadcast")
-            startBroadcasting(userId, myName, db, auth);
-            console.log("done with broadcast")
-        }
-
         if (audioManager) {
             audioManager.playMusic('bgm'); 
         }
 
-        await syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
+        await syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, CASTLE_Z, platformTexture, textureLoader);
 
         ui.start.classList.remove('active');
         ui.progressBar.style.display = 'block';
