@@ -16,7 +16,7 @@ const BASE_GRAVITY = 20.0;
 const TRIP_GRAVITY = 10.0;
 const JUMP_SPEED = 14.0;
 const WALK_SPEED = 12.0;
-const RUN_SPEED = 16.0;
+const RUN_SPEED = 18.0;
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
@@ -778,7 +778,7 @@ function animate() {
         scene.background.lerp(isTripping ? tripBg : baseBg, delta * 2);
 
         velocity.y -= currentGravity * delta;
-        const drag = isGrounded ? 4.0 : 1.8;
+        const drag = isGrounded ? 3.0 : 1.8;
         velocity.x -= velocity.x * 10 * drag * delta;
         velocity.z -= velocity.z * 10 * drag * delta;
 
