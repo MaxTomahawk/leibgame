@@ -6,14 +6,14 @@ export class MobileControls {
         // --- Configuration ---
         this.maxDragDistance = 60; 
         this.touchSensitivity = 0.008; 
-        this.doubleTapDelay = 300; // Tijd in ms voor een dubbele tik
+        this.doubleTapDelay = 300; // Time in ms for a double tap
 
-        // --- State Movement (Links) ---
+        // --- State Movement (Left) ---
         this.move = { x: 0, y: 0 };
         this.stickCenter = { x: 0, y: 0 };
         this.moveTouchId = null; 
 
-        // --- State Camera (Rechts) ---
+        // --- State Camera (Right) ---
         this.lookDelta = { x: 0, y: 0 };
         this.lastLookPos = { x: 0, y: 0 };
         this.lookTouchId = null;
@@ -68,7 +68,7 @@ export class MobileControls {
     }
 
     _buildUI() {
-        // 1. Linker zone (Movement)
+        // 1. Left zone (Movement)
         this.moveArea = document.createElement("div");
         Object.assign(this.moveArea.style, {
             position: "fixed", left: "0", top: "0", height: "100%", width: "50%",
@@ -76,7 +76,7 @@ export class MobileControls {
         });
         document.body.appendChild(this.moveArea);
 
-        // 2. Rechter zone (Camera + Double Tap)
+        // 2. Right zone (Camera + Double Tap)
         this.dragArea = document.createElement("div");
         Object.assign(this.dragArea.style, {
             position: "fixed", right: "0", top: "0", width: "50%", height: "100%",
@@ -84,7 +84,7 @@ export class MobileControls {
         });
         document.body.appendChild(this.dragArea);
 
-        // 3. Knoppen (Unified)
+        // 3. Buttons (Unified)
         this.btnShoot = this._makeButton("💥", 130, 120);
         this.btnAbility = this._makeButton("🍃", 210, 55);
     }
@@ -138,37 +138,44 @@ export class MobileControls {
 
         // --- RIGHT ZONE (Camera + Double Tap) ---
         
-        const handleLookStart = (touch) => {
+        // Added `isButton` parameter to ignore double tap logic when pressing UI buttons
+        const handleLookStart = (touch, isButton = false) => {
             if (this.lookTouchId !== null) return;
             this.lookTouchId = touch.identifier;
             this.lastLookPos = { x: touch.clientX, y: touch.clientY };
             
-            // CHECK DOUBLE TAP
-            const now = Date.now();
-            if (now - this.lastTapTime < this.doubleTapDelay) {
-                // Dubbele tik gedetecteerd -> SPRING!
-                this.onJump();
-                this.lastTapTime = 0; // Reset om triple tap te voorkomen
-                
-                // Visuele feedback voor de double tap (optioneel)
-                const feedback = document.createElement("div");
-                Object.assign(feedback.style, {
-                    position: "absolute", left: (touch.clientX - 25) + "px", top: (touch.clientY - 25) + "px",
-                    width: "50px", height: "50px", borderRadius: "50%",
-                    background: "rgba(255, 255, 255, 0.5)", pointerEvents: "none", zIndex: 30,
-                    animation: "ping 0.3s ease-out forwards"
-                });
-                // Inline animatie definitie als die niet in CSS staat
-                feedback.animate([
-                    { transform: 'scale(0.5)', opacity: 1 },
-                    { transform: 'scale(1.5)', opacity: 0 }
-                ], { duration: 300 });
-                
-                document.body.appendChild(feedback);
-                setTimeout(() => document.body.removeChild(feedback), 300);
+            // CHECK DOUBLE TAP (Only if it's NOT a button press)
+            if (!isButton) {
+                const now = Date.now();
+                if (now - this.lastTapTime < this.doubleTapDelay) {
+                    // Double tap detected -> JUMP!
+                    this.onJump();
+                    this.lastTapTime = 0; // Reset to prevent triple tap
+                    
+                    // Visual feedback for double tap (optional)
+                    const feedback = document.createElement("div");
+                    Object.assign(feedback.style, {
+                        position: "absolute", left: (touch.clientX - 25) + "px", top: (touch.clientY - 25) + "px",
+                        width: "50px", height: "50px", borderRadius: "50%",
+                        background: "rgba(255, 255, 255, 0.5)", pointerEvents: "none", zIndex: 30,
+                        animation: "ping 0.3s ease-out forwards"
+                    });
+                    
+                    if (typeof feedback.animate === 'function') {
+                         feedback.animate([
+                            { transform: 'scale(0.5)', opacity: 1 },
+                            { transform: 'scale(1.5)', opacity: 0 }
+                        ], { duration: 300 });
+                    }
+                    
+                    document.body.appendChild(feedback);
+                    setTimeout(() => {
+                        if (feedback.parentNode) document.body.removeChild(feedback);
+                    }, 300);
 
-            } else {
-                this.lastTapTime = now;
+                } else {
+                    this.lastTapTime = now;
+                }
             }
         };
 
@@ -187,10 +194,10 @@ export class MobileControls {
             }
         };
 
-        // Events op achtergrond
+        // Background Events (isButton defaults to false, so double tap works here)
         this.dragArea.addEventListener("touchstart", e => { 
              e.preventDefault(); 
-             handleLookStart(e.changedTouches[0]); 
+             handleLookStart(e.changedTouches[0], false); 
         }, {passive: false});
         
         this.dragArea.addEventListener("touchmove", e => {
@@ -203,7 +210,7 @@ export class MobileControls {
              for (let i=0; i<e.changedTouches.length; i++) handleLookEnd(e.changedTouches[i]);
         });
 
-        // Events op knoppen (geven ook look door)
+        // Button Events (pass isButton = true to skip double tap logic)
         const bindBtn = (btn, action) => {
             btn.addEventListener("touchstart", e => {
                 e.preventDefault();
@@ -211,7 +218,9 @@ export class MobileControls {
                 btn.style.transform = "scale(0.9)";
                 btn.style.background = "rgba(0,0,0,0.6)";
                 action();
-                handleLookStart(e.changedTouches[0]); // Ook kijken starten
+                
+                // Start looking, but indicate this is a BUTTON press (true)
+                handleLookStart(e.changedTouches[0], true); 
             }, {passive: false});
             
             btn.addEventListener("touchmove", e => {
