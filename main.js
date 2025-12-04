@@ -61,7 +61,9 @@ const ui = {
     start: document.getElementById('start-screen'),
     status: document.getElementById('auth-status'),
     btn: document.getElementById('start-btn'),
+    mobileMenuBtn: document.getElementById('mobile-menu-btn'),
     resumeBtn: document.getElementById('resume-btn'),
+    fullscreenBtn: document.getElementById('fullscreen-btn'),
     pauseScreen: document.getElementById('pause-screen'),
     coins: document.getElementById('coin-display'),
     stars: document.getElementById('star-display'),
@@ -1106,8 +1108,27 @@ function setupInputs() {
         if (mobile.enabled) mobile.start();
     });
 
+    ui.mobileMenuBtn.addEventListener('click', () => {
+        window.gameState = 'paused';
+        ui.pauseScreen.classList.add('active');
+    });
+
     ui.resumeBtn.addEventListener('click', () => {
         document.body.requestPointerLock();
+    });
+
+    ui.fullscreenBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            // Enter fullscreen on the entire document (e.g. <html> element)
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            });
+        } else {
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
     });
 
     document.addEventListener('pointerlockchange', () => {

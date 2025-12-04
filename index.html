@@ -18,50 +18,6 @@
 
 <body>
 
-    <div class="ui-container w-full fixed top-0 left-0 z-50">
-        <div class="relative w-full bg-gray-900 bg-opacity-90 text-white shadow-md border-b border-gray-800">
-            
-            <div class="flex justify-between items-center px-4 py-2 h-14">
-                
-                <div class="flex items-center gap-2 text-sm overflow-hidden">
-                    <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Player</span>
-                    <span id="player-name-display" class="text-yellow-400 font-bold truncate max-w-[100px] sm:max-w-none">Guest</span>
-                    <span class="text-green-400 text-xs whitespace-nowrap opacity-80">(Online: <span id="peer-count">0</span>)</span>
-                </div>
-
-                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                    <span id="progress-text" class="text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"></span>
-                </div>
-
-                <div class="flex items-center gap-4 text-sm">
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Stars</span>
-                        <span class="text-lg">⭐</span>
-                        <span id="star-display" class="font-bold text-yellow-300">0</span>
-                    </div>
-                    
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Coins</span>
-                        <span class="text-lg">🪙</span>
-                        <span id="coin-display" class="font-bold text-amber-400">0</span>
-                    </div>
-
-                    <span id="version-display" class="text-[10px] opacity-30 font-mono hidden md:block">v...</span>
-                    
-                    <button id="mobile-menu-btn" title="Open Menu" class="sm:hidden p-1 -mr-1 text-white hover:text-indigo-400 focus:outline-none z-10">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                    </button>
-                </div>
-            </div>
-
-            <div id="progress-bar" class="absolute bottom-0 left-0 w-full h-[2px] bg-gray-700" style="display: none;">
-                <div id="progress-fill" class="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-300" style="width: 0%;"></div>
-            </div>
-
-        </div>
-
-        <div id="status-msg" class="text-center mt-4 text-white font-bold text-lg drop-shadow-md pointer-events-none"></div>
-    </div>
     <div id="start-screen" class="overlay active">
         <div class="game-card">
             <h1 class="text-4xl font-bold text-gray-900 mb-2">Leib Weissman</h1>
@@ -99,6 +55,51 @@
         </div>
     </div>
 
+    <div class="ui-container w-full fixed top-0 left-0 z-50">
+        <div class="relative w-full bg-gray-900 bg-opacity-90 text-white shadow-md border-b border-gray-800">
+            
+            <div class="flex justify-between items-center px-4 py-2 h-14">
+                
+                <div class="flex items-center gap-2 text-sm overflow-hidden">
+                    <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Player</span>
+                    <span id="player-name-display" class="text-yellow-400 font-bold truncate max-w-[100px] sm:max-w-none">Guest</span>
+                    <span class="text-green-400 text-xs whitespace-nowrap opacity-80">(Online: <span id="peer-count">0</span>)</span>
+                </div>
+
+                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <span id="progress-text" class="text-xs font-bold text-green-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"></span>
+                </div>
+
+                <div class="flex items-center gap-4 text-sm">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Stars</span>
+                        <span class="text-lg">⭐</span>
+                        <span id="star-display" class="font-bold text-yellow-300">0</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Coins</span>
+                        <span class="text-lg">🪙</span>
+                        <span id="coin-display" class="font-bold text-amber-400">0</span>
+                    </div>
+
+                    <span id="version-display" class="text-[10px] opacity-30 font-mono hidden md:block">v...</span>
+                    
+                    <button id="mobile-menu-btn" title="Open Menu" class="sm:hidden p-1 -mr-1 font-bold text-green-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] hover:text-indigo-400 focus:outline-none z-10">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="progress-bar" class="absolute bottom-0 left-0 w-full h-[2px] bg-gray-700" style="display: none;">
+                <div id="progress-fill" class="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-300" style="width: 0%;"></div>
+            </div>
+
+        </div>
+
+        <div id="status-msg" class="text-center mt-4 text-white font-bold text-lg drop-shadow-md pointer-events-none"></div>
+    </div>
+
     <div id="pause-screen" class="overlay">
         <div class="game-card">
             <h1 class="text-4xl font-extrabold text-gray-900 mb-8">PAUSED</h1>
@@ -127,61 +128,10 @@
                 class="bg-red-600 text-white px-6 py-3 rounded-full">Restart</button>
         </div>
     </div>
-    
+
     <script src="config.js"></script>
     <script type="module" src="main.js"></script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const pauseScreen = document.getElementById('pause-screen');
-            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-            const resumeBtn = document.getElementById('resume-btn');
-            const fullscreenBtn = document.getElementById('fullscreen-btn');
 
-            // Function to toggle the pause screen (open/close menu)
-            function togglePauseScreen() {
-                // Toggles the 'active' class which controls visibility in CSS
-                pauseScreen.classList.toggle('active');
-                // NOTE: Hier zou je ook een game.togglePause() functie moeten aanroepen 
-                // in je main.js om de game echt te pauzeren.
-            }
-
-            // 1. Hamburger Button: Opens the pause menu
-            if (mobileMenuBtn) {
-                mobileMenuBtn.addEventListener('click', togglePauseScreen);
-            }
-
-            // 2. Resume Button: Closes the pause menu
-            if (resumeBtn) {
-                resumeBtn.addEventListener('click', togglePauseScreen);
-            }
-
-            // 3. Fullscreen Button: Toggles fullscreen mode
-            if (fullscreenBtn) {
-                fullscreenBtn.addEventListener('click', () => {
-                    if (!document.fullscreenElement) {
-                        // Enter fullscreen on the entire document (e.g. <html> element)
-                        document.documentElement.requestFullscreen().catch(err => {
-                            console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-                        });
-                    } else {
-                        // Exit fullscreen
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
-                        }
-                    }
-                });
-            }
-            
-            // Listen for ESC key (PC Pause/Menu action)
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !document.getElementById('start-screen').classList.contains('active')) {
-                    // Check if the Start screen is not active before allowing pause toggle
-                    togglePauseScreen();
-                }
-            });
-        });
-    </script>
     <style>
         /* Highlight selected character */
         .char-preview.selected {
@@ -194,13 +144,12 @@
             z-index: 9999;
         }
     </style>
-    
-    <a href="https://www.buymeacoffee.com/wytzig" target="_blank" id="bmc-btn-fixed" class="bmc-fixed-btn hidden sm:block"> 
+    <a href="https://www.buymeacoffee.com/wytzig" target="_blank" id="bmc-btn" class="bmc-fixed-btn">
         ☕ Support me
     </a>
 
     <style>
-        /* Buy Me a Coffee fixed button style (Desktop Only) */
+        /* Buy Me a Coffee style */
         .bmc-fixed-btn {
             position: fixed !important;
             bottom: 20px;
