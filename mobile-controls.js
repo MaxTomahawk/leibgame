@@ -5,7 +5,7 @@ export class MobileControls {
         
         // --- Configuration ---
         this.maxDragDistance = 60; 
-        this.touchSensitivity = 0.005; 
+        this.touchSensitivity = 0.008; 
         this.doubleTapDelay = 300; // Tijd in ms voor een dubbele tik
 
         // --- State Movement (Links) ---
