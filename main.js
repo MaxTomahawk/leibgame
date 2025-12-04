@@ -102,20 +102,9 @@ function updateVersionDisplay() {
 }
 
 function handleMobileControls(mobile) {
-    mobile.onJump = () => {
-        velocity.y = JUMP_SPEED;
-        isGrounded = false;
-    };
-
-    mobile.onShoot = () => {
-        // Your existing projectile code:
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
-        ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
-        scene.add(ball);
-        let dir = new THREE.Vector3();
-        camera.getWorldDirection(dir);
-        projectiles.push({ mesh: ball, velocity: dir.multiplyScalar(30), life: 2.0 });
-    };
+    mobile.onJump = () => performJump();
+    
+    mobile.onShoot = () => performShoot();
 
     mobile.onAbility = () => {
         activateWeed();
@@ -376,9 +365,10 @@ function animateAtmosphere(atmosphereObjects, delta) {
 
 const AUDIO_ASSETS = {
     bgm: 'assets/sounds/soundtrack/hava_leib.mp3',
-    jump: 'assets/sounds/jump.wav',
-    coin: 'assets/sounds/coin.wav',
-    shoot: 'assets/sounds/shoot.wav',
+    jump: 'assets/sounds/effects/male_jump.wav',
+    coin: 'assets/sounds/effects/coin.wav',
+    hava: 'assets/sounds/effects/hava.wav',
+    shoot: 'assets/sounds/effects/spit.wav',
     gameover: 'assets/sounds/fail.wav'
 };
 
@@ -922,9 +912,11 @@ function animate() {
                 if (isStar) {
                     starsCollected++;
                     ui.stars.innerText = starsCollected;
+                    if (audioManager) audioManager.playSFX('hava');
                 } else {
                     coinsCollected++;
                     ui.coins.innerText = coinsCollected;
+                    if (audioManager) audioManager.playSFX('coin');
                 }
             }
         }
@@ -997,6 +989,33 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+// Actie: Springen
+function performJump() {
+    // Alleen springen als we op de grond staan (of logic die je wilt)
+    // Let op: in je huidige code zet je velocity direct, dus dat nemen we over:
+    velocity.y = JUMP_SPEED;
+    isGrounded = false;
+
+    // Geluid triggeren (werkt nu voor ALLES: spatie, mobiel, gamepad, etc.)
+    if (audioManager) audioManager.playSFX('jump');
+}
+
+// Actie: Schieten
+function performShoot() {
+    // 1. Visuele kogel maken
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+    ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
+    scene.add(ball);
+
+    // 2. Richting bepalen
+    let dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    projectiles.push({ mesh: ball, velocity: dir.multiplyScalar(30), life: 2.0 });
+
+    // 3. Geluid
+    if (audioManager) audioManager.playSFX('shoot');
+}
+
 function setupInputs() {
     // Character selection buttons
     const charButtons = document.querySelectorAll('.char-btn');
@@ -1051,6 +1070,10 @@ function setupInputs() {
             console.log("done with broadcast")
         }
 
+        if (audioManager) {
+            audioManager.playMusic('bgm'); 
+        }
+
         await syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
 
         ui.start.classList.remove('active');
@@ -1085,8 +1108,7 @@ function setupInputs() {
         if (e.code === 'KeyD') moveR = true;
         if (e.code === 'ShiftLeft') isSprinting = true;
         if (e.code === 'Space') {
-            velocity.y = JUMP_SPEED;
-            isGrounded = false; // you just left ground
+            performJump();
         }
         if (e.code === 'Enter') activateWeed();
     });
@@ -1107,12 +1129,7 @@ function setupInputs() {
     });
     document.addEventListener('mousedown', () => {
         if (window.gameState === 'playing') {
-            const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
-            ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
-            scene.add(ball);
-            let dir = new THREE.Vector3();
-            camera.getWorldDirection(dir);
-            projectiles.push({ mesh: ball, velocity: dir.multiplyScalar(30), life: 2.0 });
+            performShoot();
         }
     });
     document.querySelectorAll('.char-preview').forEach((el, i) => {
