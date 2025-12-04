@@ -134,8 +134,7 @@ window.onload = async () => {
             // Instructies voor Desktop (PC)
             hintEl.innerHTML = `
                 <p><strong>PC Controls:</strong></p>
-                <p>WASD (Loop) | Spatie (Spring) | Muis (Kijk) | Shift (Ren)</p>
-                <p>LMB (Spuug) | RMB (Smoke)</p>`;
+                <p>WASD (Loop) | Spatie (Spring) | Muis (Kijk) | Shift (Ren) | LMB (Spuug) | RMB (Smoke)</p>`;
         }
     }
 
