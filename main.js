@@ -1110,7 +1110,6 @@ function setupInputs() {
         if (e.code === 'Space') {
             performJump();
         }
-        if (e.code === 'Enter') activateWeed();
     });
     document.addEventListener('keyup', e => {
         if (e.code === 'KeyW') moveF = false;
@@ -1127,9 +1126,19 @@ function setupInputs() {
         }
 
     });
-    document.addEventListener('mousedown', () => {
-        if (window.gameState === 'playing') {
-            performShoot();
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    document.addEventListener('mousedown', (e) => {
+        if (window.gameState !== 'playing') return;
+    
+        switch (e.button) {
+            case 0: // Linker muisknop
+                performShoot(); 
+                break;
+                
+            case 2: // Rechter muisknop
+                activateWeed();
+                break;
         }
     });
     document.querySelectorAll('.char-preview').forEach((el, i) => {
