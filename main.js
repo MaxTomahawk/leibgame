@@ -11,7 +11,7 @@ let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 
-// Settings (unchanged)
+// Settings
 const BASE_GRAVITY = 20.0;
 const TRIP_GRAVITY = 10.0;
 const JUMP_SPEED = 14.0;
@@ -20,7 +20,7 @@ const RUN_SPEED = 18.0;
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
-// Globals (unchanged)
+// Globals
 let userId, myName = "Player", isMultiplayer = false;
 let camera, scene, renderer, player = {};
 let modelManager = new ModelManager();
@@ -41,7 +41,7 @@ let audioManager;
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
 
-// Trip Mode Variables (unchanged)
+// Trip Mode Variables
 let isTripping = false;
 let tripTimer = null;
 let currentGravity = BASE_GRAVITY;
@@ -72,10 +72,7 @@ const ui = {
     version: document.getElementById('version-display')
 };
 
-// ... (Rest of helper functions like updateVersionDisplay, handleMobileControls, window.onload, etc. are unchanged) ...
-
-
-// ✅ NEW: Fetch version on load (unchanged)
+// Fetch version on load
 fetch('version.json')
     .then(r => r.json())
     .then(v => {
@@ -99,12 +96,8 @@ function updateVersionDisplay() {
 
 function handleMobileControls(mobile) {
     mobile.onJump = () => performJump();
-
     mobile.onShoot = () => performShoot();
-
-    mobile.onAbility = () => {
-        activateWeed();
-    };
+    mobile.onAbility = () => activateWeed();
 }
 
 window.onload = async () => {
@@ -120,17 +113,17 @@ window.onload = async () => {
             hintEl.innerHTML = `
                 <p><strong>Mobile Controls:</strong></p>
                 <ul class="list-disc pl-4 mt-1">
-                    <li>🕹️ <strong>Linker kant:</strong> Joystick (Lopen)</li>
-                    <li>👆 <strong>Rechter kant:</strong> Slepen om te kijken</li>
-                    <li>⚡ <strong>Dubbel Tik (Rechts):</strong> Springen</li>
-                    <li>💥 <strong>Knop:</strong> Spuug</li>
-                    <li>🍃 <strong>Knop:</strong> Smoke</li>
+                    <li>🕹️ <strong>Left Side:</strong> Joystick (Move)</li>
+                    <li>👆 <strong>Right Side:</strong> Drag to look</li>
+                    <li>⚡ <strong>Double Tap (Right):</strong> Jump</li>
+                    <li>💥 <strong>Button:</strong> Spit</li>
+                    <li>🍃 <strong>Button:</strong> Smoke</li>
                 </ul>`;
         } else {
             // Instructions for PC
             hintEl.innerHTML = `
                 <p><strong>PC Controls:</strong></p>
-                <p>WASD (Loop) | Spatie (Spring) | Muis (Kijk) | Shift (Ren) | LMB (Spuug) | RMB (Smoke)</p>`;
+                <p>WASD (Move) | Space (Jump) | Mouse (Look) | Shift (Run) | LMB (Spit) | RMB (Smoke)</p>`;
         }
     }
 
@@ -167,7 +160,7 @@ function enableStart() {
 }
 
 function createSkyAtmosphere(scene) {
-    // 1. DISTANT GROUND/HORIZON (far below)
+    // 1. DISTANT GROUND/HORIZON
     const groundGeo = new THREE.PlaneGeometry(2000, 2000);
     const groundMat = new THREE.MeshLambertMaterial({
         color: 0x3a5f3a,
@@ -178,40 +171,36 @@ function createSkyAtmosphere(scene) {
     ground.position.y = -100;
     scene.add(ground);
 
-    // 2. NATURAL MOUNTAIN LANDSCAPE (organic scattered placement)
+    // 2. NATURAL MOUNTAIN LANDSCAPE
     const mountainRanges = [];
-
-    // Create multiple natural clusters around the playing area
     const clusters = [
-        { centerX: -200, centerZ: -150, count: 25, spread: 120 },  // left-back cluster
-        { centerX: 200, centerZ: -200, count: 20, spread: 100 },   // right-back cluster
-        { centerX: -180, centerZ: 50, count: 15, spread: 80 },     // left-front cluster
-        { centerX: 180, centerZ: 100, count: 12, spread: 70 },     // right-front cluster
-        { centerX: 0, centerZ: -450, count: 30, spread: 150 },     // far back center ridge (moved further back)
-        { centerX: -100, centerZ: -350, count: 18, spread: 90 },   // additional depth (moved back)
-        { centerX: 100, centerZ: -380, count: 18, spread: 90 }     // additional depth (moved back)
+        { centerX: -200, centerZ: -150, count: 25, spread: 120 },
+        { centerX: 200, centerZ: -200, count: 20, spread: 100 },
+        { centerX: -180, centerZ: 50, count: 15, spread: 80 },
+        { centerX: 180, centerZ: 100, count: 12, spread: 70 },
+        { centerX: 0, centerZ: -450, count: 30, spread: 150 },
+        { centerX: -100, centerZ: -350, count: 18, spread: 90 },
+        { centerX: 100, centerZ: -380, count: 18, spread: 90 }
     ];
 
     clusters.forEach(cluster => {
         for (let i = 0; i < cluster.count; i++) {
-            // Use Gaussian-like distribution for more natural clustering
             const angle = Math.random() * Math.PI * 2;
-            const distance = (Math.random() + Math.random()) / 2 * cluster.spread; // tends toward center
+            const distance = (Math.random() + Math.random()) / 2 * cluster.spread;
 
             const x = cluster.centerX + Math.cos(angle) * distance;
             const z = cluster.centerZ + Math.sin(angle) * distance;
 
-            // Vary mountain characteristics based on distance from origin
             const distFromOrigin = Math.sqrt(x * x + z * z);
             const heightVariation = 100 + Math.random() * 120;
-            const height = heightVariation * (0.8 + (distFromOrigin / 400) * 0.4); // taller when further
+            const height = heightVariation * (0.8 + (distFromOrigin / 400) * 0.4);
 
             const width = 20 + Math.random() * 25;
 
             const mountainGeo = new THREE.ConeGeometry(width, height, 4);
             const mountainMat = new THREE.MeshLambertMaterial({
                 color: new THREE.Color().setHSL(
-                    0.28 + Math.random() * 0.12, // greenish-brown hues
+                    0.28 + Math.random() * 0.12,
                     0.15 + Math.random() * 0.2,
                     0.2 + Math.random() * 0.2
                 ),
@@ -229,13 +218,12 @@ function createSkyAtmosphere(scene) {
         }
     });
 
-    // 4. UFOs
+    // 3. UFOs
     const ufos = [];
-    for (let i = 0; i < 60; i++) { // create 60 UFOs
+    for (let i = 0; i < 60; i++) { 
         const ufoGroup = new THREE.Group();
 
-        // ---- UFO BODY (thin flying saucer) ----
-        const bodyGeo = new THREE.CylinderGeometry(1.5, 2.5, 0.6, 32, 1, true); // smaller body
+        const bodyGeo = new THREE.CylinderGeometry(1.5, 2.5, 0.6, 32, 1, true);
         const bodyMat = new THREE.MeshStandardMaterial({
             color: 0x888888,
             metalness: 0.7,
@@ -244,8 +232,7 @@ function createSkyAtmosphere(scene) {
         const body = new THREE.Mesh(bodyGeo, bodyMat);
         ufoGroup.add(body);
 
-        // ---- DOME (cockpit) ----
-        const domeGeo = new THREE.SphereGeometry(0.75, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2); // smaller dome
+        const domeGeo = new THREE.SphereGeometry(0.75, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
         const domeMat = new THREE.MeshStandardMaterial({
             color: 0x00ffcc,
             transparent: true,
@@ -254,58 +241,48 @@ function createSkyAtmosphere(scene) {
             roughness: 0.1
         });
         const dome = new THREE.Mesh(domeGeo, domeMat);
-        dome.position.y = 0.3; // sits nicely on top of smaller body
+        dome.position.y = 0.3;
         ufoGroup.add(dome);
 
-        // ---- BOTTOM RING (glow) ----
-        const ringGeo = new THREE.TorusGeometry(2.5, 0.1, 16, 100); // smaller and thinner
+        const ringGeo = new THREE.TorusGeometry(2.5, 0.1, 16, 100);
         const ringMat = new THREE.MeshBasicMaterial({
             color: 0x00ffcc,
             transparent: true,
-            opacity: 0.4, // reduce glow intensity
+            opacity: 0.4,
             side: THREE.DoubleSide
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2; // horizontal glow ring
-        ring.position.y = -0.05; // tighter to the body
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = -0.05;
         ufoGroup.add(ring);
 
-        // Random position & motion parameters
         const startX = (Math.random() - 0.5) * 500;
         const startY = -20 + Math.random() * 50;
         const startZ = (Math.random() - 0.5) * 200;
-        const speed = 5 + Math.random() * 5;
-        const rotationSpeed = 0.5 + Math.random() * 0.5;
-        const bobAmount = 2 + Math.random() * 1;
-        const bobSpeed = 1 + Math.random() * 1.5;
-
+        
         ufoGroup.position.set(startX, startY, startZ);
-
         scene.add(ufoGroup);
 
         ufos.push({
             group: ufoGroup,
-            speed: 0.5 + Math.random() * 0.5,          // base forward speed
-            pathFrequencyX: 0.2 + Math.random() * 0.3, // frequency for sinusoidal X motion
-            pathFrequencyY: 0.1 + Math.random() * 0.2, // frequency for vertical bob
-            pathFrequencyZ: 0.15 + Math.random() * 0.25, // frequency for Z weaving
-            pathAmplitudeX: 20 + Math.random() * 30,    // horizontal sway
-            pathAmplitudeY: 5 + Math.random() * 5,      // vertical bob height
-            pathAmplitudeZ: 10 + Math.random() * 20,    // Z weaving amplitude
-            rotationSpeed: 0.1 + Math.random() * 0.2,   // gentle rotation
-            startX: startX,                              // initial positions
+            speed: 0.5 + Math.random() * 0.5,
+            pathFrequencyX: 0.2 + Math.random() * 0.3,
+            pathFrequencyY: 0.1 + Math.random() * 0.2,
+            pathFrequencyZ: 0.15 + Math.random() * 0.25,
+            pathAmplitudeX: 20 + Math.random() * 30,
+            pathAmplitudeY: 5 + Math.random() * 5,
+            pathAmplitudeZ: 10 + Math.random() * 20,
+            rotationSpeed: 0.1 + Math.random() * 0.2,
+            startX: startX,
             startY: startY,
             startZ: startZ
         });
     }
 
-    // 4. SPEED PARTICLES (small, colorful, streak-style)
+    // 4. SPEED PARTICLES
     const particles = [];
     for (let i = 0; i < 2500; i++) {
-
-        // Thin stretched streaks
         const particleGeo = new THREE.SphereGeometry(0.12, 6, 6);
-
         const particleMat = new THREE.MeshBasicMaterial({
             color: new THREE.Color().setHSL(Math.random(), 1.0, 0.6),
             transparent: true,
@@ -319,7 +296,6 @@ function createSkyAtmosphere(scene) {
         particle.position.y = -10 + Math.random() * 80;
         particle.position.z = (Math.random() - 0.5) * 300;
 
-        // random tilt so streaks aren't all perfectly aligned
         particle.rotation.x = (Math.random() - 0.5) * 0.3;
         particle.rotation.y = (Math.random() - 0.5) * 0.3;
 
@@ -327,7 +303,7 @@ function createSkyAtmosphere(scene) {
         particles.push({
             mesh: particle,
             speed: 6 + Math.random() * 55,
-            hueOffset: Math.random() * Math.PI * 2 // for color cycling
+            hueOffset: Math.random() * Math.PI * 2
         });
     }
     return { ufos, particles };
@@ -338,17 +314,12 @@ function animateAtmosphere(atmosphereObjects, delta) {
 
     if (atmosphereObjects.ufos) {
         atmosphereObjects.ufos.forEach(ufo => {
-            // forward motion along X
-            const forward = ufo.speed * delta * 50; // scale for visual effect
-
+            const forward = ufo.speed * delta * 50;
             ufo.group.position.x = ufo.startX + Math.sin(time * ufo.pathFrequencyX) * ufo.pathAmplitudeX + forward;
             ufo.group.position.y = ufo.startY + Math.sin(time * ufo.pathFrequencyY) * ufo.pathAmplitudeY;
             ufo.group.position.z = ufo.startZ + Math.sin(time * ufo.pathFrequencyZ) * ufo.pathAmplitudeZ;
-
-            // gentle rotation
             ufo.group.rotation.y += ufo.rotationSpeed * delta;
 
-            // bottom ring pulse
             const ring = ufo.group.children.find(c => c.geometry && c.geometry.type === 'TorusGeometry');
             if (ring && ring.material) {
                 const pulse = Math.abs(Math.sin(time * 4 + ufo.group.position.x * 0.01)) * 0.6 + 0.6;
@@ -359,21 +330,14 @@ function animateAtmosphere(atmosphereObjects, delta) {
         });
     }
 
-    // Particles - fast streaks with color cycling
     if (atmosphereObjects.particles) {
         atmosphereObjects.particles.forEach(p => {
-
-            // Move forward
             p.mesh.position.z += p.speed * delta * 60 * 0.016;
-
-            // Reset
             if (p.mesh.position.z > 120) {
                 p.mesh.position.z = -240;
                 p.mesh.position.x = (Math.random() - 0.5) * 300;
                 p.mesh.position.y = -10 + Math.random() * 80;
             }
-
-            // Color pulse / cycle (speed effect)
             const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
             p.mesh.material.color.setHSL(hue, 1.0, 0.6);
         });
@@ -398,7 +362,7 @@ async function setupAudio() {
 
     try {
         await Promise.all(loadPromises);
-        console.log("🔊 Audio system ready and loaded!");
+        console.log("🔊 Audio system ready!");
     } catch (error) {
         console.warn("⚠️ Some sounds failed to load:", error);
     }
@@ -427,62 +391,42 @@ function initThreeJS() {
     scene.add(hemiLight);
 
     const atmosphereObjects = createSkyAtmosphere(scene);
-    window.atmosphereObjects = atmosphereObjects; // Store globally
+    window.atmosphereObjects = atmosphereObjects; 
 
     textureLoader = new THREE.TextureLoader();
-
-    // Ensure correct color encoding for accurate look
-    // (important when renderer.outputEncoding isn't the default)
     renderer.outputEncoding = THREE.sRGBEncoding;
 
-    // Load platform texture (Kept for compatibility, though we use generated clouds now)
     platformTexture = textureLoader.load(
         "assets/hava.png",
-        // onLoad
         (tex) => {
-            // correct encoding so colors/light appear right
             tex.encoding = THREE.sRGBEncoding;
-
-            // make it tileable
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(2, 2);
 
-            // If platforms were already created with fallback materials, replace their maps now
             platforms.forEach((p) => {
                 if (p && p.material) {
-                    // use a cloned texture so per-platform tiling can be adjusted independently
                     const cloned = tex.clone();
-                    // default tiling relative to platform size
                     cloned.repeat.set((p.userData.w || 1) / 2, (p.userData.d || 1) / 2);
                     cloned.needsUpdate = true;
-
                     p.material.map = cloned;
-                    // keep white base under transparent PNG
                     p.material.color = new THREE.Color(0xffffff);
                     p.material.transparent = true;
                     p.material.alphaTest = 0.1;
                     p.material.needsUpdate = true;
                 }
             });
-
-            console.log("Platform texture loaded and applied to existing platforms.");
+            console.log("Platform texture loaded.");
         },
-        // onProgress (optional)
         undefined,
-        // onError
-        (err) => {
-            console.warn("Failed to load platform texture hava.png", err);
-        }
+        (err) => console.warn("Failed to load hava.png", err)
     );
 
-    // Player Container (for collision detection)
     player = new THREE.Object3D();
     player.position.set(0, 5, 0);
-    window.player = player;  // add player to window to be used in multiplayer.js
+    window.player = player;
     scene.add(player);
 
-    // Load the GLB model
     modelManager.loadPlayerModel(selectedModelFile, player, {
         onProgress: updateStatus,
         onLoaded: (type, msg, color) => {
@@ -508,15 +452,10 @@ function initThreeJS() {
     setupAudio();
 }
 
-
-
-// Helper function to combine status messages (unchanged)
 const statusMessages = { model: "", firebase: "" };
 
 function updateStatus(type, message, color) {
     statusMessages[type] = { text: message, color: color };
-
-    // Combine both messages
     const messages = [];
     const colors = [];
 
@@ -529,7 +468,6 @@ function updateStatus(type, message, color) {
         colors.push(statusMessages.firebase.color);
     }
 
-    // Determine most "important" color (red > yellow > purple > blue > green)
     const colorPriority = { red: 1, yellow: 2, purple: 3, blue: 4, green: 5 };
     const finalColor = colors.sort((a, b) => colorPriority[a] - colorPriority[b])[0] || "blue";
 
@@ -545,7 +483,7 @@ function updateStatus(type, message, color) {
     ui.status.className = `text-sm p-3 mb-4 rounded-lg border ${colorClasses[finalColor]}`;
 }
 
-// --- GAMEPLAY FUNCTIONS (unchanged) ---
+// --- GAMEPLAY FUNCTIONS ---
 function activateWeed() {
     if (window.gameState !== 'playing' || coinsCollected < 1 || isTripping) return;
     coinsCollected--;
@@ -567,9 +505,7 @@ function endGame(reason, won = false) {
     window.gameState = 'ended';
     document.exitPointerLock();
     ui.goReason.innerText = reason;
-
     ui.goReason.style.color = won ? '#00ff00' : '#ff0000';
-
     ui.gameOver.classList.add('active');
 
     if (won && isMultiplayer) {
@@ -588,14 +524,11 @@ async function regenerateWorld() {
     }
 }
 
-
-// --- HELPER FOR NEAREST PLAYER ---
-// New helper function to find nearest player
+// Helper for nearest player
 function getNearestPlayerPosition(enemyPosition) {
-    let closestTarget = player.position; // Default: yourself
+    let closestTarget = player.position; 
     let minDistance = enemyPosition.distanceTo(player.position);
 
-    // Check all other players in multiplayer
     if (otherPlayers) {
         Object.values(otherPlayers).forEach(op => {
             if (op.mesh) {
@@ -620,14 +553,11 @@ function animate() {
 
     if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
 
-    // Update animations (Player)
     modelManager.update(delta);
-    // Update animations (Other Players)
     if (isMultiplayer) {
         updateOtherPlayerAnimations(delta);
     }
 
-    // UPDATE animations (Enemies)
     enemies.forEach(e => {
         if (e.userData.mixer) {
             e.userData.mixer.update(delta);
@@ -635,8 +565,6 @@ function animate() {
     });
 
     if (window.gameState === 'playing') {
-
-        // desktop controls 
         currentGravity = THREE.MathUtils.lerp(currentGravity, targetGravity, delta * 2);
         scene.fog.color.lerp(isTripping ? tripFog : baseFog, delta * 2);
         scene.background.lerp(isTripping ? tripBg : baseBg, delta * 2);
@@ -649,34 +577,21 @@ function animate() {
         const fwd = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
         const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
 
-
-        // mobile controls
         if (mobile && mobile.enabled) {
             const m = mobile.update();
-            // Use RUN_SPEED so joystick uses full speed scale
             const mobileBaseSpeed = RUN_SPEED + 4;
 
-            // 1. Movement (Velocity based on joystick deflection)
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
             if (m.left) velocity.add(right.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.left));
             if (m.right) velocity.add(right.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.right));
 
-            // 2. Camera Rotation (Delta based, "drag-to-look")
             if (m.lookDeltaX || m.lookDeltaY) {
-                // Horizontal rotation (Player Y-axis)
-                // Subtract delta because dragging left (negative X) should rotate left (positive rotation)
                 player.rotation.y -= m.lookDeltaX * m.sensitivity;
-
-                // Vertical look (Camera X-axis)
                 cameraPitch -= m.lookDeltaY * m.sensitivity;
-
-                // Clamp vertical rotation to prevent flipping
-                // (Same limits as PC mouse control: -0.8 to 0.8 radians)
                 cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
             }
         }
-
 
         const isMoving = moveF || moveB || moveL || moveR;
         const currentSpeed = isSprinting ? RUN_SPEED : WALK_SPEED;
@@ -696,70 +611,46 @@ function animate() {
             modelFile: selectedModelFile
         });
 
-        // FALL CHECK
         if (player.position.y < -30) {
             endGame("Je bent in de afgrond gevallen!", false);
         }
 
-        // --- NEW COLLISION LOGIC (RAYCASTING) ---
-        // 1. Ray starts higher up (y + 2.5) to reliably hit the top surface of rounded clouds
+        // Raycasting
         const rayOrigin = player.position.clone().add(new THREE.Vector3(0, 2.5, 0));
         raycaster.set(rayOrigin, downDirection);
-
-        // 2. Check for intersections with all platform objects
         const intersects = raycaster.intersectObjects(platforms);
         let onSolidGround = false;
 
         if (intersects.length > 0) {
             const hit = intersects[0];
-
-            // MATH FIX:
-            // Ray starts at y+2.5. Feet are at y-1.1.
-            // Perfect standing distance = 2.5 - (-1.1) = 3.6.
-            // We check for < 4.0 to allow for bumps and slopes without falling.
             if (hit.distance < 4.0 && velocity.y <= 0) {
-
-                // Set player Y so feet (-1.1) are exactly on the hit point
                 player.position.y = hit.point.y + 1.1;
-
                 velocity.y = 0;
                 isGrounded = true;
                 onSolidGround = true;
             }
         }
-
-        // If ray hits nothing (or ground is too far), we fall
-        if (!onSolidGround) {
-            isGrounded = false;
-        }
+        if (!onSolidGround) isGrounded = false;
 
         // WIN CHECK
         if (player.position.z <= CASTLE_Z + 5 &&
             Math.abs(player.position.x) < 10 &&
             player.position.y <= 12) {
             if (window.gameState !== 'ended') {
-                endGame("Je hebt het kasteel bereikt! Je wint!", true);
+                endGame("Je hebt de taart bereikt! GEFELICITEERD!", true);
             }
         }
 
-        // UPDATE PROGRESS BAR
         const startZ = 0;
         const endZ = CASTLE_Z;
         const progress = Math.max(0, Math.min(100, ((startZ - player.position.z) / (startZ - endZ)) * 100));
         ui.progressFill.style.width = progress + '%';
         ui.progressText.innerText = Math.round(progress) + '%';
 
-        // --- COIN PICKUP & ROTATION ---
         for (let i = coins.length - 1; i >= 0; i--) {
-            // 1. ROTATION: Spin the coin
             coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
-
-            // 2. PICKUP CHECK - differentiate between regular coins and stars
             if (player.position.distanceTo(coins[i].position) < 1.5) {
-                // Check if this is a star (from enemy) or regular coin
-                // Stars are cloned from cachedCoinScene, regular coins are cylinders
                 const isStar = coins[i].userData.isStar || (coins[i].children && coins[i].children.length > 0);
-
                 scene.remove(coins[i]);
                 coins.splice(i, 1);
 
@@ -775,24 +666,19 @@ function animate() {
             }
         }
 
-        // --- ENEMY LOGIC (LOOK AT NEAREST PLAYER) ---
         enemies.forEach(e => {
-            // Find nearest target
             const targetPos = getNearestPlayerPosition(e.position);
-            // Make enemy look at that point
             e.lookAt(targetPos.x, e.position.y, targetPos.z);
         });
 
-        // --- BILLBOARD LOGIC (Look At Camera) ---
+        // --- BILLBOARD UPDATE LOGIC ---
         if (window.castle) {
             const billboard = window.castle.getObjectByName('TaartBillboard');
             if (billboard) {
-                // Make the billboard look at the player's camera
                 billboard.lookAt(camera.position); 
             }
         }
 
-        // ENEMY COLLISIONS
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (player.position.distanceTo(enemies[i].position) < 2.0) {
                 velocity.y = 10; velocity.z += 10;
@@ -805,7 +691,6 @@ function animate() {
             }
         }
 
-        // PROJECTILES
         for (let i = projectiles.length - 1; i >= 0; i--) {
             const p = projectiles[i];
             p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
@@ -814,9 +699,8 @@ function animate() {
             let hit = false;
             for (let j = enemies.length - 1; j >= 0; j--) {
                 if (p.mesh.position.distanceTo(enemies[j].position) < 2.0) {
-                    // Spawn a coin at the enemy's position before removing
                     spawnStarAtPosition(enemies[j].position.x,
-                        enemies[j].position.y + 1, // raise coin slightly above enemy
+                        enemies[j].position.y + 1, 
                         enemies[j].position.z, scene, coins);
 
                     scene.remove(enemies[j]);
@@ -832,20 +716,12 @@ function animate() {
             }
         }
 
-        // Calculate camera position relative to player
-        const camOffset = new THREE.Vector3(0, 4, 8); // Base position (behind/above player)
-
-        // 1. Tilt offset for looking up/down (around X-axis)
+        const camOffset = new THREE.Vector3(0, 4, 8); 
         camOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
-
-        // 2. Rotate with player (around Y-axis)
         camOffset.applyEuler(player.rotation);
 
-        // 3. Move camera smoothly
         const targetCamPos = player.position.clone().add(camOffset);
         camera.position.lerp(targetCamPos, 0.1);
-
-        // 4. Always look just above the player's head
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
     }
 
@@ -854,52 +730,38 @@ function animate() {
 
 // Action: Jump
 function performJump() {
-    // Only jump if grounded (or whatever logic you prefer)
-    // Note: your current code sets velocity directly, so we keep that:
     velocity.y = JUMP_SPEED;
     isGrounded = false;
-
-    // Trigger sound (works for EVERYTHING: space, mobile, gamepad, etc.)
     if (audioManager) audioManager.playSFX('jump');
 }
 
 // Action: Shoot
 function performShoot() {
-    // 1. Create visual bullet
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
     ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
     scene.add(ball);
 
-    // 2. Determine direction
     let dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
     projectiles.push({ mesh: ball, velocity: dir.multiplyScalar(30), life: 2.0 });
 
-    // 3. Sound
     if (audioManager) audioManager.playSFX('shoot');
 }
 
 function setupInputs() {
-    // Character selection buttons
     const charButtons = document.querySelectorAll('.char-btn');
     charButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Update selected model
             selectedModelFile = btn.dataset.model;
-
-            // Remove previous model
             modelManager.dispose();
             if (modelManager.playerModel) {
                 player.remove(modelManager.playerModel);
             }
-
             modelManager.loadPlayerModel(selectedModelFile, player, {
                 onProgress: updateStatus,
                 onLoaded: updateStatus,
                 onError: updateStatus
             });
-
-            // Highlight selected button
             charButtons.forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
         });
@@ -911,12 +773,6 @@ function setupInputs() {
 
         if (isMultiplayer) {
             const appearance = player.userData.appearance;
-
-            console.log("🔥 ABOUT TO START BROADCASTING - userId:", userId);
-            console.log("🔥 player object:", player);
-            console.log("🔥 db object:", db);
-            console.log("🔥 auth object:", auth);
-
             await setDoc(doc(db, "players", userId), {
                 name: myName,
                 x: player.position.x,
@@ -928,9 +784,7 @@ function setupInputs() {
             }, { merge: true }).catch(e => {
                 console.error("Error sending initial position:", e);
             });
-            console.log("trying to broadcast")
             startBroadcasting(userId, myName, db, auth);
-            console.log("done with broadcast")
         }
 
         if (audioManager) {
@@ -946,16 +800,12 @@ function setupInputs() {
         }
         window.gameState = 'playing';
 
-        // ✅ Add this line to enable mobile controls now
         if (mobile && mobile.enabled) mobile.start();
     });
 
     ui.mobileMenuBtn.addEventListener('click', () => {
         const isPaused = ui.pauseScreen.classList.contains('active');
-
         if (isPaused) {
-            // SCENARIO 1: Menu is open -> Resume game
-            // Call same action as "Resume" button: Request Pointer Lock.
             if (!mobile || !mobile.enabled) {
                 document.body.requestPointerLock();
             } else {
@@ -963,16 +813,9 @@ function setupInputs() {
                 ui.pauseScreen.classList.remove('active');
             }
         } else {
-            // SCENARIO 2: Menu is closed -> Pause game
-
-            // Most consistent method is to exit Pointer Lock, which triggers 
-            // 'pointerlockchange' listener and handles PAUSE logic.
             if (document.exitPointerLock) {
                 document.exitPointerLock();
             }
-
-            // Fallback for mobile/browsers where Pointer Lock isn't active/doesn't exist:
-            // Execute PAUSE logic directly, because pointerlockchange listener won't do it.
             if (!document.pointerLockElement) {
                 if (window.gameState === 'playing' && window.gameState !== 'ended') {
                     window.gameState = 'paused';
@@ -993,12 +836,10 @@ function setupInputs() {
 
     ui.fullscreenBtn.addEventListener('click', () => {
         if (!document.fullscreenElement) {
-            // Enter fullscreen on the entire document (e.g. <html> element)
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
             });
         } else {
-            // Exit fullscreen
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             }
@@ -1048,11 +889,11 @@ function setupInputs() {
         if (window.gameState !== 'playing') return;
 
         switch (e.button) {
-            case 0: // Left mouse button
+            case 0: 
                 performShoot();
                 break;
 
-            case 2: // Right mouse button
+            case 2: 
                 activateWeed();
                 break;
         }
@@ -1080,4 +921,4 @@ function setupInputs() {
     document.querySelectorAll('.char-preview').forEach(el => {
         modelManager.loadPreviewModel(el, el.dataset.model);
     });
-    }
+            }
