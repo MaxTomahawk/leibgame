@@ -819,7 +819,7 @@ function animate() {
             // Apply to camera (Dit gebeurt al verderop in je main.js animate loop, 
             // maar het updaten van cameraPitch variabele is hierboven gedaan).
         }
-        }
+
 
 
         const isMoving = moveF || moveB || moveL || moveR;
