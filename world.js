@@ -8,11 +8,8 @@ let worldUnsubscribe = null;
 
 // --- GLOBAL ASSET CONFIGURATION ---
 const ASSET_CONFIG = {
-    // COIN SETTINGS
     COIN_SCALE: 0.5,
     COIN_ROTATION_SPEED: 2.0,
-
-    // ENEMY SETTINGS
     ENEMY_SCALE: 1.4,
     ENEMY_COLLISION_DISTANCE: 0.3,
 };
@@ -22,7 +19,6 @@ export { ASSET_CONFIG };
 let cachedCoinScene = null;
 let cachedEnemyGLTF = null;
 
-// Setup Draco Loader
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
 
@@ -43,7 +39,7 @@ gltfLoader.load('assets/coin.glb', (gltf) => {
     console.warn("Could not load coin.glb, using fallback cylinder.", err);
 });
 
-// Load New Enemy GLB
+// Load Enemy GLB
 gltfLoader.load('assets/enemy.glb', (gltf) => {
     cachedEnemyGLTF = gltf;
     cachedEnemyGLTF.scene.traverse((child) => {
@@ -202,11 +198,10 @@ function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enem
 }
 
 // --- WORLD DATA GENERATOR ---
-// No longer generates coins during world generation
 export function generateWorldData(CASTLE_Z) {
     const data = {
         platforms: [],
-        coins: [], // Keep array but don't populate it here
+        coins: [],
         enemies: [],
         generatedAt: Date.now()
     };
@@ -224,7 +219,6 @@ export function generateWorldData(CASTLE_Z) {
 
         data.platforms.push({ x, y, z, w, h, d });
 
-        // spawning coins here
         if (Math.random() > 0.4) data.coins.push({ x, y: y + 3, z });
         if (Math.random() > 0.7) data.enemies.push({ x, y: y + 3, z });
         z -= (5 + Math.random() * 4);
@@ -235,65 +229,128 @@ export function generateWorldData(CASTLE_Z) {
     return data;
 }
 
+// --- HELPER: TEXT TEXTURE GENERATOR ---
+function createTextTexture(text) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Transparent background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Text style
+    ctx.font = 'bold 120px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Text outline
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = 'black';
+    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+
+    // Text color (Gold/Orange gradient)
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#FFD700");
+    gradient.addColorStop(1, "#FF8C00");
+    ctx.fillStyle = gradient;
+    
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter; 
+    return texture;
+}
+
 // --- BIRTHDAY CAKE BUILDER (Replaces Castle) ---
 function createCastle(scene, CASTLE_Z) {
-    console.log("creating birthday cake...")
+    console.log("creating colorful birthday cake with candles...")
     const cake = new THREE.Group();
 
-    // Materials for the cake
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }); // White (frosting)
-    const layerMat = new THREE.MeshStandardMaterial({ color: 0x87CEEB }); // Light Blue
-
-    // === TIER 1 (Base Layer) ===
-    const tier1 = new THREE.Mesh(
-        new THREE.CylinderGeometry(10, 10, 4, 32),
-        layerMat
-    );
+    // Materials (Festive colors!)
+    const matBottom = new THREE.MeshStandardMaterial({ color: 0xD2691E }); // Chocolate
+    const matMid = new THREE.MeshStandardMaterial({ color: 0xFF69B4 }); // Pink
+    const matTop = new THREE.MeshStandardMaterial({ color: 0xFFFACD }); // Lemon Cream
+    
+    // === TIER 1 (Base - Chocolate) ===
+    const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 4, 32), matBottom);
     tier1.position.y = 2;
+    tier1.castShadow = true;
+    tier1.receiveShadow = true;
     cake.add(tier1);
 
-    // === TIER 2 (Middle Layer) ===
-    const tier2 = new THREE.Mesh(
-        new THREE.CylinderGeometry(7, 7, 4, 32),
-        baseMat
-    );
+    // === TIER 2 (Middle - Pink) ===
+    const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 4, 32), matMid);
     tier2.position.y = 6;
+    tier2.castShadow = true;
+    tier2.receiveShadow = true;
     cake.add(tier2);
 
-    // === TIER 3 (Top Layer) ===
-    const tier3 = new THREE.Mesh(
-        new THREE.CylinderGeometry(4, 4, 4, 32),
-        layerMat
-    );
+    // === TIER 3 (Top - Lemon) ===
+    const tier3 = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 4, 32), matTop);
     tier3.position.y = 10;
+    tier3.castShadow = true;
+    tier3.receiveShadow = true;
     cake.add(tier3);
+
+    // === CANDLES ===
+    const candleGeo = new THREE.CylinderGeometry(0.3, 0.3, 2, 12);
+    const flameGeo = new THREE.ConeGeometry(0.25, 0.8, 12);
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xFF4500 }); // Orange glow
     
-    // === Large Billboard Text: "GEFELICITEERD LUUK" ===
-    const textBillboard = new THREE.Mesh(
-        new THREE.PlaneGeometry(15, 3), // Wide rectangle
-        // Use a striking color (gold/yellow)
-        new THREE.MeshBasicMaterial({ color: 0xFFD700, side: THREE.DoubleSide }) 
-    );
+    // Place 5 candles in a circle on the top layer
+    const numCandles = 5;
+    const radius = 2.5;
     
-    textBillboard.position.set(0, 13, 0); // Position text just above the cake
+    for(let i = 0; i < numCandles; i++) {
+        const angle = (i / numCandles) * Math.PI * 2;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        
+        // Candle body (random color)
+        const candleColor = new THREE.Color().setHSL(Math.random(), 1.0, 0.5);
+        const candle = new THREE.Mesh(candleGeo, new THREE.MeshStandardMaterial({ color: candleColor }));
+        candle.position.set(x, 13, z); // 10 (top) + 2 (half height) + 1 (on top)
+        
+        // Flame
+        const flame = new THREE.Mesh(flameGeo, flameMat);
+        flame.position.set(0, 1.4, 0); // Top of candle
+        candle.add(flame);
+
+        // Optional: Point light for each flame
+        const light = new THREE.PointLight(0xFFA500, 1, 5);
+        light.position.set(0, 1.5, 0);
+        candle.add(light);
+
+        cake.add(candle);
+    }
+    
+    // === BILLBOARD TEXT: "GEFELICITEERD LUUK" ===
+    const textGeo = new THREE.PlaneGeometry(20, 5);
+    const textTexture = createTextTexture("GEFELICITEERD LUUK");
+    
+    const textMat = new THREE.MeshBasicMaterial({ 
+        map: textTexture, 
+        transparent: true, 
+        side: THREE.DoubleSide,
+        depthTest: false // Ensures text is always visible
+    });
+    
+    const textBillboard = new THREE.Mesh(textGeo, textMat);
+    // Place higher: y = 22
+    textBillboard.position.set(0, 22, 0); 
+    
     textBillboard.userData.isBillboard = true;
-    textBillboard.name = 'TaartBillboard'; // Essential for lookup in main.js
+    textBillboard.name = 'TaartBillboard';
+    textBillboard.renderOrder = 999; 
     
     cake.add(textBillboard);
-
-    // Ensure all parts cast and receive shadows
-    cake.traverse((child) => {
-        if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-        }
-    });
 
     // === FINAL POSITION ===
     cake.position.set(0, 1, CASTLE_Z);
     scene.add(cake);
     
-    // Return the group so we can reference it in main.js
     return cake;
 }
 
@@ -324,7 +381,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
     }
 
-    // Store the cake in a global variable to rotate later (in main.js)
+    // STORE CAKE IN GLOBAL VARIABLE
     window.castle = createCastle(scene, CASTLE_Z);
 }
 
@@ -383,14 +440,14 @@ function createCoin(x, y, z, scene, coins) {
     coins.push(mesh);
 }
 
-// --- Star GENERATION (Uses GLB or Fallback) ---
+// --- Star GENERATION ---
 function createStar(x, y, z, scene, coins) {
     let mesh;
 
     if (cachedCoinScene) {
         mesh = cachedCoinScene.clone();
         mesh.position.set(x, y, z);
-        mesh.userData.isStar = true; // ✅ MARK AS STAR
+        mesh.userData.isStar = true;
 
     } else {
         mesh = new THREE.Mesh(
@@ -399,7 +456,7 @@ function createStar(x, y, z, scene, coins) {
         );
         mesh.position.set(x, y, z);
         mesh.rotation.x = Math.PI / 2;
-        mesh.userData.isStar = true; // ✅ MARK AS STAR
+        mesh.userData.isStar = true;
     }
 
     mesh.castShadow = true;
@@ -413,7 +470,7 @@ export function spawnStarAtPosition(x, y, z, scene, coins) {
     console.log(`🪙 Coin spawned at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
 }
 
-// --- ENEMY GENERATION (Uses GLB or Red Placeholder) ---
+// --- ENEMY GENERATION ---
 function createEnemy(x, y, z, scene, enemies, platforms) {
     let mesh;
 
@@ -453,11 +510,11 @@ function createEnemy(x, y, z, scene, enemies, platforms) {
     enemies.push(mesh);
 }
 
-// Cleanup function to stop listeners
+// Cleanup function
 export function cleanupWorldListener() {
     if (worldUnsubscribe) {
         worldUnsubscribe();
         worldUnsubscribe = null;
         console.log("🛑 World listener stopped");
     }
-}
+                 }
