@@ -1080,4 +1080,4 @@ function setupInputs() {
     document.querySelectorAll('.char-preview').forEach(el => {
         modelManager.loadPreviewModel(el, el.dataset.model);
     });
-                }
+    }
