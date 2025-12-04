@@ -789,25 +789,36 @@ function animate() {
         // mobile controls
         if (mobile.enabled) {
             const m = mobile.update();
-            
-            // CHANGE THIS LINE: Use RUN_SPEED to reach the maximum speed of 18.0.
-            // The m.forward/backward/left/right values now scale this from 0 to 18.0
-            const mobileBaseSpeed = RUN_SPEED + 4; 
+            const mobileBaseSpeed = RUN_SPEED; // Gebruik RUN_SPEED voor volledige range
 
+            // Movement
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
             if (m.left) velocity.add(right.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.left));
             if (m.right) velocity.add(right.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.right));
 
-            // Horizontal rotation (unchanged)
-            player.rotation.y -= m.look;
+            // --- CAMERA UPDATED LOGIC ---
+            
+            // 1. Horizontale rotatie (Speler)
+            // Vermenigvuldig met een factor (bijv. 0.05) om de draaisnelheid lekker te laten voelen
+            if (m.lookX) {
+                player.rotation.y -= m.lookX * 0.05; 
+            }
 
-            // **Vertical rotation** (unchanged)
-            camera.rotation.x = THREE.MathUtils.clamp(
-                camera.rotation.x - m.lookUpDown,
-                -Math.PI / 4,
-                Math.PI / 4
-            );
+            // 2. Verticale rotatie (Camera Pitch)
+            // Gebruik m.lookY als snelheid.
+            if (m.lookY) {
+                cameraPitch -= m.lookY * 0.05;
+            }
+            
+            // EXACTE PC LIMITIETEN BEHOUDEN
+            // In PC code: cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
+            // In eerdere mobile code stond PI/4 (0.785), we zetten dit nu gelijk aan PC (0.8)
+            cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
+
+            // Apply to camera (Dit gebeurt al verderop in je main.js animate loop, 
+            // maar het updaten van cameraPitch variabele is hierboven gedaan).
+        }
         }
 
 
