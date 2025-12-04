@@ -99,7 +99,7 @@ export class MobileControls {
         document.body.appendChild(this.dragArea);
 
         // 3. Buttons (Unified)
-        this.btnShoot = this._makeButton("💥", "24vh", "28w");
+        this.btnShoot = this._makeButton("💥", "24vh", "28vw");
         this.btnAbility = this._makeButton("🍃", "33vh", "15vw");
     }
 
