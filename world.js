@@ -460,4 +460,4 @@ export function cleanupWorldListener() {
         worldUnsubscribe = null;
         console.log("🛑 World listener stopped");
     }
-        }
+}
