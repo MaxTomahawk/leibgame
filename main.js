@@ -790,7 +790,7 @@ function animate() {
         if (mobile && mobile.enabled) {
             const m = mobile.update();
             // Gebruik RUN_SPEED zodat de joystick de volledige snelheidsschaal benut
-            const mobileBaseSpeed = RUN_SPEED; 
+            const mobileBaseSpeed = RUN_SPEED + 4; 
 
             // 1. Beweging (Velocity based op joystick uitslag)
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
