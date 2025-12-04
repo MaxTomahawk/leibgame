@@ -1101,20 +1101,54 @@ function setupInputs() {
 
         ui.start.classList.remove('active');
         ui.progressBar.style.display = 'block';
-        document.body.requestPointerLock();
+        if (!mobile || !mobile.enabled) {
+            document.body.requestPointerLock();
+        }
         window.gameState = 'playing';
 
         // ✅ Add this line to enable mobile controls now
-        if (mobile.enabled) mobile.start();
+        if (mobile && mobile.enabled) mobile.start();
     });
 
     ui.mobileMenuBtn.addEventListener('click', () => {
-        window.gameState = 'paused';
-        ui.pauseScreen.classList.add('active');
+        const isPaused = ui.pauseScreen.classList.contains('active');
+    
+        if (isPaused) {
+            // SCENARIO 1: Menu is open -> Hervat de game
+            // Roep dezelfde actie aan als de "Resume" knop: Vraag Pointer Lock aan.
+            if (!mobile || !mobile.enabled) {
+                document.body.requestPointerLock();
+            } else {
+                window.gameState = 'playing';
+                ui.pauseScreen.classList.remove('active');
+            }
+        } else {
+            // SCENARIO 2: Menu is gesloten -> Pauzeer de game
+            
+            // De meest consistente methode is om Pointer Lock te verlaten, wat de 
+            // 'pointerlockchange' listener activeert en de PAUZE-logica afhandelt.
+            if (document.exitPointerLock) {
+                document.exitPointerLock();
+            } 
+            
+            // Fallback voor mobiel/browsers waar Pointer Lock niet is geactiveerd/bestaat:
+            // Voer de PAUZE-logica direct uit, omdat de pointerlockchange listener dit niet zal doen.
+            if (!document.pointerLockElement) {
+                 if (window.gameState === 'playing' && window.gameState !== 'ended') {
+                    window.gameState = 'paused';
+                    ui.pauseScreen.classList.add('active');
+                }
+            }
+        }
     });
-
+    
     ui.resumeBtn.addEventListener('click', () => {
-        document.body.requestPointerLock();
+        if (!mobile || !mobile.enabled) {
+            document.body.requestPointerLock();
+        } else {
+            window.gameState = 'playing';
+            ui.pauseScreen.classList.remove('active');
+        }
     });
 
     ui.fullscreenBtn.addEventListener('click', () => {
@@ -1254,4 +1288,3 @@ function animatePreview(el) {
     requestAnimationFrame(() => animatePreview(el));
 
 }
-
