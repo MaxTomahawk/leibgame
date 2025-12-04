@@ -10,8 +10,7 @@ import { ModelManager, MODEL_SCALES, getModelAppearance } from './model-manager.
 let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
-
-// Settings
+// --- PHYSICS & GAMEPLAY SETTINGS ---
 const BASE_GRAVITY = 20.0;
 const TRIP_GRAVITY = 10.0;
 const JUMP_SPEED = 14.0;
@@ -20,7 +19,27 @@ const RUN_SPEED = 18.0;
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
-// Globals
+// --- COLOR CONFIGURATION (Day/Night/Trip) ---
+const dayBg = new THREE.Color(0x87CEEB);
+const dayFog = new THREE.Color(0x87CEEB);
+
+const nightBg = new THREE.Color(0x020210); // Deep dark blue/black
+const nightFog = new THREE.Color(0x050515); // Slightly lighter for depth
+
+const tripFog = new THREE.Color(0x00ff00);
+const tripBg = new THREE.Color(0x113311);
+
+// Detect system dark mode preference
+const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let isDarkMode = darkModeQuery.matches;
+
+// Listener for system theme changes
+darkModeQuery.addEventListener('change', (e) => {
+    isDarkMode = e.matches;
+    console.log("🌓 Mode changed to:", isDarkMode ? "Night" : "Day");
+});
+
+// --- GLOBALS ---
 let userId, myName = "Player", isMultiplayer = false;
 let camera, scene, renderer, player = {};
 let modelManager = new ModelManager();
@@ -35,7 +54,7 @@ let cameraPitch = 0;
 let textureLoader;
 let modelLoaded = false;
 let platformTexture = null;
-let mobile = null
+let mobile = null;
 let audioManager;
 
 const raycaster = new THREE.Raycaster();
@@ -46,10 +65,6 @@ let isTripping = false;
 let tripTimer = null;
 let currentGravity = BASE_GRAVITY;
 let targetGravity = BASE_GRAVITY;
-const baseFog = new THREE.Color(0x87CEEB);
-const tripFog = new THREE.Color(0x00ff00);
-const baseBg = new THREE.Color(0x87CEEB);
-const tripBg = new THREE.Color(0x113311);
 
 const ui = {
     start: document.getElementById('start-screen'),
@@ -104,7 +119,7 @@ window.onload = async () => {
     // Start Three.js first to provide visual feedback
     initThreeJS();
     mobile = new MobileControls();
-    handleMobileControls(mobile)
+    handleMobileControls(mobile);
 
     const hintEl = document.getElementById('controls-hint');
     if (hintEl) {
@@ -370,8 +385,10 @@ async function setupAudio() {
 
 function initThreeJS() {
     scene = new THREE.Scene();
-    scene.background = baseBg.clone();
-    scene.fog = new THREE.Fog(baseFog.clone(), 10, 90);
+    
+    // Set initial background based on current mode
+    scene.background = isDarkMode ? nightBg.clone() : dayBg.clone();
+    scene.fog = new THREE.Fog(isDarkMode ? nightFog.clone() : dayFog.clone(), 10, 90);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -379,16 +396,21 @@ function initThreeJS() {
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Light
+    // --- LIGHTING SETUP (Modified for Day/Night cycle) ---
     const ambient = new THREE.AmbientLight(0xffffff, 0.25);
     scene.add(ambient);
+
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(50, 100, 50);
     dirLight.castShadow = true;
     scene.add(dirLight);
+
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
     hemiLight.position.set(0, 20, 0);
     scene.add(hemiLight);
+
+    // Save references to global scope to allow animation
+    window.gameLights = { ambient, dirLight, hemiLight };
 
     const atmosphereObjects = createSkyAtmosphere(scene);
     window.atmosphereObjects = atmosphereObjects; 
@@ -565,9 +587,41 @@ function animate() {
     });
 
     if (window.gameState === 'playing') {
+        // 1. DETERMINE TARGET COLORS
+        // If tripping, ignore day/night. Otherwise, check isDarkMode.
+        let targetBg = isTripping ? tripBg : (isDarkMode ? nightBg : dayBg);
+        let targetFog = isTripping ? tripFog : (isDarkMode ? nightFog : dayFog);
+
+        // Lerp background and fog colors
+        scene.background.lerp(targetBg, delta * 2.0);
+        scene.fog.color.lerp(targetFog, delta * 2.0);
+
+        // 2. ADJUST LIGHTING (Realistic Night vs Day)
+        if (window.gameLights) {
+            // Day defaults
+            let targetAmbInt = 0.25;
+            let targetDirInt = 0.6;
+            let targetHemiInt = 0.3;
+            let targetLightColor = new THREE.Color(0xffffff); // White sunlight
+
+            // Night overrides
+            if (isDarkMode && !isTripping) {
+                targetAmbInt = 0.05;      // Very dark ambient
+                targetDirInt = 0.2;       // Dim moonlight
+                targetHemiInt = 0.1;      // Barely any environmental light
+                targetLightColor.setHex(0x8888ff); // Cool blue moonlight
+            }
+
+            // Smoothly transition intensity
+            window.gameLights.ambient.intensity = THREE.MathUtils.lerp(window.gameLights.ambient.intensity, targetAmbInt, delta);
+            window.gameLights.dirLight.intensity = THREE.MathUtils.lerp(window.gameLights.dirLight.intensity, targetDirInt, delta);
+            window.gameLights.hemiLight.intensity = THREE.MathUtils.lerp(window.gameLights.hemiLight.intensity, targetHemiInt, delta);
+            
+            // Smoothly transition light color
+            window.gameLights.dirLight.color.lerp(targetLightColor, delta);
+        }
+
         currentGravity = THREE.MathUtils.lerp(currentGravity, targetGravity, delta * 2);
-        scene.fog.color.lerp(isTripping ? tripFog : baseFog, delta * 2);
-        scene.background.lerp(isTripping ? tripBg : baseBg, delta * 2);
 
         velocity.y -= currentGravity * delta;
         const drag = isGrounded ? 3.0 : 1.8;
@@ -921,4 +975,4 @@ function setupInputs() {
     document.querySelectorAll('.char-preview').forEach(el => {
         modelManager.loadPreviewModel(el, el.dataset.model);
     });
-            }
+                                         }
