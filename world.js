@@ -327,7 +327,7 @@ function createCastle(scene, CASTLE_Z) {
     }
     
     // === BILLBOARD TEXT: "GEFELICITEERD LUUK" ===
-    const textGeo = new THREE.PlaneGeometry(20, 5);
+    const textGeo = new THREE.PlaneGeometry(15, 5);
     const textTexture = createTextTexture("GEFELICITEERD LUUK");
     
     const textMat = new THREE.MeshBasicMaterial({ 
