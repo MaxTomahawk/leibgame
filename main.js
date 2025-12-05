@@ -13,6 +13,7 @@ import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition
 import { MobileControls } from './mobile-controls.js';
 import { AudioManager } from './audio-manager.js';
 import { ModelManager, MODEL_SCALES, getModelAppearance } from './model-manager.js';
+import { UIManager } from './ui-manager.js';
 
 let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
@@ -30,8 +31,8 @@ const BUFF_DURATION = 8000;
 const dayBg = new THREE.Color(0x87CEEB);
 const dayFog = new THREE.Color(0x87CEEB);
 
-const nightBg = new THREE.Color(0x020210); // Deep dark blue/black
-const nightFog = new THREE.Color(0x050515); // Slightly lighter for depth
+const nightBg = new THREE.Color(0x020210);
+const nightFog = new THREE.Color(0x050515);
 
 const tripFog = new THREE.Color(0x00ff00);
 const tripBg = new THREE.Color(0x113311);
@@ -40,7 +41,6 @@ const tripBg = new THREE.Color(0x113311);
 const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 let isDarkMode = darkModeQuery.matches;
 
-// Listener for system theme changes
 darkModeQuery.addEventListener('change', (e) => {
     isDarkMode = e.matches;
     console.log("Mode changed to:", isDarkMode ? "Night" : "Day");
@@ -50,6 +50,7 @@ darkModeQuery.addEventListener('change', (e) => {
 let userId, myName = "Player", isMultiplayer = false;
 let camera, scene, renderer, player = {};
 let modelManager = new ModelManager();
+let uiManager; // New UI Manager instance
 let velocity = new THREE.Vector3();
 let platforms = [], coins = [], enemies = [], otherPlayers = {}, projectiles = [];
 window.gameState = 'start';
@@ -73,48 +74,18 @@ let tripTimer = null;
 let currentGravity = BASE_GRAVITY;
 let targetGravity = BASE_GRAVITY;
 
-const ui = {
-    start: document.getElementById('start-screen'),
-    status: document.getElementById('auth-status'),
-    btn: document.getElementById('start-btn'),
-    mobileMenuBtn: document.getElementById('mobile-menu-btn'),
-    resumeBtn: document.getElementById('resume-btn'),
-    fullscreenBtn: document.getElementById('fullscreen-btn'),
-    pauseScreen: document.getElementById('pause-screen'),
-    coins: document.getElementById('coin-display'),
-    stars: document.getElementById('star-display'),
-    peers: document.getElementById('peer-count'),
-    nameDisplay: document.getElementById('player-name-display'),
-    nameInput: document.getElementById('username-input'),
-    gameOver: document.getElementById('game-over-screen'),
-    goReason: document.getElementById('go-reason'),
-    progressBar: document.getElementById('progress-bar'),
-    progressFill: document.getElementById('progress-fill'),
-    progressText: document.getElementById('progress-text'),
-    version: document.getElementById('version-display')
-};
-
 // Fetch version on load
 fetch('version.json')
     .then(r => r.json())
     .then(v => {
         gameVersion = v;
-        console.log('Game Version:', v.commit, '|', v.date);
-        updateVersionDisplay();
+        if(uiManager) uiManager.setVersion(v.commit, v.date);
     })
     .catch(e => {
         console.warn('Could not load version:', e);
         gameVersion = { commit: 'dev', date: 'local' };
-        updateVersionDisplay();
+        if(uiManager) uiManager.setVersion('dev', 'local');
     });
-
-function updateVersionDisplay() {
-    const versionEl = document.getElementById('version-display');
-    if (versionEl) {
-        versionEl.innerText = `v${gameVersion.commit}`;
-        versionEl.title = `Built: ${gameVersion.date}`;
-    }
-}
 
 function handleMobileControls(mobile) {
     mobile.onJump = () => performJump();
@@ -125,7 +96,6 @@ function handleMobileControls(mobile) {
 // Saves player stats to Firestore
 async function saveUserProgress() {
     if (!auth.currentUser) return;
-    
     try {
         const userRef = doc(db, "users", auth.currentUser.uid);
         await setDoc(userRef, {
@@ -139,42 +109,27 @@ async function saveUserProgress() {
 }
 
 window.onload = async () => {
-    // Start Three.js first to provide visual feedback
+    // Initialize UI Manager first
+    uiManager = new UIManager();
+    uiManager.setVersion(gameVersion.commit, gameVersion.date);
+
     initThreeJS();
     mobile = new MobileControls();
     handleMobileControls(mobile);
-
-    const hintEl = document.getElementById('controls-hint');
-    if (hintEl) {
-        if (mobile.enabled) {
-            // Instructions for Mobile
-            hintEl.innerHTML = `
-                <p><strong>Mobile Controls:</strong></p>
-                <ul class="list-disc pl-4 mt-1">
-                    <li>🕹️ <strong>Left Side:</strong> Joystick (Move)</li>
-                    <li>👆 <strong>Right Side:</strong> Drag to look</li>
-                    <li>⚡ <strong>Double Tap (Right):</strong> Jump</li>
-                    <li>💥 <strong>Button:</strong> Spit</li>
-                    <li>🍃 <strong>Button:</strong> Smoke</li>
-                </ul>`;
-        } else {
-            // Instructions for PC
-            hintEl.innerHTML = `
-                <p><strong>PC Controls:</strong></p>
-                <p>WASD (Move) | Space (Jump) | Mouse (Look) | Shift (Run) | LMB (Spit) | RMB (Smoke)</p>`;
-        }
-    }
+    
+    // Set controls hint based on device
+    uiManager.setControlsHint(mobile.enabled);
 
     try {
-        updateStatus("firebase", "🔌 Connecting...", "blue");
+        uiManager.updateStatus("firebase", "🔌 Connecting...", "blue");
 
         const firebaseGlobals = initFirebase((user) => {
             userId = user.uid;
             isMultiplayer = true;
             console.log("Firebase connected! User ID:", userId);
-            updateStatus("firebase", "✅ Multiplayer connected!", "green");
+            uiManager.updateStatus("firebase", "✅ Multiplayer connected!", "green");
 
-            // Load saved progress if available
+            // Load saved progress
             const userRef = doc(db, "users", userId);
             getDoc(userRef).then((snap) => {
                 if (snap.exists()) {
@@ -182,19 +137,18 @@ window.onload = async () => {
                     coinsCollected = data.coins || 0;
                     starsCollected = data.stars || 0;
                     
-                    // Update UI
-                    ui.coins.innerText = coinsCollected;
-                    ui.stars.innerText = starsCollected;
+                    uiManager.initHUD(coinsCollected, starsCollected);
                     console.log("Progress loaded from database.");
                 }
             });
 
             checkIfReadyToStart();
-            listenToPlayers(scene, userId, ui, db);
+            // Pass uiManager as 'ui' param to listenToPlayers so it can update peer count
+            listenToPlayers(scene, userId, { peers: uiManager.dom.peerCount }, db);
         });
     } catch (e) {
         console.error("Firebase init error:", e);
-        updateStatus("firebase", "⚠️ Offline Mode (Config Error)", "yellow");
+        uiManager.updateStatus("firebase", "⚠️ Offline Mode (Config Error)", "yellow");
         isMultiplayer = false;
         checkIfReadyToStart();
     }
@@ -203,22 +157,14 @@ window.onload = async () => {
 function checkIfReadyToStart() {
     console.log("Ready check: modelLoaded =", modelLoaded, ", isMultiplayer =", isMultiplayer, ", userId =", userId);
     if (modelLoaded && (!isMultiplayer || (isMultiplayer && userId))) {
-        enableStart();
+        uiManager.enableStartButton();
     }
-}
-
-function enableStart() {
-    ui.btn.disabled = false;
-    ui.btn.classList.remove('opacity-50', 'cursor-not-allowed');
 }
 
 function createSkyAtmosphere(scene) {
     // 1. DISTANT GROUND/HORIZON
     const groundGeo = new THREE.PlaneGeometry(2000, 2000);
-    const groundMat = new THREE.MeshLambertMaterial({
-        color: 0x3a5f3a,
-        fog: true
-    });
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a5f3a, fog: true });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -100;
@@ -240,23 +186,16 @@ function createSkyAtmosphere(scene) {
         for (let i = 0; i < cluster.count; i++) {
             const angle = Math.random() * Math.PI * 2;
             const distance = (Math.random() + Math.random()) / 2 * cluster.spread;
-
             const x = cluster.centerX + Math.cos(angle) * distance;
             const z = cluster.centerZ + Math.sin(angle) * distance;
-
             const distFromOrigin = Math.sqrt(x * x + z * z);
             const heightVariation = 100 + Math.random() * 120;
             const height = heightVariation * (0.8 + (distFromOrigin / 400) * 0.4);
-
             const width = 20 + Math.random() * 25;
 
             const mountainGeo = new THREE.ConeGeometry(width, height, 4);
             const mountainMat = new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(
-                    0.28 + Math.random() * 0.12,
-                    0.15 + Math.random() * 0.2,
-                    0.2 + Math.random() * 0.2
-                ),
+                color: new THREE.Color().setHSL(0.28 + Math.random() * 0.12, 0.15 + Math.random() * 0.2, 0.2 + Math.random() * 0.2),
                 fog: true
             });
 
@@ -265,7 +204,6 @@ function createSkyAtmosphere(scene) {
             mountain.position.z = z + (Math.random() - 0.5) * 20;
             mountain.position.y = -50 + Math.random() * 30;
             mountain.rotation.y = Math.random() * Math.PI * 2;
-
             scene.add(mountain);
             mountainRanges.push(mountain);
         }
@@ -275,35 +213,19 @@ function createSkyAtmosphere(scene) {
     const ufos = [];
     for (let i = 0; i < 60; i++) { 
         const ufoGroup = new THREE.Group();
-
         const bodyGeo = new THREE.CylinderGeometry(1.5, 2.5, 0.6, 32, 1, true);
-        const bodyMat = new THREE.MeshStandardMaterial({
-            color: 0x888888,
-            metalness: 0.7,
-            roughness: 0.3
-        });
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 });
         const body = new THREE.Mesh(bodyGeo, bodyMat);
         ufoGroup.add(body);
 
         const domeGeo = new THREE.SphereGeometry(0.75, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
-        const domeMat = new THREE.MeshStandardMaterial({
-            color: 0x00ffcc,
-            transparent: true,
-            opacity: 0.6,
-            metalness: 0.2,
-            roughness: 0.1
-        });
+        const domeMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.6, metalness: 0.2, roughness: 0.1 });
         const dome = new THREE.Mesh(domeGeo, domeMat);
         dome.position.y = 0.3;
         ufoGroup.add(dome);
 
         const ringGeo = new THREE.TorusGeometry(2.5, 0.1, 16, 100);
-        const ringMat = new THREE.MeshBasicMaterial({
-            color: 0x00ffcc,
-            transparent: true,
-            opacity: 0.4,
-            side: THREE.DoubleSide
-        });
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI / 2;
         ring.position.y = -0.05;
@@ -326,9 +248,7 @@ function createSkyAtmosphere(scene) {
             pathAmplitudeY: 5 + Math.random() * 5,
             pathAmplitudeZ: 10 + Math.random() * 20,
             rotationSpeed: 0.1 + Math.random() * 0.2,
-            startX: startX,
-            startY: startY,
-            startZ: startZ
+            startX: startX, startY: startY, startZ: startZ
         });
     }
 
@@ -338,33 +258,24 @@ function createSkyAtmosphere(scene) {
         const particleGeo = new THREE.SphereGeometry(0.12, 6, 6);
         const particleMat = new THREE.MeshBasicMaterial({
             color: new THREE.Color().setHSL(Math.random(), 1.0, 0.6),
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.NormalBlending
+            transparent: true, opacity: 0.9, blending: THREE.NormalBlending
         });
 
         const particle = new THREE.Mesh(particleGeo, particleMat);
-
         particle.position.x = (Math.random() - 0.5) * 300;
         particle.position.y = -10 + Math.random() * 80;
         particle.position.z = (Math.random() - 0.5) * 300;
-
         particle.rotation.x = (Math.random() - 0.5) * 0.3;
         particle.rotation.y = (Math.random() - 0.5) * 0.3;
 
         scene.add(particle);
-        particles.push({
-            mesh: particle,
-            speed: 6 + Math.random() * 55,
-            hueOffset: Math.random() * Math.PI * 2
-        });
+        particles.push({ mesh: particle, speed: 6 + Math.random() * 55, hueOffset: Math.random() * Math.PI * 2 });
     }
     return { ufos, particles };
 }
 
 function animateAtmosphere(atmosphereObjects, delta) {
     const time = Date.now() * 0.001;
-
     if (atmosphereObjects.ufos) {
         atmosphereObjects.ufos.forEach(ufo => {
             const forward = ufo.speed * delta * 50;
@@ -377,12 +288,10 @@ function animateAtmosphere(atmosphereObjects, delta) {
             if (ring && ring.material) {
                 const pulse = Math.abs(Math.sin(time * 4 + ufo.group.position.x * 0.01)) * 0.6 + 0.6;
                 ring.material.opacity = Math.min(1.0, pulse);
-                const baseScale = 1.0;
-                ring.scale.set(baseScale * (0.8 + pulse * 0.6), baseScale * (0.8 + pulse * 0.6), 1);
+                ring.scale.set(0.8 + pulse * 0.6, 0.8 + pulse * 0.6, 1);
             }
         });
     }
-
     if (atmosphereObjects.particles) {
         atmosphereObjects.particles.forEach(p => {
             p.mesh.position.z += p.speed * delta * 60 * 0.016;
@@ -408,11 +317,9 @@ const AUDIO_ASSETS = {
 
 async function setupAudio() {
     audioManager = new AudioManager(camera);
-
     const loadPromises = Object.entries(AUDIO_ASSETS).map(([key, path]) => {
         return audioManager.load(key, path);
     });
-
     try {
         await Promise.all(loadPromises);
         console.log("🔊 Audio system ready!");
@@ -424,7 +331,6 @@ async function setupAudio() {
 function initThreeJS() {
     scene = new THREE.Scene();
     
-    // Set initial background based on current mode
     scene.background = isDarkMode ? nightBg.clone() : dayBg.clone();
     scene.fog = new THREE.Fog(isDarkMode ? nightFog.clone() : dayFog.clone(), 10, 90);
 
@@ -434,20 +340,16 @@ function initThreeJS() {
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // --- LIGHTING SETUP (Modified for Day/Night cycle) ---
     const ambient = new THREE.AmbientLight(0xffffff, 0.25);
     scene.add(ambient);
-
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(50, 100, 50);
     dirLight.castShadow = true;
     scene.add(dirLight);
-
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
     hemiLight.position.set(0, 20, 0);
     scene.add(hemiLight);
 
-    // Save references to global scope to allow animation
     window.gameLights = { ambient, dirLight, hemiLight };
 
     const atmosphereObjects = createSkyAtmosphere(scene);
@@ -463,7 +365,6 @@ function initThreeJS() {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(2, 2);
-
             platforms.forEach((p) => {
                 if (p && p.material) {
                     const cloned = tex.clone();
@@ -487,19 +388,20 @@ function initThreeJS() {
     window.player = player;
     scene.add(player);
 
-    modelManager.loadPlayerModel(selectedModelFile, player, {
-        onProgress: updateStatus,
-        onLoaded: (type, msg, color) => {
-            updateStatus(type, msg, color);
-            modelLoaded = true;
-            checkIfReadyToStart();
-        },
-        onError: (type, msg, color) => {
-            updateStatus(type, msg, color);
-            modelLoaded = true;
-            checkIfReadyToStart();
+    const modelLoadCallback = (type, msg, color) => {
+        uiManager.updateStatus(type, msg, color);
+        if (type === 'model' && (msg.includes('Loaded') || msg.includes('Error'))) {
+             modelLoaded = true;
+             checkIfReadyToStart();
         }
+    };
+
+    modelManager.loadPlayerModel(selectedModelFile, player, {
+        onProgress: modelLoadCallback,
+        onLoaded: modelLoadCallback,
+        onError: modelLoadCallback
     });
+    
     setupInputs();
 
     window.addEventListener('resize', () => {
@@ -512,44 +414,12 @@ function initThreeJS() {
     setupAudio();
 }
 
-const statusMessages = { model: "", firebase: "" };
-
-function updateStatus(type, message, color) {
-    statusMessages[type] = { text: message, color: color };
-    const messages = [];
-    const colors = [];
-
-    if (statusMessages.model.text) {
-        messages.push(statusMessages.model.text);
-        colors.push(statusMessages.model.color);
-    }
-    if (statusMessages.firebase.text) {
-        messages.push(statusMessages.firebase.text);
-        colors.push(statusMessages.firebase.color);
-    }
-
-    const colorPriority = { red: 1, yellow: 2, purple: 3, blue: 4, green: 5 };
-    const finalColor = colors.sort((a, b) => colorPriority[a] - colorPriority[b])[0] || "blue";
-
-    const colorClasses = {
-        red: "bg-red-100 text-red-800 border-red-400",
-        yellow: "bg-yellow-100 text-yellow-800 border-yellow-400",
-        purple: "bg-purple-100 text-purple-800 border-purple-400",
-        blue: "bg-blue-100 text-blue-800 border-blue-400",
-        green: "bg-green-100 text-green-800 border-green-400"
-    };
-
-    ui.status.innerHTML = messages.join("<br>");
-    ui.status.className = `text-sm p-3 mb-4 rounded-lg border ${colorClasses[finalColor]}`;
-}
-
 // --- GAMEPLAY FUNCTIONS ---
 function activateWeed() {
     if (window.gameState !== 'playing' || coinsCollected < 1 || isTripping) return;
     coinsCollected--;
-    ui.coins.innerText = coinsCollected;
+    uiManager.updateHUD({ coins: coinsCollected }); // Use UI Manager
     
-    // Save progress after spending a coin
     saveUserProgress();
 
     isTripping = true;
@@ -567,9 +437,7 @@ function activateWeed() {
 function endGame(reason, won = false) {
     window.gameState = 'ended';
     document.exitPointerLock();
-    ui.goReason.innerText = reason;
-    ui.goReason.style.color = won ? '#00ff00' : '#ff0000';
-    ui.gameOver.classList.add('active');
+    uiManager.showGameOver(reason, won); // Use UI Manager
 
     if (won && isMultiplayer) {
         console.log("🏆 Player won! Regenerating world...");
@@ -587,7 +455,6 @@ async function regenerateWorld() {
     }
 }
 
-// Helper for nearest player
 function getNearestPlayerPosition(enemyPosition) {
     let closestTarget = player.position; 
     let minDistance = enemyPosition.distanceTo(player.position);
@@ -628,37 +495,28 @@ function animate() {
     });
 
     if (window.gameState === 'playing') {
-        // 1. DETERMINE TARGET COLORS
-        // If tripping, ignore day/night. Otherwise, check isDarkMode.
         let targetBg = isTripping ? tripBg : (isDarkMode ? nightBg : dayBg);
         let targetFog = isTripping ? tripFog : (isDarkMode ? nightFog : dayFog);
 
-        // Lerp background and fog colors
         scene.background.lerp(targetBg, delta * 2.0);
         scene.fog.color.lerp(targetFog, delta * 2.0);
 
-        // 2. ADJUST LIGHTING (Realistic Night vs Day)
         if (window.gameLights) {
-            // Day defaults
             let targetAmbInt = 0.25;
             let targetDirInt = 0.6;
             let targetHemiInt = 0.3;
-            let targetLightColor = new THREE.Color(0xffffff); // White sunlight
+            let targetLightColor = new THREE.Color(0xffffff);
 
-            // Night overrides
             if (isDarkMode && !isTripping) {
-                targetAmbInt = 0.05;      // Very dark ambient
-                targetDirInt = 0.2;       // Dim moonlight
-                targetHemiInt = 0.1;      // Barely any environmental light
-                targetLightColor.setHex(0x8888ff); // Cool blue moonlight
+                targetAmbInt = 0.05;
+                targetDirInt = 0.2;
+                targetHemiInt = 0.1;
+                targetLightColor.setHex(0x8888ff);
             }
 
-            // Smoothly transition intensity
             window.gameLights.ambient.intensity = THREE.MathUtils.lerp(window.gameLights.ambient.intensity, targetAmbInt, delta);
             window.gameLights.dirLight.intensity = THREE.MathUtils.lerp(window.gameLights.dirLight.intensity, targetDirInt, delta);
             window.gameLights.hemiLight.intensity = THREE.MathUtils.lerp(window.gameLights.hemiLight.intensity, targetHemiInt, delta);
-            
-            // Smoothly transition light color
             window.gameLights.dirLight.color.lerp(targetLightColor, delta);
         }
 
@@ -739,8 +597,7 @@ function animate() {
         const startZ = 0;
         const endZ = CASTLE_Z;
         const progress = Math.max(0, Math.min(100, ((startZ - player.position.z) / (startZ - endZ)) * 100));
-        ui.progressFill.style.width = progress + '%';
-        ui.progressText.innerText = Math.round(progress) + '%';
+        uiManager.updateHUD({ progress: progress }); // Use UI Manager
 
         for (let i = coins.length - 1; i >= 0; i--) {
             coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
@@ -751,15 +608,13 @@ function animate() {
 
                 if (isStar) {
                     starsCollected++;
-                    ui.stars.innerText = starsCollected;
+                    uiManager.updateHUD({ stars: starsCollected });
                     if (audioManager) audioManager.playSFX('hava');
                 } else {
                     coinsCollected++;
-                    ui.coins.innerText = coinsCollected;
+                    uiManager.updateHUD({ coins: coinsCollected });
                     if (audioManager) audioManager.playSFX('coin');
                 }
-                
-                // Save progress
                 saveUserProgress();
             }
         }
@@ -769,7 +624,6 @@ function animate() {
             e.lookAt(targetPos.x, e.position.y, targetPos.z);
         });
 
-        // --- BILLBOARD UPDATE LOGIC ---
         if (window.castle) {
             const billboard = window.castle.getObjectByName('TaartBillboard');
             if (billboard) {
@@ -782,8 +636,8 @@ function animate() {
                 velocity.y = 10; velocity.z += 10;
                 if (coinsCollected > 0) {
                     coinsCollected = Math.max(0, coinsCollected - 3);
-                    ui.coins.innerText = coinsCollected;
-                    saveUserProgress(); // Save loss
+                    uiManager.updateHUD({ coins: coinsCollected });
+                    saveUserProgress();
                 } else {
                     endGame("Gepakt door een vijand!", false);
                 }
@@ -827,14 +681,12 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Action: Jump
 function performJump() {
     velocity.y = JUMP_SPEED;
     isGrounded = false;
     if (audioManager) audioManager.playSFX('jump');
 }
 
-// Action: Shoot
 function performShoot() {
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
     ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
@@ -848,80 +700,34 @@ function performShoot() {
 }
 
 function setupInputs() {
-    // UI Event Listeners for Authentication
-    const loginBtn = document.getElementById('show-login-btn');
-    const loginContainer = document.getElementById('login-form-container');
-    const linkBtn = document.getElementById('btn-link-account');
-    const signInBtn = document.getElementById('btn-login');
-    const logoutBtn = document.getElementById('btn-logout');
-    const authError = document.getElementById('auth-error');
+    // 1. Auth Events mapped to firebase.js functions
+    uiManager.onLinkAccount(linkAnonymousAccountToEmail);
+    uiManager.onLogin(loginWithEmail);
+    uiManager.onLogout(logout);
 
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            if (loginContainer) loginContainer.classList.toggle('hidden');
-        });
-    }
+    // 2. Character Selection
+    const previews = uiManager.getCharacterPreviewElements();
+    previews.forEach(el => {
+        modelManager.loadPreviewModel(el, el.dataset.model);
+    });
 
-    if (linkBtn) {
-        linkBtn.addEventListener('click', async () => {
-            const email = document.getElementById('email-input').value;
-            const pass = document.getElementById('password-input').value;
-            try {
-                authError.innerText = "Linking...";
-                await linkAnonymousAccountToEmail(email, pass);
-                authError.innerText = "Success! Progress Saved.";
-                authError.className = "text-green-500 text-xs mt-2 font-bold";
-            } catch (err) {
-                authError.className = "text-red-500 text-xs mt-2 font-bold";
-                authError.innerText = err.message;
-            }
-        });
-    }
-
-    if (signInBtn) {
-        signInBtn.addEventListener('click', async () => {
-            const email = document.getElementById('email-input').value;
-            const pass = document.getElementById('password-input').value;
-            try {
-                authError.innerText = "Logging in...";
-                await loginWithEmail(email, pass);
-                authError.innerText = "Welcome back!";
-                authError.className = "text-green-500 text-xs mt-2 font-bold";
-                window.location.reload(); 
-            } catch (err) {
-                authError.className = "text-red-500 text-xs mt-2 font-bold";
-                authError.innerText = err.message;
-            }
-        });
-    }
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            await logout();
-        });
-    }
-
-    const charButtons = document.querySelectorAll('.char-btn');
-    charButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            selectedModelFile = btn.dataset.model;
-            modelManager.dispose();
-            if (modelManager.playerModel) {
-                player.remove(modelManager.playerModel);
-            }
-            modelManager.loadPlayerModel(selectedModelFile, player, {
-                onProgress: updateStatus,
-                onLoaded: updateStatus,
-                onError: updateStatus
-            });
-            charButtons.forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
+    uiManager.onCharacterSelect((modelPath) => {
+        selectedModelFile = modelPath;
+        modelManager.dispose();
+        if (modelManager.playerModel) {
+            player.remove(modelManager.playerModel);
+        }
+        modelManager.loadPlayerModel(selectedModelFile, player, {
+            onProgress: (t, m, c) => uiManager.updateStatus(t, m, c),
+            onLoaded: (t, m, c) => uiManager.updateStatus(t, m, c),
+            onError: (t, m, c) => uiManager.updateStatus(t, m, c)
         });
     });
-    ui.btn.addEventListener('click', async () => {
-        const inputName = ui.nameInput.value.trim();
-        if (inputName) myName = inputName;
-        ui.nameDisplay.innerText = myName;
+
+    // 3. Game State Events
+    uiManager.onStart(async (name) => {
+        if (name) myName = name;
+        uiManager.startGameUI(myName);
 
         if (isMultiplayer) {
             const appearance = player.userData.appearance;
@@ -943,26 +749,22 @@ function setupInputs() {
             audioManager.playMusic('bgm');
         }
 
-        await syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
+        await syncAndBuildWorld(scene, { progressBar: uiManager.dom.progressBar }, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
 
-        ui.start.classList.remove('active');
-        ui.progressBar.style.display = 'block';
         if (!mobile || !mobile.enabled) {
             document.body.requestPointerLock();
         }
         window.gameState = 'playing';
-
         if (mobile && mobile.enabled) mobile.start();
     });
 
-    ui.mobileMenuBtn.addEventListener('click', () => {
-        const isPaused = ui.pauseScreen.classList.contains('active');
+    uiManager.onPauseToggle((isPaused) => {
         if (isPaused) {
             if (!mobile || !mobile.enabled) {
                 document.body.requestPointerLock();
             } else {
                 window.gameState = 'playing';
-                ui.pauseScreen.classList.remove('active');
+                uiManager.togglePauseScreen(false);
             }
         } else {
             if (document.exitPointerLock) {
@@ -971,25 +773,27 @@ function setupInputs() {
             if (!document.pointerLockElement) {
                 if (window.gameState === 'playing' && window.gameState !== 'ended') {
                     window.gameState = 'paused';
-                    ui.pauseScreen.classList.add('active');
+                    uiManager.togglePauseScreen(true);
                 }
             }
         }
     });
 
-    ui.resumeBtn.addEventListener('click', () => {
+    uiManager.onResume(() => {
         if (!mobile || !mobile.enabled) {
             document.body.requestPointerLock();
         } else {
             window.gameState = 'playing';
-            ui.pauseScreen.classList.remove('active');
+            uiManager.togglePauseScreen(false);
         }
     });
 
-    ui.fullscreenBtn.addEventListener('click', () => {
+    uiManager.onRestart(() => window.location.reload());
+
+    uiManager.onFullscreen(() => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
             });
         } else {
             if (document.exitFullscreen) {
@@ -998,27 +802,27 @@ function setupInputs() {
         }
     });
 
+    // Pointer Lock Listeners
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement === document.body) {
             window.gameState = 'playing';
-            ui.pauseScreen.classList.remove('active');
+            uiManager.togglePauseScreen(false);
         } else {
             if (window.gameState === 'playing' && window.gameState !== 'ended') {
                 window.gameState = 'paused';
-                ui.pauseScreen.classList.add('active');
+                uiManager.togglePauseScreen(true);
             }
         }
     });
 
+    // Keyboard & Mouse Inputs
     document.addEventListener('keydown', e => {
         if (e.code === 'KeyW') moveF = true;
         if (e.code === 'KeyS') moveB = true;
         if (e.code === 'KeyA') moveL = true;
         if (e.code === 'KeyD') moveR = true;
         if (e.code === 'ShiftLeft') isSprinting = true;
-        if (e.code === 'Space') {
-            performJump();
-        }
+        if (e.code === 'Space') performJump();
     });
     document.addEventListener('keyup', e => {
         if (e.code === 'KeyW') moveF = false;
@@ -1033,44 +837,14 @@ function setupInputs() {
             cameraPitch -= e.movementY * 0.002;
             cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
         }
-
     });
     document.addEventListener('contextmenu', event => event.preventDefault());
 
     document.addEventListener('mousedown', (e) => {
         if (window.gameState !== 'playing') return;
-
         switch (e.button) {
-            case 0: 
-                performShoot();
-                break;
-
-            case 2: 
-                activateWeed();
-                break;
+            case 0: performShoot(); break;
+            case 2: activateWeed(); break;
         }
-    });
-    document.querySelectorAll('.char-preview').forEach(el => {
-        el.addEventListener('click', () => {
-            selectedModelFile = el.dataset.model;
-
-            modelManager.dispose();
-            if (modelManager.playerModel) {
-                player.remove(modelManager.playerModel);
-            }
-
-            modelManager.loadPlayerModel(selectedModelFile, player, {
-                onProgress: updateStatus,
-                onLoaded: updateStatus,
-                onError: updateStatus
-            });
-
-            document.querySelectorAll('.char-preview').forEach(e => e.classList.remove('selected'));
-            el.classList.add('selected');
-        });
-    });
-
-    document.querySelectorAll('.char-preview').forEach(el => {
-        modelManager.loadPreviewModel(el, el.dataset.model);
     });
 }
