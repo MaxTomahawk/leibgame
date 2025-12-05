@@ -388,18 +388,21 @@ function initThreeJS() {
     window.player = player;
     scene.add(player);
 
-    const modelLoadCallback = (type, msg, color) => {
-        uiManager.updateStatus(type, msg, color);
-        if (type === 'model' && (msg.includes('Loaded') || msg.includes('Error'))) {
-             modelLoaded = true;
-             checkIfReadyToStart();
-        }
-    };
-
     modelManager.loadPlayerModel(selectedModelFile, player, {
-        onProgress: modelLoadCallback,
-        onLoaded: modelLoadCallback,
-        onError: modelLoadCallback
+        onProgress: (type, msg, color) => {
+            uiManager.updateStatus(type, msg, color);
+        },
+        onLoaded: (type, msg, color) => {
+            uiManager.updateStatus(type, msg, color);
+            modelLoaded = true; // Forceer naar true, ongeacht de tekst
+            console.log("Model loaded event fired!"); // Debug log
+            checkIfReadyToStart();
+        },
+        onError: (type, msg, color) => {
+            uiManager.updateStatus(type, msg, color);
+            modelLoaded = true; // Laat de speler toch starten (met placeholder/fout)
+            checkIfReadyToStart();
+        }
     });
     
     setupInputs();
@@ -748,6 +751,22 @@ function setupInputs() {
         if (audioManager) {
             audioManager.playMusic('bgm');
         }
+
+        const worldUI = {
+            progressBar: uiManager.dom.progressBar,
+            progressFill: uiManager.dom.progressFill,
+            progressText: uiManager.dom.progressText,
+            status: uiManager.dom.authStatus // Voor de zekerheid, als world.js status updates doet
+        };
+        
+        // Geef 'worldUI' mee in plaats van het simpele object
+        await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);   
+
+        if (!mobile || !mobile.enabled) {
+            document.body.requestPointerLock();
+        }
+        window.gameState = 'playing';
+        if (mobile && mobile.enabled) mobile.start();
 
         await syncAndBuildWorld(scene, { progressBar: uiManager.dom.progressBar }, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
 
