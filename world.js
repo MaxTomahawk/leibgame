@@ -518,3 +518,91 @@ export function cleanupWorldListener() {
         console.log("🛑 World listener stopped");
     }
                  }
+
+function createPromptTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    // Cirkel achtergrond
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.beginPath();
+    ctx.arc(64, 64, 60, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Rand
+    ctx.strokeStyle = '#FFD700'; // Goud
+    ctx.lineWidth = 10;
+    ctx.stroke();
+
+    // Tekst "E"
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 80px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('E', 64, 68);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+}
+                 // --- RONNIE & ABILITIES ---
+export function loadRonnie(scene, gltfLoader, position) {
+    gltfLoader.load('assets/ronnie.glb', (gltf) => {
+        const ronnie = gltf.scene;
+        ronnie.scale.set(1.3, 1.3, 1.3);
+        ronnie.position.set(position.x, position.y, position.z);
+        // Laat Ronnie naar de spawn kijken (draai 180 graden indien nodig)
+        ronnie.rotation.y = Math.PI; 
+        
+        ronnie.traverse((child) => {
+            if (child.isMesh) {
+                child.userData.isRonnie = true;
+                // Zorg dat de parent ook herkenbaar is
+                child.userData.parentGroup = ronnie;
+            }
+        });
+        
+        ronnie.userData.isRonnie = true;
+        const promptMat = new THREE.SpriteMaterial({ 
+            map: createPromptTexture(), 
+            transparent: true,
+            depthTest: false, // Zorg dat hij altijd bovenop rendered (optioneel)
+            depthWrite: false
+        });
+        const promptSprite = new THREE.Sprite(promptMat);
+        promptSprite.position.set(0, 2.8, 0); // Zweeft boven zijn hoofd
+        promptSprite.scale.set(0.8, 0.8, 0.8);
+        promptSprite.visible = false; // Standaard onzichtbaar
+        promptSprite.name = "InteractionPrompt"; // Makkelijk terugvinden
+        
+        ronnie.add(promptSprite);
+        // ------------------------------------------------
+
+        scene.add(ronnie);
+        
+        // Sla Ronnie globaal op zodat main.js hem makkelijk kan vinden voor afstands-check
+        window.ronnie = ronnie; 
+        
+        console.log("🧥 Ronnie (met E-prompt) is aanwezig.");
+    }, undefined, (err) => console.warn("Ronnie model niet gevonden.", err));
+}
+
+export function summonCloudPlatform(playerPos, scene, platforms, texture) {
+    const w = 4, h = 1, d = 4;
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const mat = new THREE.MeshStandardMaterial({ map: texture || null, color: 0xaaaaaa });
+    const cloud = new THREE.Mesh(geo, mat);
+    
+    // Spawn iets onder de speler
+    cloud.position.set(playerPos.x, playerPos.y - 2, playerPos.z);
+    
+    scene.add(cloud);
+    platforms.push(cloud);
+    
+    // Verdwijn na 10 seconden
+    setTimeout(() => {
+        scene.remove(cloud);
+        const idx = platforms.indexOf(cloud);
+        if(idx > -1) platforms.splice(idx, 1);
+    }, 10000);
+}

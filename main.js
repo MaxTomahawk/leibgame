@@ -14,6 +14,10 @@ import { MobileControls } from './mobile-controls.js';
 import { AudioManager } from './audio-manager.js';
 import { ModelManager, MODEL_SCALES, getModelAppearance } from './model-manager.js';
 import { UIManager } from './ui-manager.js';
+import { ShopSystem } from './shop-system.js';
+import { SettingsManager } from './settings-manager.js';
+import { loadRonnie, summonCloudPlatform } from './world.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
 let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
@@ -64,6 +68,8 @@ let modelLoaded = false;
 let platformTexture = null;
 let mobile = null;
 let audioManager;
+let shopSystem, settingsManager;
+let jumpCount = 0;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
@@ -111,6 +117,7 @@ async function saveUserProgress() {
 window.onload = async () => {
     // Initialize UI Manager first
     uiManager = new UIManager();
+    settingsManager = new SettingsManager();
     uiManager.setVersion(gameVersion.commit, gameVersion.date);
 
     initThreeJS();
@@ -123,13 +130,15 @@ window.onload = async () => {
     try {
         uiManager.updateStatus("firebase", "🔌 Connecting...", "blue");
 
-        const firebaseGlobals = initFirebase((user) => {
+        const firebaseGlobals = initFirebase(async (user) => {
             userId = user.uid;
             isMultiplayer = true;
             console.log("Firebase connected! User ID:", userId);
             uiManager.updateStatus("firebase", "✅ Multiplayer connected!", "green");
+            shopSystem = new ShopSystem(uiManager, db, auth);
+            await shopSystem.syncUserData(userId); 
 
-            // Load saved progress
+            // Load saved progress (Stars/Coins)
             const userRef = doc(db, "users", userId);
             getDoc(userRef).then((snap) => {
                 if (snap.exists()) {
@@ -387,6 +396,7 @@ function initThreeJS() {
     player.position.set(0, 5, 0);
     window.player = player;
     scene.add(player);
+    loadRonnie(scene, new GLTFLoader(), { x: 0, y: 0, z: 5 });
 
     modelManager.loadPlayerModel(selectedModelFile, player, {
         onProgress: (type, msg, color) => {
@@ -600,7 +610,7 @@ function animate() {
         const startZ = 0;
         const endZ = CASTLE_Z;
         const progress = Math.max(0, Math.min(100, ((startZ - player.position.z) / (startZ - endZ)) * 100));
-        uiManager.updateHUD({ progress: progress }); // Use UI Manager
+        uiManager.updateHUD({ progress: progress }); 
 
         for (let i = coins.length - 1; i >= 0; i--) {
             coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
@@ -679,15 +689,38 @@ function animate() {
         const targetCamPos = player.position.clone().add(camOffset);
         camera.position.lerp(targetCamPos, 0.1);
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
-    }
+
+        // --- RONNIE INTERACTIE CHECK ---
+        if (window.ronnie) {
+            const dist = player.position.distanceTo(window.ronnie.position);
+            const prompt = window.ronnie.children.find(c => c.name === "InteractionPrompt");
+            
+            if (prompt) {
+                prompt.visible = (dist < 5);
+                if (prompt.visible) {
+                    prompt.position.y = 2.8 + Math.sin(Date.now() * 0.005) * 0.1;
+                }
+            }
+        }
+
+    } // <--- DIT SLUITHAAKJE ONTBRAK WAARSCHIJNLIJK! (Sluit 'if (gameState === playing)')
 
     renderer.render(scene, camera);
-}
+} // Sluit animate()
 
 function performJump() {
-    velocity.y = JUMP_SPEED;
-    isGrounded = false;
-    if (audioManager) audioManager.playSFX('jump');
+    const maxJumps = shopSystem ? shopSystem.getMaxJumps() : 1;
+    
+    if (isGrounded) {
+        jumpCount = 0;
+    }
+
+    if (jumpCount < maxJumps) {
+        velocity.y = JUMP_SPEED;
+        isGrounded = false;
+        jumpCount++;
+        if (audioManager) audioManager.playSFX('jump');
+    }
 }
 
 function performShoot() {
@@ -703,12 +736,12 @@ function performShoot() {
 }
 
 function setupInputs() {
-    // 1. Auth Events mapped to firebase.js functions
+    // --- 1. UI & Auth Events ---
     uiManager.onLinkAccount(linkAnonymousAccountToEmail);
     uiManager.onLogin(loginWithEmail);
     uiManager.onLogout(logout);
 
-    // 2. Character Selection
+    // Character Selection
     const previews = uiManager.getCharacterPreviewElements();
     previews.forEach(el => {
         modelManager.loadPreviewModel(el, el.dataset.model);
@@ -727,7 +760,7 @@ function setupInputs() {
         });
     });
 
-    // 3. Game State Events
+    // Game State Events
     uiManager.onStart(async (name) => {
         if (name) myName = name;
         uiManager.startGameUI(myName);
@@ -756,19 +789,10 @@ function setupInputs() {
             progressBar: uiManager.dom.progressBar,
             progressFill: uiManager.dom.progressFill,
             progressText: uiManager.dom.progressText,
-            status: uiManager.dom.authStatus // Voor de zekerheid, als world.js status updates doet
+            status: uiManager.dom.authStatus 
         };
         
-        // Geef 'worldUI' mee in plaats van het simpele object
         await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);   
-
-        if (!mobile || !mobile.enabled) {
-            document.body.requestPointerLock();
-        }
-        window.gameState = 'playing';
-        if (mobile && mobile.enabled) mobile.start();
-
-        await syncAndBuildWorld(scene, { progressBar: uiManager.dom.progressBar }, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
 
         if (!mobile || !mobile.enabled) {
             document.body.requestPointerLock();
@@ -821,7 +845,7 @@ function setupInputs() {
         }
     });
 
-    // Pointer Lock Listeners
+    // --- 2. Pointer Lock & Mouse Look ---
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement === document.body) {
             window.gameState = 'playing';
@@ -834,22 +858,6 @@ function setupInputs() {
         }
     });
 
-    // Keyboard & Mouse Inputs
-    document.addEventListener('keydown', e => {
-        if (e.code === 'KeyW') moveF = true;
-        if (e.code === 'KeyS') moveB = true;
-        if (e.code === 'KeyA') moveL = true;
-        if (e.code === 'KeyD') moveR = true;
-        if (e.code === 'ShiftLeft') isSprinting = true;
-        if (e.code === 'Space') performJump();
-    });
-    document.addEventListener('keyup', e => {
-        if (e.code === 'KeyW') moveF = false;
-        if (e.code === 'KeyS') moveB = false;
-        if (e.code === 'KeyA') moveL = false;
-        if (e.code === 'KeyD') moveR = false;
-        if (e.code === 'ShiftLeft') isSprinting = false;
-    });
     document.addEventListener('mousemove', e => {
         if (window.gameState === 'playing') {
             player.rotation.y -= e.movementX * 0.002;
@@ -857,13 +865,84 @@ function setupInputs() {
             cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
         }
     });
+    
     document.addEventListener('contextmenu', event => event.preventDefault());
 
+    // --- 3. INPUT HANDLERS (Settings Manager) ---
+    
+    // Settings Button (in Pause Menu)
+    const settingsBtn = document.getElementById('settings-btn') || document.querySelector('#pause-screen button:nth-child(2)'); 
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            uiManager.openSettingsMenu(settingsManager, (newValues) => {
+                settingsManager.set('sensitivity', newValues.sensitivity);
+                settingsManager.set('volume', newValues.volume);
+                if (audioManager && audioManager.listener) {
+                    audioManager.listener.setMasterVolume(newValues.volume);
+                }
+                if (mobile) mobile.sensitivity = newValues.sensitivity;
+            });
+        });
+    }
+
+    // Keyboard Down
+    document.addEventListener('keydown', e => {
+        if (e.repeat) return; // Voorkomt spammen bij inhouden
+
+        const action = settingsManager.getKeyAction(e.code);
+        
+        if (action === 'forward') moveF = true;
+        if (action === 'backward') moveB = true;
+        if (action === 'left') moveL = true;
+        if (action === 'right') moveR = true;
+        if (action === 'sprint') isSprinting = true;
+        if (action === 'jump') performJump();
+        
+        // INTERACTIE (E) - Praten met Ronnie
+        if (action === 'interact') {
+            if (window.ronnie && shopSystem) {
+                const dist = player.position.distanceTo(window.ronnie.position);
+                if (dist < 5) {
+                    shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {
+                        starsCollected += starDelta;
+                        coinsCollected += coinDelta;
+                        uiManager.updateHUD({ stars: starsCollected, coins: coinsCollected });
+                        saveUserProgress();
+                    });
+                }
+            }
+        }
+        
+        // ABILITY (1) - Cloud Summon
+        if (action === 'action1') {
+            if (shopSystem && shopSystem.hasCloudAbility()) {
+                summonCloudPlatform(player.position, scene, platforms, platformTexture);
+            }
+        }
+    });
+
+    // Keyboard Up
+    document.addEventListener('keyup', e => {
+        const action = settingsManager.getKeyAction(e.code);
+        if (action === 'forward') moveF = false;
+        if (action === 'backward') moveB = false;
+        if (action === 'left') moveL = false;
+        if (action === 'right') moveR = false;
+        if (action === 'sprint') isSprinting = false;
+    });
+
+    // Muis Acties (Schoongemaakt!)
     document.addEventListener('mousedown', (e) => {
         if (window.gameState !== 'playing') return;
-        switch (e.button) {
-            case 0: performShoot(); break;
-            case 2: activateWeed(); break;
+        
+        // Linker muisknop (0) = Schieten
+        if (e.button === 0) { 
+            performShoot(); 
+        }
+
+        // Rechter muisknop (2) = Oude Weed Actie
+        if (e.button === 2) {
+            activateWeed();
         }
     });
 }

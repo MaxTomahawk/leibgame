@@ -257,4 +257,160 @@ export class UIManager {
         this.dom.coinDisplay.innerText = coins;
         this.dom.starDisplay.innerText = stars;
     }
+    // --- SHOP & SETTINGS UI ---
+
+    setupShopHTML() {
+        if (!document.getElementById('shop-modal')) {
+            const div = document.createElement('div');
+            div.id = 'shop-modal';
+            div.className = 'hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50';
+            div.innerHTML = `
+                <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full text-white border-2 border-yellow-500">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Ronnie's Shop</h2>
+                    <div id="shop-items" class="space-y-4"></div>
+                    <button id="close-shop" class="mt-6 w-full bg-red-600 py-2 rounded hover:bg-red-700">Sluiten</button>
+                </div>
+            `;
+            document.body.appendChild(div);
+            
+            document.getElementById('close-shop').addEventListener('click', () => {
+                document.getElementById('shop-modal').classList.add('hidden');
+                document.body.requestPointerLock();
+            });
+        }
+    }
+
+    showShopModal(upgrades, currentCoins, buyCallback) {
+        this.setupShopHTML();
+        const modal = document.getElementById('shop-modal');
+        const container = document.getElementById('shop-items');
+        container.innerHTML = ''; 
+
+        document.exitPointerLock();
+        modal.classList.remove('hidden');
+
+        Object.values(upgrades).forEach(item => {
+            const div = document.createElement('div');
+            div.className = "flex justify-between items-center p-3 bg-gray-700 rounded";
+            
+            const isMaxed = item.current >= item.max;
+            const btnClass = isMaxed ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-500";
+            const btnText = isMaxed ? "Maxed" : `Koop (${item.cost})`;
+
+            div.innerHTML = `
+                <div><div class="font-bold">${item.name}</div><div class="text-xs text-gray-300">${item.desc}</div></div>
+                <button class="px-3 py-1 rounded text-sm ${btnClass}" ${isMaxed ? 'disabled' : ''}>${btnText}</button>
+            `;
+
+            if (!isMaxed) {
+                div.querySelector('button').addEventListener('click', async () => {
+                    const result = await buyCallback(item.id, currentCoins);
+                    if (result.success) {
+                        alert(result.msg);
+                        modal.classList.add('hidden');
+                        document.body.requestPointerLock();
+                    } else {
+                        alert(result.msg);
+                    }
+                });
+            }
+            container.appendChild(div);
+        });
+    }
+    // Voeg dit toe in ui-manager.js
+
+    setupSettingsHTML() {
+        if (!document.getElementById('settings-modal')) {
+            const div = document.createElement('div');
+            div.id = 'settings-modal';
+            div.className = 'hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50';
+            div.innerHTML = `
+                <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full text-white border-2 border-blue-500">
+                    <h2 class="text-2xl font-bold mb-4 text-blue-400">Instellingen</h2>
+                    
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-bold mb-1">Muis Gevoeligheid <span id="sens-val" class="text-gray-400 text-xs"></span></label>
+                            <input type="range" id="input-sens" min="0.1" max="3.0" step="0.1" class="w-full">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-1">Volume <span id="vol-val" class="text-gray-400 text-xs"></span></label>
+                            <input type="range" id="input-vol" min="0" max="1" step="0.1" class="w-full">
+                        </div>
+
+                        <div class="p-3 bg-gray-700 rounded text-sm">
+                            <p class="font-bold text-gray-300 mb-2">Keybindings (Info)</p>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div>Move: W/A/S/D</div>
+                                <div>Jump: Space</div>
+                                <div>Sprint: Shift</div>
+                                <div>Cloud: E</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button id="save-settings" class="flex-1 bg-green-600 py-2 rounded hover:bg-green-700">Opslaan & Sluiten</button>
+                        <button id="cancel-settings" class="flex-1 bg-red-600 py-2 rounded hover:bg-red-700">Annuleren</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            // Event Listeners
+            document.getElementById('input-sens').addEventListener('input', (e) => {
+                document.getElementById('sens-val').innerText = `(${e.target.value})`;
+            });
+            document.getElementById('input-vol').addEventListener('input', (e) => {
+                document.getElementById('vol-val').innerText = `(${Math.round(e.target.value * 100)}%)`;
+            });
+        }
+    }
+
+    openSettingsMenu(settingsManager, onSave) {
+        this.setupSettingsHTML();
+        const modal = document.getElementById('settings-modal');
+        const sensInput = document.getElementById('input-sens');
+        const volInput = document.getElementById('input-vol');
+        
+        // Huidige waardes invullen
+        const currentSens = settingsManager.get('sensitivity');
+        const currentVol = settingsManager.get('volume');
+        
+        sensInput.value = currentSens;
+        volInput.value = currentVol;
+        
+        // Update labels
+        document.getElementById('sens-val').innerText = `(${currentSens})`;
+        document.getElementById('vol-val').innerText = `(${Math.round(currentVol * 100)}%)`;
+
+        document.exitPointerLock();
+        modal.classList.remove('hidden');
+
+        // Knoppen logica (one-time handlers om dubbele events te voorkomen, of simpelweg vervangen)
+        const saveBtn = document.getElementById('save-settings');
+        const cancelBtn = document.getElementById('cancel-settings');
+        
+        // Clone nodes om oude listeners te verwijderen (snelle hack)
+        const newSave = saveBtn.cloneNode(true);
+        const newCancel = cancelBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSave, saveBtn);
+        cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+
+        newSave.addEventListener('click', () => {
+            // Opslaan via callback
+            onSave({
+                sensitivity: parseFloat(sensInput.value),
+                volume: parseFloat(volInput.value)
+            });
+            modal.classList.add('hidden');
+            document.body.requestPointerLock();
+        });
+
+        newCancel.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            document.body.requestPointerLock();
+        });
+    }
 }
