@@ -11,7 +11,7 @@ export class SettingsManager {
                 jump: 'Space',
                 sprint: 'ShiftLeft',
                 interact: 'KeyE',   // E is nu puur voor interactie
-                action1: 'F'   // F is nu voor de Cloud Ability
+                action1: 'KeyF'   // F is nu voor de Cloud Ability
             }
         };
         this.settings = this.loadSettings();

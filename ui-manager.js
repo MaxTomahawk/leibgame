@@ -40,6 +40,7 @@ export class UIManager {
             resumeBtn: document.getElementById('resume-btn'),
             restartBtn: document.getElementById('restart-btn-menu'),
             fullscreenBtn: document.getElementById('fullscreen-btn'),
+            settingsBtn: document.getElementById('settings-btn'), // Toegevoegd voor de zekerheid
             
             // Game Over
             gameOverScreen: document.getElementById('game-over-screen'),
@@ -200,10 +201,8 @@ export class UIManager {
         // Mobile menu button
         this.dom.mobileMenuBtn.addEventListener('click', () => {
             const isPaused = this.dom.pauseScreen.classList.contains('active');
-            callback(isPaused); // pass true if currently paused (so we resume), false if playing (so we pause)
+            callback(isPaused); 
         });
-        
-        // Pointer lock listener handled in main.js, or we can handle UI part here
     }
 
     onResume(callback) {
@@ -212,7 +211,6 @@ export class UIManager {
 
     onRestart(callback) {
         this.dom.restartBtn.addEventListener('click', callback);
-        // Game Over restart
         const goRestart = this.dom.gameOverScreen.querySelector('button');
         if (goRestart) goRestart.addEventListener('click', callback);
     }
@@ -257,6 +255,7 @@ export class UIManager {
         this.dom.coinDisplay.innerText = coins;
         this.dom.starDisplay.innerText = stars;
     }
+
     // --- SHOP & SETTINGS UI ---
 
     setupShopHTML() {
@@ -317,7 +316,6 @@ export class UIManager {
             container.appendChild(div);
         });
     }
-    // Voeg dit toe in ui-manager.js
 
     setupSettingsHTML() {
         if (!document.getElementById('settings-modal')) {
@@ -325,45 +323,52 @@ export class UIManager {
             div.id = 'settings-modal';
             div.className = 'hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50';
             div.innerHTML = `
-                <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full text-white border-2 border-blue-500">
-                    <h2 class="text-2xl font-bold mb-4 text-blue-400">Instellingen</h2>
+                <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full text-white border-2 border-blue-500 font-mono">
+                    <h2 class="text-2xl font-bold mb-6 text-blue-400 border-b border-blue-500 pb-2">Instellingen</h2>
                     
-                    <div class="space-y-4 mb-6">
+                    <div class="space-y-6 mb-8">
                         <div>
-                            <label class="block text-sm font-bold mb-1">Muis Gevoeligheid <span id="sens-val" class="text-gray-400 text-xs"></span></label>
-                            <input type="range" id="input-sens" min="0.1" max="3.0" step="0.1" class="w-full">
+                            <div class="flex justify-between mb-2">
+                                <label class="font-bold">Muis Gevoeligheid</label>
+                                <span id="sens-val" class="text-blue-300">1.0</span>
+                            </div>
+                            <input type="range" id="input-sens" min="0.1" max="3.0" step="0.1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-bold mb-1">Volume <span id="vol-val" class="text-gray-400 text-xs"></span></label>
-                            <input type="range" id="input-vol" min="0" max="1" step="0.1" class="w-full">
+                            <div class="flex justify-between mb-2">
+                                <label class="font-bold">Volume</label>
+                                <span id="vol-val" class="text-blue-300">50%</span>
+                            </div>
+                            <input type="range" id="input-vol" min="0" max="1" step="0.1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
                         </div>
 
-                        <div class="p-3 bg-gray-700 rounded text-sm">
-                            <p class="font-bold text-gray-300 mb-2">Keybindings (Info)</p>
+                        <div class="p-3 bg-gray-700 rounded text-sm border border-gray-600">
+                            <p class="font-bold text-gray-300 mb-2 border-b border-gray-600 pb-1">Keybindings</p>
                             <div class="grid grid-cols-2 gap-2 text-xs">
                                 <div>Move: W/A/S/D</div>
                                 <div>Jump: Space</div>
                                 <div>Sprint: Shift</div>
-                                <div>Cloud: E</div>
+                                <div class="text-yellow-400 font-bold">Interact: E</div>
+                                <div class="text-blue-400 font-bold">Ability: 1</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex gap-2">
-                        <button id="save-settings" class="flex-1 bg-green-600 py-2 rounded hover:bg-green-700">Opslaan & Sluiten</button>
-                        <button id="cancel-settings" class="flex-1 bg-red-600 py-2 rounded hover:bg-red-700">Annuleren</button>
+                    <div class="flex gap-4">
+                        <button id="save-settings" class="flex-1 bg-green-600 py-3 rounded hover:bg-green-500 font-bold transition">Opslaan</button>
+                        <button id="cancel-settings" class="flex-1 bg-red-600 py-3 rounded hover:bg-red-500 font-bold transition">Annuleren</button>
                     </div>
                 </div>
             `;
             document.body.appendChild(div);
 
-            // Event Listeners
+            // Event Listeners voor live updates
             document.getElementById('input-sens').addEventListener('input', (e) => {
-                document.getElementById('sens-val').innerText = `(${e.target.value})`;
+                document.getElementById('sens-val').innerText = e.target.value;
             });
             document.getElementById('input-vol').addEventListener('input', (e) => {
-                document.getElementById('vol-val').innerText = `(${Math.round(e.target.value * 100)}%)`;
+                document.getElementById('vol-val').innerText = Math.round(e.target.value * 100) + '%';
             });
         }
     }
@@ -371,46 +376,38 @@ export class UIManager {
     openSettingsMenu(settingsManager, onSave) {
         this.setupSettingsHTML();
         const modal = document.getElementById('settings-modal');
-        const sensInput = document.getElementById('input-sens');
-        const volInput = document.getElementById('input-vol');
         
         // Huidige waardes invullen
-        const currentSens = settingsManager.get('sensitivity');
-        const currentVol = settingsManager.get('volume');
+        const s = settingsManager.get('sensitivity');
+        const v = settingsManager.get('volume');
         
-        sensInput.value = currentSens;
-        volInput.value = currentVol;
-        
-        // Update labels
-        document.getElementById('sens-val').innerText = `(${currentSens})`;
-        document.getElementById('vol-val').innerText = `(${Math.round(currentVol * 100)}%)`;
+        document.getElementById('input-sens').value = s;
+        document.getElementById('input-vol').value = v;
+        document.getElementById('sens-val').innerText = s;
+        document.getElementById('vol-val').innerText = Math.round(v * 100) + '%';
 
         document.exitPointerLock();
         modal.classList.remove('hidden');
 
-        // Knoppen logica (one-time handlers om dubbele events te voorkomen, of simpelweg vervangen)
         const saveBtn = document.getElementById('save-settings');
         const cancelBtn = document.getElementById('cancel-settings');
         
-        // Clone nodes om oude listeners te verwijderen (snelle hack)
+        // Klonen om oude listeners te verwijderen
         const newSave = saveBtn.cloneNode(true);
         const newCancel = cancelBtn.cloneNode(true);
         saveBtn.parentNode.replaceChild(newSave, saveBtn);
         cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
 
         newSave.addEventListener('click', () => {
-            // Opslaan via callback
             onSave({
-                sensitivity: parseFloat(sensInput.value),
-                volume: parseFloat(volInput.value)
+                sensitivity: parseFloat(document.getElementById('input-sens').value),
+                volume: parseFloat(document.getElementById('input-vol').value)
             });
             modal.classList.add('hidden');
-            document.body.requestPointerLock();
         });
 
         newCancel.addEventListener('click', () => {
             modal.classList.add('hidden');
-            document.body.requestPointerLock();
         });
     }
 }
