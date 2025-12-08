@@ -263,95 +263,66 @@ function createTextTexture(text) {
     return texture;
 }
 
-// --- BIRTHDAY CAKE BUILDER (Replaces Castle) ---
+// --- LOW POLY CASTLE BUILDER ---
 function createCastle(scene, CASTLE_Z) {
-    console.log("creating colorful birthday cake with candles...")
-    const cake = new THREE.Group();
+    console.log("creating castle")
+    const castle = new THREE.Group();
 
-    // Materials (Festive colors!)
-    const matBottom = new THREE.MeshStandardMaterial({ color: 0xD2691E }); // Chocolate
-    const matMid = new THREE.MeshStandardMaterial({ color: 0xFF69B4 }); // Pink
-    const matTop = new THREE.MeshStandardMaterial({ color: 0xFFFACD }); // Lemon Cream
-    
-    // === TIER 1 (Base - Chocolate) ===
-    const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 4, 32), matBottom);
-    tier1.position.y = 2;
-    tier1.castShadow = true;
-    tier1.receiveShadow = true;
-    cake.add(tier1);
+    // === MAIN KEEP ===
+    const keep = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 12, 10),
+        new THREE.MeshStandardMaterial({ color: 0xbababa })
+    );
+    keep.position.y = 6;
+    castle.add(keep);
 
-    // === TIER 2 (Middle - Pink) ===
-    const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 4, 32), matMid);
-    tier2.position.y = 6;
-    tier2.castShadow = true;
-    tier2.receiveShadow = true;
-    cake.add(tier2);
+    // === CORNER TOWERS ===
+    const towerGeo = new THREE.CylinderGeometry(2, 2, 14, 6);
+    const towerMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
 
-    // === TIER 3 (Top - Lemon) ===
-    const tier3 = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 4, 32), matTop);
-    tier3.position.y = 10;
-    tier3.castShadow = true;
-    tier3.receiveShadow = true;
-    cake.add(tier3);
+    const towerOffsets = [
+        [5, 5],
+        [-5, 5],
+        [5, -5],
+        [-5, -5]
+    ];
 
-    // === CANDLES ===
-    const candleGeo = new THREE.CylinderGeometry(0.3, 0.3, 2, 12);
-    const flameGeo = new THREE.ConeGeometry(0.25, 0.8, 12);
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0xFF4500 }); // Orange glow
-    
-    // Place 5 candles in a circle on the top layer
-    const numCandles = 5;
-    const radius = 2.5;
-    
-    for(let i = 0; i < numCandles; i++) {
-        const angle = (i / numCandles) * Math.PI * 2;
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
-        
-        // Candle body (random color)
-        const candleColor = new THREE.Color().setHSL(Math.random(), 1.0, 0.5);
-        const candle = new THREE.Mesh(candleGeo, new THREE.MeshStandardMaterial({ color: candleColor }));
-        candle.position.set(x, 13, z); // 10 (top) + 2 (half height) + 1 (on top)
-        
-        // Flame
-        const flame = new THREE.Mesh(flameGeo, flameMat);
-        flame.position.set(0, 1.4, 0); // Top of candle
-        candle.add(flame);
+    towerOffsets.forEach(([x, z]) => {
+        const t = new THREE.Mesh(towerGeo, towerMat);
+        t.position.set(x, 7, z);
+        castle.add(t);
 
-        // Optional: Point light for each flame
-        const light = new THREE.PointLight(0xFFA500, 1, 5);
-        light.position.set(0, 1.5, 0);
-        candle.add(light);
-
-        cake.add(candle);
-    }
-    
-    // === BILLBOARD TEXT: "GEFELICITEERD LUUK" ===
-    const textGeo = new THREE.PlaneGeometry(20, 5);
-    const textTexture = createTextTexture("   GEFELICITEERD LUUK   ");
-    
-    const textMat = new THREE.MeshBasicMaterial({ 
-        map: textTexture, 
-        transparent: true, 
-        side: THREE.DoubleSide,
-        depthTest: false // Ensures text is always visible
+        const roof = new THREE.Mesh(
+            new THREE.ConeGeometry(3, 3, 6),
+            new THREE.MeshStandardMaterial({ color: 0x663300 })
+        );
+        roof.position.set(x, 15, z);
+        castle.add(roof);
     });
     
-    const textBillboard = new THREE.Mesh(textGeo, textMat);
-    // Place higher: y = 22
-    textBillboard.position.set(0, 22, 0); 
-    
-    textBillboard.userData.isBillboard = true;
-    textBillboard.name = 'TaartBillboard';
-    textBillboard.renderOrder = 999; 
-    
-    cake.add(textBillboard);
+    // === WALLS ===
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+
+    const walls = [
+        { x: 0, z: 7, w: 14, h: 6, d: 1 },
+        { x: 0, z: -7, w: 14, h: 6, d: 1 },
+        { x: 7, z: 0, w: 1, h: 6, d: 14 },
+        { x: -7, z: 0, w: 1, h: 6, d: 14 }
+    ];
+
+    walls.forEach(w => {
+        const wall = new THREE.Mesh(
+            new THREE.BoxGeometry(w.w, w.h, w.d),
+            wallMat
+        );
+        wall.position.set(w.x, w.h / 2, w.z);
+        castle.add(wall);
+
+    });
 
     // === FINAL POSITION ===
-    cake.position.set(0, 1, CASTLE_Z);
-    scene.add(cake);
-    
-    return cake;
+    castle.position.set(0, 1, CASTLE_Z);
+    scene.add(castle);
 }
 
 // --- BUILD WORLD ---
@@ -381,9 +352,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
     }
 
-    // STORE CAKE IN GLOBAL VARIABLE
-    window.castle = createCastle(scene, CASTLE_Z);
-}
+    createCastle(scene, CASTLE_Z);}
 
 // --- ROUND CLOUD GENERATION ---
 function createPlat(x, y, z, w, h, d, scene, platforms, material) {

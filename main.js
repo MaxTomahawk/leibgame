@@ -666,13 +666,6 @@ function animate() {
             e.lookAt(targetPos.x, e.position.y, targetPos.z);
         });
 
-        if (window.castle) {
-            const billboard = window.castle.getObjectByName('TaartBillboard');
-            if (billboard) {
-                billboard.lookAt(camera.position); 
-            }
-        }
-
         // Check enemy collisions
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (player.position.distanceTo(enemies[i].position) < 2.0) {
