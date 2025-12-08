@@ -3,71 +3,61 @@ import * as THREE from 'three';
 
 export class AudioManager {
     constructor(camera) {
-        // 1. The 'Ears': Create an AudioListener and add it to the camera
         this.listener = new THREE.AudioListener();
         camera.add(this.listener);
-
-        // 2. The Loader: To load audio files
+        
+        this.musicSound = new THREE.Audio(this.listener); // Voor BGM (mp3)
+        this.sfxMap = new Map(); // Voor losse effecten (wav)
         this.audioLoader = new THREE.AudioLoader();
-
-        // 3. Storage: Keep track of loaded buffers and active sounds
-        this.buffers = {}; // Stores the raw audio data
-        this.musicChannel = new THREE.Audio(this.listener); // Dedicated channel for BGM
-        this.sfxVolume = 1.0;
-        this.musicVolume = 0.5;
+        
+        this.volumes = { master: 1, music: 1, sfx: 1 };
     }
 
-    // Load a sound file and store it with a unique key
-    load(key, path) {
+    async load(key, path) {
         return new Promise((resolve, reject) => {
             this.audioLoader.load(path, (buffer) => {
-                this.buffers[key] = buffer;
-                console.log(`Audio loaded: ${key}`);
-                resolve(buffer);
-            }, undefined, (err) => {
-                console.error(`Error loading audio ${path}:`, err);
-                reject(err);
-            });
+                // Als het een mp3 is (achtergrondmuziek), zetten we hem op de musicSound
+                if (path.endsWith('.mp3')) {
+                    this.musicSound.setBuffer(buffer);
+                    this.musicSound.setLoop(true);
+                    this.musicSound.setVolume(0.5); // Start volume
+                } else {
+                    // Anders is het SFX (wav)
+                    this.sfxMap.set(key, buffer);
+                }
+                resolve();
+            }, undefined, reject);
         });
     }
 
-    // Play background music (loops automatically, stops previous music)
     playMusic(key) {
-        if (!this.buffers[key]) {
-            console.warn(`Music not found: ${key}`);
-            return;
-        }
-
-        // Check if music is already playing
-        if (this.musicChannel.isPlaying) {
-            this.musicChannel.stop();
-        }
-
-        this.musicChannel.setBuffer(this.buffers[key]);
-        this.musicChannel.setLoop(true); // Music should loop
-        this.musicChannel.setVolume(this.musicVolume);
-        this.musicChannel.play();
-    }
-
-    stopMusic() {
-        if (this.musicChannel.isPlaying) {
-            this.musicChannel.stop();
+        if (this.musicSound.buffer && !this.musicSound.isPlaying) {
+            this.musicSound.play();
         }
     }
 
-    // Play a sound effect (fire and forget, can overlap)
     playSFX(key) {
-        if (!this.buffers[key]) {
-            console.warn(`SFX not found: ${key}`);
-            return;
+        if (this.sfxMap.has(key)) {
+            const sound = new THREE.Audio(this.listener);
+            sound.setBuffer(this.sfxMap.get(key));
+            // Bereken volume: Master * SFX
+            sound.setVolume(this.volumes.master * this.volumes.sfx);
+            sound.play();
         }
+    }
 
-        // Create a new Audio object for every SFX so they can overlap
-        // (e.g. rapid fire shooting)
-        const sfx = new THREE.Audio(this.listener);
-        sfx.setBuffer(this.buffers[key]);
-        sfx.setLoop(false);
-        sfx.setVolume(this.sfxVolume);
-        sfx.play();
+    updateVolumes(settings) {
+        // Input is 0-100, Three.js wil 0.0-1.0
+        this.volumes.master = settings.master / 100;
+        this.volumes.music = settings.music / 100;
+        this.volumes.sfx = settings.sfx / 100;
+
+        this.listener.setMasterVolume(this.volumes.master);
+        
+        // Music is apart kanaal, dus die updaten we direct
+        // Het effectieve volume van music is Master * Music
+        if(this.musicSound) {
+            this.musicSound.setVolume(this.volumes.music);
+        }
     }
 }

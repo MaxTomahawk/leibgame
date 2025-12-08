@@ -23,11 +23,6 @@ let selectedModelFile = 'assets/leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 // --- PHYSICS & GAMEPLAY SETTINGS ---
-const BASE_GRAVITY = 20.0;
-const TRIP_GRAVITY = 10.0;
-const JUMP_SPEED = 14.0;
-const WALK_SPEED = 12.0;
-const RUN_SPEED = 18.0;
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
@@ -41,14 +36,7 @@ const nightFog = new THREE.Color(0x050515);
 const tripFog = new THREE.Color(0x00ff00);
 const tripBg = new THREE.Color(0x113311);
 
-// Detect system dark mode preference
-const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-let isDarkMode = darkModeQuery.matches;
-
-darkModeQuery.addEventListener('change', (e) => {
-    isDarkMode = e.matches;
-    console.log("Mode changed to:", isDarkMode ? "Night" : "Day");
-});
+let isDarkMode = false;
 
 // --- GLOBALS ---
 let userId, myName = "Player", isMultiplayer = false;
@@ -77,8 +65,8 @@ const downDirection = new THREE.Vector3(0, -1, 0);
 // Trip Mode Variables
 let isTripping = false;
 let tripTimer = null;
-let currentGravity = BASE_GRAVITY;
-let targetGravity = BASE_GRAVITY;
+let currentGravity = 20.0;
+let targetGravity = 20.0;
 
 // Fetch version on load
 fetch('version.json')
@@ -119,6 +107,15 @@ window.onload = async () => {
     uiManager = new UIManager();
     settingsManager = new SettingsManager();
     uiManager.setVersion(gameVersion.commit, gameVersion.date);
+
+    uiManager.setupThemeToggle(settingsManager, (newTheme) => {
+        // Callback: forceer update van graphics als er geklikt wordt
+        isDarkMode = getEffectiveDarkMode();
+        console.log("Theme changed to:", newTheme, "Effective Dark Mode:", isDarkMode);
+        // De animate loop pakt de nieuwe 'isDarkMode' waarde automatisch op in de volgende frame
+    });
+
+    isDarkMode = getEffectiveDarkMode();
 
     initThreeJS();
     mobile = new MobileControls();
@@ -429,21 +426,22 @@ function initThreeJS() {
 
 // --- GAMEPLAY FUNCTIONS ---
 function activateWeed() {
+    // Check of we mogen trippen
     if (window.gameState !== 'playing' || coinsCollected < 1 || isTripping) return;
-    coinsCollected--;
-    uiManager.updateHUD({ coins: coinsCollected }); // Use UI Manager
     
+    // Kosten verrekenen
+    coinsCollected--;
+    uiManager.updateHUD({ coins: coinsCollected });
     saveUserProgress();
 
+    // Trip starten
     isTripping = true;
     document.body.classList.add('tripping');
-    targetGravity = TRIP_GRAVITY;
 
     clearTimeout(tripTimer);
     tripTimer = setTimeout(() => {
         isTripping = false;
         document.body.classList.remove('tripping');
-        targetGravity = BASE_GRAVITY;
     }, BUFF_DURATION);
 }
 
@@ -489,10 +487,29 @@ function getNearestPlayerPosition(enemyPosition) {
 // --- GAME LOOP ---
 let isGrounded = false;
 
+function getEffectiveDarkMode() {
+    if (!settingsManager) {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    const theme = settingsManager.get('theme');
+    
+    if (theme === 'dark') return true;
+    if (theme === 'light') return false;
+    
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 function animate() {
     requestAnimationFrame(animate);
     const now = Date.now();
     const delta = 0.016;
+
+    isDarkMode = getEffectiveDarkMode();
+    let targetBg = isTripping ? tripBg : (isDarkMode ? nightBg : dayBg);
+
+    // Retrieve active modifiers from SettingsManager
+    const mods = settingsManager.get('modifiers');
 
     if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
 
@@ -508,6 +525,7 @@ function animate() {
     });
 
     if (window.gameState === 'playing') {
+        // Handle environmental changes based on state
         let targetBg = isTripping ? tripBg : (isDarkMode ? nightBg : dayBg);
         let targetFog = isTripping ? tripFog : (isDarkMode ? nightFog : dayFog);
 
@@ -533,19 +551,24 @@ function animate() {
             window.gameLights.dirLight.color.lerp(targetLightColor, delta);
         }
 
+        // Apply physics using dynamic modifier values
+        targetGravity = isTripping ? mods.tripGravity : mods.baseGravity;
         currentGravity = THREE.MathUtils.lerp(currentGravity, targetGravity, delta * 2);
 
         velocity.y -= currentGravity * delta;
-        const drag = isGrounded ? 3.0 : 1.8;
+        
+        // Determine drag based on grounded state
+        const drag = isGrounded ? mods.dragGrounded : mods.dragAir;
         velocity.x -= velocity.x * 10 * drag * delta;
         velocity.z -= velocity.z * 10 * drag * delta;
 
         const fwd = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
         const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
 
+        // Mobile control handling
         if (mobile && mobile.enabled) {
             const m = mobile.update();
-            const mobileBaseSpeed = RUN_SPEED + 4;
+            const mobileBaseSpeed = mods.runSpeed + 4; // Mobile boost
 
             if (m.forward) velocity.add(fwd.clone().multiplyScalar(mobileBaseSpeed * delta * 10 * m.forward));
             if (m.backward) velocity.add(fwd.clone().multiplyScalar(-mobileBaseSpeed * delta * 10 * m.backward));
@@ -559,8 +582,9 @@ function animate() {
             }
         }
 
+        // Desktop movement handling
         const isMoving = moveF || moveB || moveL || moveR;
-        const currentSpeed = isSprinting ? RUN_SPEED : WALK_SPEED;
+        const currentSpeed = isSprinting ? mods.runSpeed : mods.walkSpeed;
 
         if (moveF) velocity.add(fwd.clone().multiplyScalar(currentSpeed * delta * 10));
         if (moveB) velocity.add(fwd.clone().multiplyScalar(-currentSpeed * delta * 10));
@@ -577,11 +601,12 @@ function animate() {
             modelFile: selectedModelFile
         });
 
+        // Abyss check
         if (player.position.y < -30) {
             endGame("Je bent in de afgrond gevallen!", false);
         }
 
-        // Raycasting
+        // Ground detection logic
         const rayOrigin = player.position.clone().add(new THREE.Vector3(0, 2.5, 0));
         raycaster.set(rayOrigin, downDirection);
         const intersects = raycaster.intersectObjects(platforms);
@@ -598,7 +623,7 @@ function animate() {
         }
         if (!onSolidGround) isGrounded = false;
 
-        // WIN CHECK
+        // Check for victory condition
         if (player.position.z <= CASTLE_Z + 5 &&
             Math.abs(player.position.x) < 10 &&
             player.position.y <= 12) {
@@ -607,11 +632,13 @@ function animate() {
             }
         }
 
+        // Update progress bar
         const startZ = 0;
         const endZ = CASTLE_Z;
         const progress = Math.max(0, Math.min(100, ((startZ - player.position.z) / (startZ - endZ)) * 100));
         uiManager.updateHUD({ progress: progress }); 
 
+        // Handle collectibles
         for (let i = coins.length - 1; i >= 0; i--) {
             coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
             if (player.position.distanceTo(coins[i].position) < 1.5) {
@@ -632,6 +659,7 @@ function animate() {
             }
         }
 
+        // Update enemy orientation
         enemies.forEach(e => {
             const targetPos = getNearestPlayerPosition(e.position);
             e.lookAt(targetPos.x, e.position.y, targetPos.z);
@@ -644,6 +672,7 @@ function animate() {
             }
         }
 
+        // Check enemy collisions
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (player.position.distanceTo(enemies[i].position) < 2.0) {
                 velocity.y = 10; velocity.z += 10;
@@ -657,6 +686,7 @@ function animate() {
             }
         }
 
+        // Update projectiles
         for (let i = projectiles.length - 1; i >= 0; i--) {
             const p = projectiles[i];
             p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
@@ -682,6 +712,7 @@ function animate() {
             }
         }
 
+        // Update camera position
         const camOffset = new THREE.Vector3(0, 4, 8); 
         camOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
         camOffset.applyEuler(player.rotation);
@@ -690,7 +721,7 @@ function animate() {
         camera.position.lerp(targetCamPos, 0.1);
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
 
-        // --- RONNIE INTERACTIE CHECK ---
+        // Handle interaction prompts
         if (window.ronnie) {
             const dist = player.position.distanceTo(window.ronnie.position);
             const prompt = window.ronnie.children.find(c => c.name === "InteractionPrompt");
@@ -703,20 +734,23 @@ function animate() {
             }
         }
 
-    } // <--- DIT SLUITHAAKJE ONTBRAK WAARSCHIJNLIJK! (Sluit 'if (gameState === playing)')
+    } 
+
 
     renderer.render(scene, camera);
-} // Sluit animate()
+}
 
 function performJump() {
+    const mods = settingsManager.get('modifiers');
     const maxJumps = shopSystem ? shopSystem.getMaxJumps() : 1;
     
     if (isGrounded) {
         jumpCount = 0;
     }
 
-    if (jumpCount < maxJumps) {
-        velocity.y = JUMP_SPEED;
+    // Infinite Jump Check
+    if (mods.infiniteJump || jumpCount < maxJumps) {
+        velocity.y = mods.jumpSpeed;
         isGrounded = false;
         jumpCount++;
         if (audioManager) audioManager.playSFX('jump');
@@ -860,8 +894,12 @@ function setupInputs() {
 
     document.addEventListener('mousemove', e => {
         if (window.gameState === 'playing') {
-            player.rotation.y -= e.movementX * 0.002;
-            cameraPitch -= e.movementY * 0.002;
+            // Haal de sensitivity op uit de settingsManager
+            const sens = settingsManager.get('sensitivity') || 1.0;
+            const baseSens = 0.002;
+
+            player.rotation.y -= e.movementX * (baseSens * sens);
+            cameraPitch -= e.movementY * (baseSens * sens);
             cameraPitch = Math.max(-0.8, Math.min(0.8, cameraPitch));
         }
     });
@@ -874,13 +912,21 @@ function setupInputs() {
     const settingsBtn = document.getElementById('settings-btn') || document.querySelector('#pause-screen button:nth-child(2)'); 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            uiManager.openSettingsMenu(settingsManager, (newValues) => {
-                settingsManager.set('sensitivity', newValues.sensitivity);
-                settingsManager.set('volume', newValues.volume);
-                if (audioManager && audioManager.listener) {
-                    audioManager.listener.setMasterVolume(newValues.volume);
+            uiManager.openSettingsMenu(settingsManager, (newAllSettings) => {
+                // Sla ALLES op via de manager
+                settingsManager.set('audio', newAllSettings.audio);
+                settingsManager.set('keybinds', newAllSettings.keybinds);
+                settingsManager.set('modifiers', newAllSettings.modifiers);
+
+                // Update Audio
+                if (audioManager) {
+                    audioManager.updateVolumes(newAllSettings.audio);
                 }
-                if (mobile) mobile.sensitivity = newValues.sensitivity;
+                
+                // Update Mobile (optioneel)
+                // if (mobile) mobile.sensitivity = ... (zit niet in dit menu, kan je toevoegen)
+                
+                console.log("Settings saved!", newAllSettings);
             });
         });
     }

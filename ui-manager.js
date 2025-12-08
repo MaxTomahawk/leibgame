@@ -62,7 +62,7 @@ export class UIManager {
             this.dom.showLoginBtn.addEventListener('click', () => {
                 this.dom.loginContainer.classList.toggle('hidden');
             });
-        }
+        };
     }
 
     // --- SETUP & STATUS ---
@@ -318,96 +318,326 @@ export class UIManager {
     }
 
     setupSettingsHTML() {
-        if (!document.getElementById('settings-modal')) {
+        if (!document.getElementById('settings-menu')) {
             const div = document.createElement('div');
-            div.id = 'settings-modal';
-            div.className = 'hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50';
+            div.id = 'settings-menu';
+            div.className = 'hidden fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center font-mono text-white';
             div.innerHTML = `
-                <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full text-white border-2 border-blue-500 font-mono">
-                    <h2 class="text-2xl font-bold mb-6 text-blue-400 border-b border-blue-500 pb-2">Instellingen</h2>
-                    
-                    <div class="space-y-6 mb-8">
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <label class="font-bold">Muis Gevoeligheid</label>
-                                <span id="sens-val" class="text-blue-300">1.0</span>
-                            </div>
-                            <input type="range" id="input-sens" min="0.1" max="3.0" step="0.1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <label class="font-bold">Volume</label>
-                                <span id="vol-val" class="text-blue-300">50%</span>
-                            </div>
-                            <input type="range" id="input-vol" min="0" max="1" step="0.1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-                        </div>
-
-                        <div class="p-3 bg-gray-700 rounded text-sm border border-gray-600">
-                            <p class="font-bold text-gray-300 mb-2 border-b border-gray-600 pb-1">Keybindings</p>
-                            <div class="grid grid-cols-2 gap-2 text-xs">
-                                <div>Move: W/A/S/D</div>
-                                <div>Jump: Space</div>
-                                <div>Sprint: Shift</div>
-                                <div class="text-yellow-400 font-bold">Interact: E</div>
-                                <div class="text-blue-400 font-bold">Ability: 1</div>
-                            </div>
+                <div class="w-full max-w-3xl bg-gray-800 border-2 border-blue-500 rounded-lg shadow-2xl flex flex-col max-h-[90vh]">
+                    <div class="p-4 border-b border-gray-700 bg-gray-900 rounded-t-lg flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-blue-400">SETTINGS</h2>
+                        <div class="flex space-x-2">
+                            <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold active-tab" data-tab="volume">Volume</button>
+                            <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold" data-tab="controls">Controls</button>
+                            <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold" data-tab="modifiers">Modifiers</button>
                         </div>
                     </div>
 
-                    <div class="flex gap-4">
-                        <button id="save-settings" class="flex-1 bg-green-600 py-3 rounded hover:bg-green-500 font-bold transition">Opslaan</button>
-                        <button id="cancel-settings" class="flex-1 bg-red-600 py-3 rounded hover:bg-red-500 font-bold transition">Annuleren</button>
+                    <div class="flex-1 overflow-y-auto p-6 bg-gray-800" id="settings-content">
+                        </div>
+
+                    <div class="p-4 border-t border-gray-700 bg-gray-900 rounded-b-lg flex justify-between gap-4">
+                        <button id="btn-defaults" class="px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded">Defaults</button>
+                        <div class="flex gap-4">
+                            <button id="btn-cancel" class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded">Return (No Save)</button>
+                            <button id="btn-save" class="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded">Save & Return</button>
+                        </div>
                     </div>
                 </div>
             `;
             document.body.appendChild(div);
 
-            // Event Listeners voor live updates
-            document.getElementById('input-sens').addEventListener('input', (e) => {
-                document.getElementById('sens-val').innerText = e.target.value;
-            });
-            document.getElementById('input-vol').addEventListener('input', (e) => {
-                document.getElementById('vol-val').innerText = Math.round(e.target.value * 100) + '%';
+            // Tab switching logic
+            div.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    div.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('bg-gray-700');
+                    });
+                    e.target.classList.remove('bg-gray-700');
+                    e.target.classList.add('bg-blue-600', 'text-white');
+                    this.renderSettingsTab(e.target.dataset.tab);
+                });
             });
         }
     }
 
     openSettingsMenu(settingsManager, onSave) {
         this.setupSettingsHTML();
-        const modal = document.getElementById('settings-modal');
+        const menu = document.getElementById('settings-menu');
+        const content = document.getElementById('settings-content');
         
-        // Huidige waardes invullen
-        const s = settingsManager.get('sensitivity');
-        const v = settingsManager.get('volume');
-        
-        document.getElementById('input-sens').value = s;
-        document.getElementById('input-vol').value = v;
-        document.getElementById('sens-val').innerText = s;
-        document.getElementById('vol-val').innerText = Math.round(v * 100) + '%';
+        // Hide Pause Menu (overlay)
+        this.dom.pauseScreen.classList.remove('active'); 
+        menu.classList.remove('hidden');
 
-        document.exitPointerLock();
-        modal.classList.remove('hidden');
-
-        const saveBtn = document.getElementById('save-settings');
-        const cancelBtn = document.getElementById('cancel-settings');
+        // Tijdelijke kopie van settings om in te editen
+        this.tempSettings = JSON.parse(JSON.stringify({
+            audio: settingsManager.get('audio'),
+            keybinds: settingsManager.get('keybinds'),
+            modifiers: settingsManager.get('modifiers')
+        }));
         
-        // Klonen om oude listeners te verwijderen
+        this.currentSettingsManager = settingsManager; // Referentie voor defaults
+
+        // Render eerste tab
+        document.querySelector('[data-tab="volume"]').click();
+
+        // Button events (verwijder oude listeners door cloneNode)
+        const saveBtn = document.getElementById('btn-save');
+        const cancelBtn = document.getElementById('btn-cancel');
+        const defaultBtn = document.getElementById('btn-defaults');
+
         const newSave = saveBtn.cloneNode(true);
         const newCancel = cancelBtn.cloneNode(true);
+        const newDefault = defaultBtn.cloneNode(true);
+        
         saveBtn.parentNode.replaceChild(newSave, saveBtn);
         cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+        defaultBtn.parentNode.replaceChild(newDefault, defaultBtn);
 
         newSave.addEventListener('click', () => {
-            onSave({
-                sensitivity: parseFloat(document.getElementById('input-sens').value),
-                volume: parseFloat(document.getElementById('input-vol').value)
-            });
-            modal.classList.add('hidden');
+            onSave(this.tempSettings);
+            menu.classList.add('hidden');
+            this.dom.pauseScreen.classList.add('active'); // Terug naar pause menu
         });
 
         newCancel.addEventListener('click', () => {
-            modal.classList.add('hidden');
+            menu.classList.add('hidden');
+            this.dom.pauseScreen.classList.add('active');
         });
+
+        newDefault.addEventListener('click', () => {
+            if(confirm("Alles resetten naar defaults?")) {
+                this.tempSettings = JSON.parse(JSON.stringify(settingsManager.defaultSettings));
+                // Her-render huidige tab
+                const activeTab = document.querySelector('.tab-btn.bg-blue-600').dataset.tab;
+                this.renderSettingsTab(activeTab);
+            }
+        });
+    }
+
+    renderSettingsTab(tabName) {
+        const container = document.getElementById('settings-content');
+        container.innerHTML = '';
+
+        if (tabName === 'volume') {
+            const createSlider = (label, key, val) => `
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="font-bold text-gray-300">${label}</label>
+                        <span class="text-blue-400 font-bold">${val}%</span>
+                    </div>
+                    <input type="range" min="0" max="100" value="${val}" data-key="${key}" 
+                        class="vol-slider w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                </div>`;
+
+            container.innerHTML = `
+                ${createSlider("Master Volume", "master", this.tempSettings.audio.master)}
+                ${createSlider("Music Volume (.mp3)", "music", this.tempSettings.audio.music)}
+                ${createSlider("Sound Effects (.wav)", "sfx", this.tempSettings.audio.sfx)}
+            `;
+
+            container.querySelectorAll('.vol-slider').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    this.tempSettings.audio[e.target.dataset.key] = parseInt(e.target.value);
+                    e.target.previousElementSibling.querySelector('span').innerText = e.target.value + '%';
+                });
+            });
+
+        } else if (tabName === 'controls') {
+            let html = '<div class="grid grid-cols-1 gap-4">';
+            Object.entries(this.tempSettings.keybinds).forEach(([action, key]) => {
+                html += `
+                    <div class="flex justify-between items-center bg-gray-700 p-3 rounded border border-gray-600">
+                        <span class="capitalize font-bold text-gray-200">${action}</span>
+                        <button class="keybind-btn bg-gray-900 px-4 py-2 rounded text-blue-400 font-mono border border-blue-900 hover:border-blue-500 min-w-[100px]" 
+                                data-action="${action}">${key}</button>
+                    </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+
+            container.querySelectorAll('.keybind-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btn.innerText = "Press key...";
+                    btn.classList.add('animate-pulse', 'border-yellow-500', 'text-yellow-500');
+                    
+                    const handler = (e) => {
+                        e.preventDefault();
+                        this.tempSettings.keybinds[btn.dataset.action] = e.code;
+                        btn.innerText = e.code;
+                        btn.classList.remove('animate-pulse', 'border-yellow-500', 'text-yellow-500');
+                        document.removeEventListener('keydown', handler);
+                    };
+                    document.addEventListener('keydown', handler, { once: true });
+                });
+            });
+
+        } else if (tabName === 'modifiers') {
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+            const defs = this.currentSettingsManager.defaultSettings.modifiers;
+
+            Object.entries(this.tempSettings.modifiers).forEach(([key, val]) => {
+                const isBool = typeof val === 'boolean';
+                const defaultVal = defs[key];
+                
+                html += `
+                    <div class="bg-gray-700 p-4 rounded border border-gray-600">
+                        <label class="block font-bold text-gray-200 mb-1 capitalize">${key.replace(/([A-Z])/g, ' $1')}</label>
+                        <div class="text-xs text-gray-400 italic mb-2">Default: ${defaultVal}</div>
+                        ${isBool ? `
+                            <button class="bool-toggle w-full py-2 rounded font-bold ${val ? 'bg-green-600' : 'bg-red-600'}" 
+                                data-key="${key}">${val ? 'ENABLED' : 'DISABLED'}</button>
+                        ` : `
+                            <input type="number" step="0.1" value="${val}" data-key="${key}" 
+                                class="mod-input w-full p-2 bg-gray-900 border border-gray-500 rounded text-white focus:border-blue-500 focus:outline-none">
+                        `}
+                    </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+
+            container.querySelectorAll('.mod-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    this.tempSettings.modifiers[e.target.dataset.key] = parseFloat(e.target.value);
+                });
+            });
+            
+            container.querySelectorAll('.bool-toggle').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const key = e.target.dataset.key;
+                    const newVal = !this.tempSettings.modifiers[key];
+                    this.tempSettings.modifiers[key] = newVal;
+                    
+                    e.target.className = `bool-toggle w-full py-2 rounded font-bold ${newVal ? 'bg-green-600' : 'bg-red-600'}`;
+                    e.target.innerText = newVal ? 'ENABLED' : 'DISABLED';
+                });
+            });
+        }
+    }
+
+    /**
+     * Initializes and injects the theme toggle button into the pause menu.
+     * Handles the cycle logic (Auto -> Light -> Dark) and visual updates.
+     * @param {SettingsManager} settingsManager - The manager instance for persistence.
+     * @param {Function} onThemeChange - Callback triggered when the theme is toggled.
+     */
+    setupThemeToggle(settingsManager, onThemeChange) {
+        const pauseCard = document.querySelector('#pause-screen .game-card');
+        if (!pauseCard) return;
+
+        // Remove existing button to prevent duplicates during hot-reloads or re-initialization
+        const oldBtn = document.getElementById('theme-toggle-btn');
+        if (oldBtn) oldBtn.remove();
+
+        // Create the toggle button element
+        const btn = document.createElement('button');
+        btn.id = 'theme-toggle-btn';
+        btn.className = "absolute top-10 right-10 w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none";
+        btn.title = "Toggle Theme (Auto -> Light -> Dark)";
+        
+        // Retrieve initial theme state and render the corresponding icon
+        let currentTheme = settingsManager.get('theme') || 'auto';
+        btn.innerHTML = this._getThemeSVG(currentTheme);
+
+        // Handle click events to cycle through themes
+        btn.addEventListener('click', () => {
+            // Re-fetch current value to ensure synchronization with storage
+            const current = settingsManager.get('theme') || 'auto';
+            let newTheme = 'auto';
+
+            // Cycle logic: Auto -> Light -> Dark -> Auto
+            if (current === 'auto') newTheme = 'light';
+            else if (current === 'light') newTheme = 'dark';
+            else newTheme = 'auto'; // Default fallback for 'dark' or invalid states
+
+            // Persist the new theme setting and update the button icon
+            settingsManager.set('theme', newTheme);
+            btn.innerHTML = this._getThemeSVG(newTheme);
+            
+            // Trigger the callback to apply changes to the game environment
+            onThemeChange(newTheme);
+        });
+
+        // Ensure parent container positioning allows for absolute child placement
+        pauseCard.style.position = 'relative';
+        pauseCard.appendChild(btn);
+    }
+
+    /**
+     * Generates the SVG string for the requested theme mode.
+     * @param {string} mode - The current theme mode ('light', 'dark', or 'auto').
+     * @returns {string} - The SVG HTML string.
+     */
+    _getThemeSVG(mode) {
+        // Color definitions based on Tailwind palette
+        const cYellow = "#fde047"; // yellow-300
+        const cIndigo = "#3730a3"; // indigo-800
+        
+        // Return Light Mode Icon (Yellow Sun)
+        if (mode === 'light') {
+            return `
+            <svg viewBox="0 0 32 32" fill="${cYellow}">
+                <g transform="translate(0,0) scale(0.5)">
+                    <circle cx="32.003" cy="32.005" r="16.001"/>
+                    <path d="M12.001,31.997c0-2.211-1.789-4-4-4H4c-2.211,0-4,1.789-4,4   s1.789,4,4,4h4C10.212,35.997,12.001,34.208,12.001,31.997z"/>
+                    <path d="M12.204,46.139l-2.832,2.833c-1.563,1.562-1.563,4.094,0,5.656   c1.562,1.562,4.094,1.562,5.657,0l2.833-2.832c1.562-1.562,1.562-4.095,0-5.657C16.298,44.576,13.767,44.576,12.204,46.139z"/>
+                    <path d="M32.003,51.999c-2.211,0-4,1.789-4,4V60c0,2.211,1.789,4,4,4   s4-1.789,4-4l-0.004-4.001C36.003,53.788,34.21,51.999,32.003,51.999z"/>
+                    <path d="M51.798,46.143c-1.559-1.566-4.091-1.566-5.653-0.004   s-1.562,4.095,0,5.657l2.829,2.828c1.562,1.57,4.094,1.562,5.656,0s1.566-4.09,0-5.656L51.798,46.143z"/>
+                    <path d="M60.006,27.997l-4.009,0.008   c-2.203-0.008-3.992,1.781-3.992,3.992c-0.008,2.211,1.789,4,3.992,4h4.001c2.219,0.008,4-1.789,4-4   C64.002,29.79,62.217,27.997,60.006,27.997z"/>
+                    <path d="M51.798,17.859l2.828-2.829c1.574-1.566,1.562-4.094,0-5.657   c-1.559-1.567-4.09-1.567-5.652-0.004l-2.829,2.836c-1.562,1.555-1.562,4.086,0,5.649C47.699,19.426,50.239,19.418,51.798,17.859z"/>
+                    <path d="M32.003,11.995c2.207,0.016,4-1.789,4-3.992v-4   c0-2.219-1.789-4-4-4c-2.211-0.008-4,1.781-4,3.993l0.008,4.008C28.003,10.206,29.792,11.995,32.003,11.995z"/>
+                    <path d="M12.212,17.855c1.555,1.562,4.079,1.562,5.646-0.004   c1.574-1.551,1.566-4.09,0.008-5.649l-2.829-2.828c-1.57-1.571-4.094-1.559-5.657,0c-1.575,1.559-1.575,4.09-0.012,5.653   L12.212,17.855z"/>
+                </g>
+            </svg>`;
+        }
+
+        // Return Dark Mode Icon (Indigo Moon)
+        if (mode === 'dark') {
+            return `
+            <svg viewBox="0 0 32 32" fill="${cIndigo}">
+                <g transform="translate(0,0) scale(1.45)">
+                    <path d="M19.9001 2.30719C19.7392 1.8976 19.1616 1.8976 19.0007 2.30719L18.5703 3.40247C18.5212 3.52752 18.4226 3.62651 18.298 3.67583L17.2067 4.1078C16.7986 4.26934 16.7986 4.849 17.2067 5.01054L18.298 5.44252C18.4226 5.49184 18.5212 5.59082 18.5703 5.71587L19.0007 6.81115C19.1616 7.22074 19.7392 7.22074 19.9001 6.81116L20.3305 5.71587C20.3796 5.59082 20.4782 5.49184 20.6028 5.44252L21.6941 5.01054C22.1022 4.849 22.1022 4.26934 21.6941 4.1078L20.6028 3.67583C20.4782 3.62651 20.3796 3.52752 20.3305 3.40247L19.9001 2.30719Z"/>
+                    <path d="M16.0328 8.12967C15.8718 7.72009 15.2943 7.72009 15.1333 8.12967L14.9764 8.52902C14.9273 8.65407 14.8287 8.75305 14.7041 8.80237L14.3062 8.95987C13.8981 9.12141 13.8981 9.70107 14.3062 9.86261L14.7041 10.0201C14.8287 10.0694 14.9273 10.1684 14.9764 10.2935L15.1333 10.6928C15.2943 11.1024 15.8718 11.1024 16.0328 10.6928L16.1897 10.2935C16.2388 10.1684 16.3374 10.0694 16.462 10.0201L16.8599 9.86261C17.268 9.70107 17.268 9.12141 16.8599 8.95987L16.462 8.80237C16.3374 8.75305 16.2388 8.65407 16.1897 8.52902L16.0328 8.12967Z"/>
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5373 21.3065 11.4608 21.0672 11.8568C19.9289 13.7406 17.8615 15 15.5 15C11.9101 15 9 12.0899 9 8.5C9 6.13845 10.2594 4.07105 12.1432 2.93276C12.5392 2.69347 12.4627 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/>
+                </g>        
+            </svg>`;
+        }
+
+        // Return Auto Mode Icon (Split Gradient with small Sun and Moon)
+        return `
+        <svg viewBox="0 0 32 32">
+            <defs>
+                <linearGradient id="autoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#fde047;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#3730a3;stop-opacity:1" />
+                </linearGradient>
+
+                <mask id="themeMask">
+                    <g transform="translate(0, 0) scale(0.26)" fill="white">
+                        <circle cx="32.003" cy="32.005" r="16.001"/>
+                        <path d="M12.001,31.997c0-2.211-1.789-4-4-4H4c-2.211,0-4,1.789-4,4   s1.789,4,4,4h4C10.212,35.997,12.001,34.208,12.001,31.997z"/>
+                        <path d="M12.204,46.139l-2.832,2.833c-1.563,1.562-1.563,4.094,0,5.656   c1.562,1.562,4.094,1.562,5.657,0l2.833-2.832c1.562-1.562,1.562-4.095,0-5.657C16.298,44.576,13.767,44.576,12.204,46.139z"/>
+                        <path d="M32.003,51.999c-2.211,0-4,1.789-4,4V60c0,2.211,1.789,4,4,4   s4-1.789,4-4l-0.004-4.001C36.003,53.788,34.21,51.999,32.003,51.999z"/>
+                        <path d="M51.798,46.143c-1.559-1.566-4.091-1.566-5.653-0.004   s-1.562,4.095,0,5.657l2.829,2.828c1.562,1.57,4.094,1.562,5.656,0s1.566-4.09,0-5.656L51.798,46.143z"/>
+                        <path d="M60.006,27.997l-4.009,0.008   c-2.203-0.008-3.992,1.781-3.992,3.992c-0.008,2.211,1.789,4,3.992,4h4.001c2.219,0.008,4-1.789,4-4   C64.002,29.79,62.217,27.997,60.006,27.997z"/>
+                        <path d="M51.798,17.859l2.828-2.829c1.574-1.566,1.562-4.094,0-5.657   c-1.559-1.567-4.09-1.567-5.652-0.004l-2.829,2.836c-1.562,1.555-1.562,4.086,0,5.649C47.699,19.426,50.239,19.418,51.798,17.859z"/>
+                        <path d="M32.003,11.995c2.207,0.016,4-1.789,4-3.992v-4   c0-2.219-1.789-4-4-4c-2.211-0.008-4,1.781-4,3.993l0.008,4.008C28.003,10.206,29.792,11.995,32.003,11.995z"/>
+                        <path d="M12.212,17.855c1.555,1.562,4.079,1.562,5.646-0.004   c1.574-1.551,1.566-4.09,0.008-5.649l-2.829-2.828c-1.57-1.571-4.094-1.559-5.657,0c-1.575,1.559-1.575,4.09-0.012,5.653   L12.212,17.855z"/>
+                    </g>
+        
+                    <g transform="translate(14.5, 14.5) scale(0.75)" fill="white">
+                        <path d="M19.9001 2.30719C19.7392 1.8976 19.1616 1.8976 19.0007 2.30719L18.5703 3.40247C18.5212 3.52752 18.4226 3.62651 18.298 3.67583L17.2067 4.1078C16.7986 4.26934 16.7986 4.849 17.2067 5.01054L18.298 5.44252C18.4226 5.49184 18.5212 5.59082 18.5703 5.71587L19.0007 6.81115C19.1616 7.22074 19.7392 7.22074 19.9001 6.81116L20.3305 5.71587C20.3796 5.59082 20.4782 5.49184 20.6028 5.44252L21.6941 5.01054C22.1022 4.849 22.1022 4.26934 21.6941 4.1078L20.6028 3.67583C20.4782 3.62651 20.3796 3.52752 20.3305 3.40247L19.9001 2.30719Z"/>
+                        <path d="M16.0328 8.12967C15.8718 7.72009 15.2943 7.72009 15.1333 8.12967L14.9764 8.52902C14.9273 8.65407 14.8287 8.75305 14.7041 8.80237L14.3062 8.95987C13.8981 9.12141 13.8981 9.70107 14.3062 9.86261L14.7041 10.0201C14.8287 10.0694 14.9273 10.1684 14.9764 10.2935L15.1333 10.6928C15.2943 11.1024 15.8718 11.1024 16.0328 10.6928L16.1897 10.2935C16.2388 10.1684 16.3374 10.0694 16.462 10.0201L16.8599 9.86261C17.268 9.70107 17.268 9.12141 16.8599 8.95987L16.462 8.80237C16.3374 8.75305 16.2388 8.65407 16.1897 8.52902L16.0328 8.12967Z"/>
+                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5373 21.3065 11.4608 21.0672 11.8568C19.9289 13.7406 17.8615 15 15.5 15C11.9101 15 9 12.0899 9 8.5C9 6.13845 10.2594 4.07105 12.1432 2.93276C12.5392 2.69347 12.4627 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/>
+                    </g>    
+        
+                    <line x1="4" y1="28" x2="28" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                </mask>
+            </defs>
+
+            <rect width="100%" height="100%" fill="url(#autoGradient)" mask="url(#themeMask)" />
+        </svg>`;
     }
 }
