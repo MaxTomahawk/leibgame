@@ -58,6 +58,7 @@ let mobile = null;
 let audioManager;
 let shopSystem, settingsManager;
 let jumpCount = 0;
+let isGliding = false;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
@@ -593,13 +594,19 @@ function animate() {
 
         player.position.add(velocity.clone().multiplyScalar(delta));
 
+        const localVelocity = velocity.clone();
+        localVelocity.applyEuler(new THREE.Euler(0, -player.rotation.y, 0));
+        // Nu is localVelocity.z = vooruit, localVelocity.x = opzij
+
         const currentAnim = modelManager.updateAnimation({
             isMoving: isMoving,
             isGrounded: isGrounded,
             moveB: moveB,
             isSprinting: isSprinting,
             modelFile: selectedModelFile,
-            verticalVelocity: velocity.y // <--- VOEG DIT TOE
+            verticalVelocity: velocity.y,
+            isGliding: isGliding,
+            localVelocity: localVelocity 
         });
 
         // Abyss check
@@ -730,6 +737,21 @@ function animate() {
             }
         }
 
+        // 1. Check Glide condities in elke frame
+        if (isGrounded || jumpCount > shopSystem.getMaxJumps()) { 
+            // Als je landt of springt terwijl je glidet, stopt glide
+            isGliding = false; 
+        }
+
+        // 2. Physics aanpassen
+        targetGravity = isTripping ? mods.tripGravity : mods.baseGravity;
+        
+        // OVERRIDE als we gliden
+        if (isGliding) {
+            targetGravity = 8.0; // Verlaagde zwaartekracht
+            // Optioneel: rem de valsnelheid direct af als je begint met gliden
+            if (velocity.y < -2) velocity.y = THREE.MathUtils.lerp(velocity.y, -2, delta * 5);
+        }
     } 
 
 
@@ -746,6 +768,7 @@ function performJump() {
 
     // Infinite Jump Check
     if (mods.infiniteJump || jumpCount < maxJumps) {
+        isGliding = false;
         velocity.y = mods.jumpSpeed;
         isGrounded = false;
         jumpCount++;
@@ -956,9 +979,16 @@ function setupInputs() {
         }
         
         // ABILITY (1) - Cloud Summon
-        if (action === 'action1') {
+        if (action === 'cloud') {
             if (shopSystem && shopSystem.hasCloudAbility()) {
                 summonCloudPlatform(player.position, scene, platforms, platformTexture);
+            }
+        }
+
+    if (action === 'glide') {
+            // Mag alleen als: Ronnie shop item gekocht is, we in de lucht zijn, en niet aan het vallen in de 'afgrond' (optioneel)
+            if (shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
+                isGliding = !isGliding;            
             }
         }
     });

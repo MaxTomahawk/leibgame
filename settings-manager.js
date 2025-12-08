@@ -18,7 +18,8 @@ export class SettingsManager {
                 jump: 'Space',
                 sprint: 'ShiftLeft',
                 interact: 'KeyE',
-                action1: 'KeyF'
+                cloud: 'KeyF',
+                glide: 'KeyQ'
             },
             modifiers: {
                 baseGravity: 17.5,

@@ -1,4 +1,3 @@
-// model-manager.js
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
@@ -9,17 +8,22 @@ export const MODEL_SCALES = {
     'assets/weissman.glb': 1.3,
 };
 
+// Indexen gebaseerd op je laatste input.
+// Check console logs als animaties toch verkeerd zijn!
 export const ANIMATION_MAPPING = {
     'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
     'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
     'assets/leib.glb': { 
-        idle: 5, 
-        walk: 4, 
-        run: 3, 
-        jump_up: 2, 
-        falling_idle: 1, 
+        idle: 8, 
+        walk: 7, 
+        run: 6, 
+        jump_up: 4, 
+        falling_idle: 2, 
         landing: 0, 
-        walk_backwards: 6 
+        walk_backwards: 9,
+        strafe_left: 3, 
+        strafe_right: 1,
+        glide: 5
     },
     'assets/weissman.glb': { idle: 7, run: 2, jump: 6 }
 };
@@ -32,6 +36,7 @@ export class ModelManager {
         this.currentAnimation = '';
         this.loader = new GLTFLoader();
         this.playerModel = null;
+        this.isLanding = false;
     }
 
     // Load main player model
@@ -53,13 +58,11 @@ export class ModelManager {
 
                     player.add(this.playerModel);
 
-                    // Store appearance for multiplayer
                     player.userData.appearance = {
                         model: modelFile,
                         scale: scale
                     };
 
-                    // Setup animations
                     if (gltf.animations && gltf.animations.length > 0) {
                         this.setupAnimations(gltf, modelFile);
                         this.playAnimation('idle');
@@ -77,7 +80,7 @@ export class ModelManager {
                 (error) => {
                     console.error('Error loading model:', error);
                     
-                    // Fallback: simple box
+                    // Fallback
                     const fallbackGeo = new THREE.BoxGeometry(1, 2, 1);
                     const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
                     this.playerModel = new THREE.Mesh(fallbackGeo, fallbackMat);
@@ -85,18 +88,18 @@ export class ModelManager {
                     this.addPlayerLights(player);
 
                     if (onError) onError("model", "⚠️ Model load failed (using fallback)", "yellow");
-                    resolve(this.playerModel); // Still resolve with fallback
+                    resolve(this.playerModel);
                 }
             );
         });
     }
 
     setupAnimations(gltf, modelFile) {
-        console.log("Animations found:", gltf.animations.map((a, i) => `${i}: ${a.name}`));
+        console.log(`%c[${modelFile}] Animaties gevonden:`, "color: cyan; font-weight: bold;");
+        gltf.animations.forEach((a, i) => console.log(`Index ${i}: ${a.name}`));
 
         this.mixer = new THREE.AnimationMixer(this.playerModel);
         
-        // Luister naar wanneer een animatie klaar is (voor de landing)
         this.mixer.addEventListener('finished', (e) => this.onAnimationFinished(e));
 
         const mapping = ANIMATION_MAPPING[modelFile] || ANIMATION_MAPPING['assets/option2.glb'];
@@ -109,9 +112,8 @@ export class ModelManager {
             }
         }
 
-        // Loop settings configureren
+        // Loop configuratie
         for (const [name, action] of Object.entries(this.animations)) {
-            // Lijst met animaties die NIET mogen loopen
             const noLoopActions = ['jump', 'jump_up', 'landing'];
             
             if (noLoopActions.includes(name)) {
@@ -123,16 +125,16 @@ export class ModelManager {
         }
     }
 
-    // Nieuwe helper om te resetten naar idle/run na een landing
     onAnimationFinished(e) {
-        if (e.action === this.animations['landing']) {
-            this.isLanding = false; // Landing is klaar, sta weer movement toe
-            // De updateAnimation loop pakt het vanaf hier weer op
+        if (this.animations['landing'] && e.action === this.animations['landing']) {
+            this.isLanding = false; 
         }
     }
 
     playAnimation(name, fadeDuration = 0.2) {
         if (!this.mixer || !this.animations[name]) return;
+        
+        // Als de animatie al speelt, doe niets (behalve als het een one-shot was die klaar is)
         if (this.currentAction === this.animations[name] && this.currentAction.isRunning()) return;
 
         const nextAction = this.animations[name];
@@ -142,83 +144,104 @@ export class ModelManager {
         }
 
         nextAction.reset();
-        
         nextAction.fadeIn(fadeDuration).play();
         this.currentAction = nextAction;
+        this.currentAnimation = name;
     }
 
     updateAnimation(state) {
-        // Zorg dat je verticalVelocity (rb.linvel().y of body.velocity.y) meegeeft in state!
-        const { isMoving, isGrounded, moveB, isSprinting, modelFile, verticalVelocity } = state;
-        
-        // Check of we met het specifieke leib model werken
+        const { isMoving, isGrounded, isSprinting, modelFile, verticalVelocity, isGliding, localVelocity } = state;
         const isLeib = modelFile === 'assets/leib.glb';
-        const isWeissman = modelFile === 'assets/weissman.glb';
+        
+        // Fallback voor andere modellen (die geen strafe/glide supporten in deze code)
+        if (!isLeib) return this.updateAnimationLegacy(state); 
 
-        let nextAnimation = this.currentAnimation;
+        let nextAnim = 'idle';
 
-        // --- SPRONG LOGICA VOOR LEIB ---
-        if (isLeib) {
-            if (this.isLanding) {
-                if (!isGrounded) this.isLanding = false; // Toch weer gevallen/gesprongen
-                else return this.currentAnimation;
-            }
+        // 1. GLIDE
+        if (isGliding && !isGrounded) {
+            nextAnim = 'glide';
+        }
+        // 2. AIRBORNE
+        else if (!isGrounded) {
+            if (verticalVelocity > 0.5) nextAnim = 'jump_up';
+            else nextAnim = 'falling_idle';
+        }
+        // 3. LANDING CHECK
+        // Als we net uit de lucht komen, trigger landing
+        else if (['falling_idle', 'jump_up', 'glide'].includes(this.currentAnimation)) {
+            nextAnim = 'landing';
+            this.isLanding = true;
+            this.playAnimation('landing', 0.05); // Snelle impact
+            return 'landing';
+        }
+        // Zolang landing bezig is, blijf daar
+        else if (this.isLanding) {
+            return 'landing';
+        }
+        // 4. BEWEGING OP DE GROND
+        else if (isMoving) {
+            // Bepaal richting op basis van localVelocity (vanuit main.js)
+            // localVelocity.z < 0 = Vooruit
+            // localVelocity.z > 0 = Achteruit
+            // localVelocity.x > 0 = Rechts (meestal)
+            // localVelocity.x < 0 = Links
 
-            if (!isGrounded) {
-                // We zweven. Gaan we omhoog of omlaag?
-                const isAlreadyAirborne = (this.currentAnimation === 'falling_idle' || this.currentAnimation === 'jump_up');
+            const vx = localVelocity ? localVelocity.x : 0;
+            const vz = localVelocity ? localVelocity.z : 0;
 
-                if (verticalVelocity > 0.5 && !isAlreadyAirborne) {                    // Omhoog = Jump Up
-                    nextAnimation = 'jump_up';
-                } else {
-                    // Omlaag = Falling Idle
-                    // Gebruik een kleine drempelwaarde zodat hij niet flippert op de top
-                    nextAnimation = 'falling_idle';
-                }
+            // Bepaal of we meer zijwaarts gaan dan vooruit
+            if (Math.abs(vx) > Math.abs(vz)) {
+                // Dominant opzij
+                if (vx > 0) nextAnim = 'strafe_right';
+                else nextAnim = 'strafe_left';
             } else {
-                // We staan op de grond
-                
-                // Waren we net aan het vallen? Dan nu landen!
-                if (this.currentAnimation === 'falling_idle' || this.currentAnimation === 'jump_up') {
-                    nextAnimation = 'landing';
-                    this.isLanding = true; // Blokkeer movement animaties tot landing klaar is
-                    this.playAnimation(nextAnimation, 0.1); // Snelle fade voor impact
-                    this.currentAnimation = nextAnimation;
-                    return nextAnimation;
-                }
-
-                // Normale beweging op de grond
-                if (isMoving) {
-                    if (moveB) nextAnimation = 'walk_backwards';
-                    else if (isSprinting) nextAnimation = 'run';
-                    else nextAnimation = 'walk';
+                // Dominant voor/achter
+                if (vz > 0.1) {
+                    nextAnim = 'walk_backwards';
                 } else {
-                    nextAnimation = 'idle';
+                    // Vooruit
+                    if (isSprinting) nextAnim = 'run';
+                    else nextAnim = 'walk';
                 }
             }
         } 
-        // --- OUDE LOGICA (voor fallback/andere models) ---
+        // 5. STILSTAAN
         else {
-             if (!isGrounded) {
-                nextAnimation = 'jump';
-            } else if (isMoving) {
-                if (isWeissman && moveB) nextAnimation = 'walk_backwards';
-                else if (isWeissman && !isSprinting) nextAnimation = 'walk'; // Weissman specifieke walk
-                else nextAnimation = 'run';
-            } else {
-                nextAnimation = 'idle';
-            }
+            nextAnim = 'idle';
         }
 
-        // Als de animatie verandert, speel hem af
-        if (nextAnimation !== this.currentAnimation) {
-            // Pas de fade duration aan: sneller reageren bij jump/land, trager bij walk/run
-            const transitionSpeed = (nextAnimation === 'jump_up' || nextAnimation === 'landing') ? 0.1 : 0.2;
+        // Pas wissel toe
+        if (nextAnim !== this.currentAnimation) {
+            // Verschillende fade-tijden voor soepelheid
+            let fadeTime = 0.2;
+            if (nextAnim === 'jump_up') fadeTime = 0.1;
             
-            this.playAnimation(nextAnimation, transitionSpeed);
-            this.currentAnimation = nextAnimation;
+            this.playAnimation(nextAnim, fadeTime);
         }
 
+        return this.currentAnimation;
+    }
+
+    // Oude logica voor niet-Leib modellen
+    updateAnimationLegacy(state) {
+        const { isMoving, isGrounded, isSprinting, moveB, modelFile } = state;
+        const isWeissman = modelFile === 'assets/weissman.glb';
+        let nextAnim = 'idle';
+
+        if (!isGrounded) {
+            nextAnim = 'jump';
+        } else if (isMoving) {
+            if (isWeissman && moveB) nextAnim = 'walk_backwards';
+            else if (isWeissman && !isSprinting) nextAnim = 'walk';
+            else nextAnim = 'run';
+        } else {
+            nextAnim = 'idle';
+        }
+
+        if (nextAnim !== this.currentAnimation) {
+            this.playAnimation(nextAnim, 0.2);
+        }
         return this.currentAnimation;
     }
 
@@ -245,7 +268,6 @@ export class ModelManager {
         player.add(pointLight);
     }
 
-    // Load preview model for character selection
     loadPreviewModel(element, modelFile) {
         if (element.previewRenderer) {
             element.removeChild(element.previewRenderer.domElement);

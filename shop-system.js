@@ -35,7 +35,17 @@ export class ShopSystem {
                 currency: 'coins', 
                 max: 1, 
                 current: 0,
-                desc: 'Roep een wolk op onder je voeten (Action 1).'
+                desc: 'Roep een wolk op onder je voeten.'
+            },
+            glide: { 
+                id: 'glide', 
+                name: 'Glide', 
+                cost: 100,
+                currency: 'coins', 
+                max: 1, 
+                current: 0,
+                desc: 'Klik Q in de lucht om te zweven.',
+                req: 'double_jump'
             }
         };
     }
@@ -138,6 +148,10 @@ export class ShopSystem {
 
     hasCloudAbility() {
         return this.upgrades.summon_cloud.current > 0;
+    }
+
+    hasGlideAbility() {
+        return this.upgrades.glide && this.upgrades.glide.current > 0;
     }
 
     resetRunUpgrades() {
