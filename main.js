@@ -558,10 +558,18 @@ function animate() {
 
         velocity.y -= currentGravity * delta;
         
+        let currentDrag;
         // Determine drag based on grounded state
-        const drag = isGrounded ? mods.dragGrounded : mods.dragAir;
-        velocity.x -= velocity.x * 10 * drag * delta;
-        velocity.z -= velocity.z * 10 * drag * delta;
+        if (isGrounded) {
+            currentDrag = mods.dragGrounded;
+        } else if (isGliding) {
+            currentDrag = 0.8; // <--- VEEL lager dan mods.dragAir (normaal ~1.8)
+                            // Je glijdt nu veel verder door!
+        } else {
+            currentDrag = mods.dragAir;
+        }
+        velocity.x -= velocity.x * 10 * currentDrag * delta;
+        velocity.z -= velocity.z * 10 * currentDrag * delta;
 
         const fwd = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
         const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
