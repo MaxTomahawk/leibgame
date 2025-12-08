@@ -641,7 +641,9 @@ function animate() {
 
         // Handle collectibles
         for (let i = coins.length - 1; i >= 0; i--) {
-            coins[i].rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta;
+            const c = coins[i];
+            c.rotation.y += ASSET_CONFIG.COIN_ROTATION_SPEED * delta * .5 ;
+            c.position.y = c.baseY + Math.sin(performance.now() * 0.002 + c.bobOffset) * .35 ;
             if (player.position.distanceTo(coins[i].position) < 1.5) {
                 const isStar = coins[i].userData.isStar || (coins[i].children && coins[i].children.length > 0);
                 scene.remove(coins[i]);

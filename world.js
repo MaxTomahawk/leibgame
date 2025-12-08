@@ -403,7 +403,9 @@ function createCoin(x, y, z, scene, coins) {
         new THREE.MeshPhongMaterial({ color: 0xffd700 })
     );
     mesh.position.set(x, y, z);
-    mesh.rotation.x = Math.PI / 2;
+    mesh.rotation.z = Math.PI / 2;
+    mesh.baseY = y;
+    mesh.bobOffset = Math.random() * Math.PI * 2;
     console.log("created coin at: ", x, y, z)
     scene.add(mesh);
     coins.push(mesh);
