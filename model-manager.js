@@ -160,15 +160,15 @@ export class ModelManager {
         // --- SPRONG LOGICA VOOR LEIB ---
         if (isLeib) {
             if (this.isLanding) {
-                // Als we aan het landen zijn, onderbreek dit NIET, tenzij we weer springen
                 if (!isGrounded) this.isLanding = false; // Toch weer gevallen/gesprongen
                 else return this.currentAnimation;
             }
 
             if (!isGrounded) {
                 // We zweven. Gaan we omhoog of omlaag?
-                if (verticalVelocity > 0.5) {
-                    // Omhoog = Jump Up
+                const isAlreadyAirborne = (this.currentAnimation === 'falling_idle' || this.currentAnimation === 'jump_up');
+
+                if (verticalVelocity > 0.5 && !isAlreadyAirborne) {                    // Omhoog = Jump Up
                     nextAnimation = 'jump_up';
                 } else {
                     // Omlaag = Falling Idle
