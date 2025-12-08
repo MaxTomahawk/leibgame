@@ -598,7 +598,8 @@ function animate() {
             isGrounded: isGrounded,
             moveB: moveB,
             isSprinting: isSprinting,
-            modelFile: selectedModelFile
+            modelFile: selectedModelFile,
+            verticalVelocity: velocity.y // <--- VOEG DIT TOE
         });
 
         // Abyss check

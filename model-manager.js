@@ -5,15 +5,23 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/
 export const MODEL_SCALES = {
     'assets/option2.glb': 0.45,
     'assets/medieval_luuk.glb': 1.3,
-    'assets/leib.glb': 1.3,
+    'assets/leib.glb': 1,
     'assets/weissman.glb': 1.3,
 };
 
 export const ANIMATION_MAPPING = {
     'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
     'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
-    'assets/leib.glb': { idle: 7, run: 2, jump: 6 },
-    'assets/weissman.glb': { idle: 0, run: 1, walk: 2, walk_backwards: 3, jump: 4 }
+    'assets/leib.glb': { 
+        idle: 5, 
+        walk: 4, 
+        run: 3, 
+        jump_up: 2, 
+        falling_idle: 1, 
+        landing: 0, 
+        walk_backwards: 6 
+    },
+    'assets/weissman.glb': { idle: 7, run: 2, jump: 6 }
 };
 
 export class ModelManager {
@@ -87,6 +95,10 @@ export class ModelManager {
         console.log("Animations found:", gltf.animations.map((a, i) => `${i}: ${a.name}`));
 
         this.mixer = new THREE.AnimationMixer(this.playerModel);
+        
+        // Luister naar wanneer een animatie klaar is (voor de landing)
+        this.mixer.addEventListener('finished', (e) => this.onAnimationFinished(e));
+
         const mapping = ANIMATION_MAPPING[modelFile] || ANIMATION_MAPPING['assets/option2.glb'];
 
         this.animations = {};
@@ -94,14 +106,15 @@ export class ModelManager {
             const index = mapping[animName];
             if (gltf.animations[index]) {
                 this.animations[animName] = this.mixer.clipAction(gltf.animations[index]);
-            } else if (['run', 'idle', 'jump'].includes(animName)) {
-                this.animations[animName] = this.mixer.clipAction(gltf.animations[0]);
             }
         }
 
-        // Set looping
+        // Loop settings configureren
         for (const [name, action] of Object.entries(this.animations)) {
-            if (modelFile === 'assets/weissman.glb' && name === 'jump') {
+            // Lijst met animaties die NIET mogen loopen
+            const noLoopActions = ['jump', 'jump_up', 'landing'];
+            
+            if (noLoopActions.includes(name)) {
                 action.setLoop(THREE.LoopOnce);
                 action.clampWhenFinished = true;
             } else {
@@ -110,45 +123,103 @@ export class ModelManager {
         }
     }
 
-    playAnimation(name) {
+    // Nieuwe helper om te resetten naar idle/run na een landing
+    onAnimationFinished(e) {
+        if (e.action === this.animations['landing']) {
+            this.isLanding = false; // Landing is klaar, sta weer movement toe
+            // De updateAnimation loop pakt het vanaf hier weer op
+        }
+    }
+
+    playAnimation(name, fadeDuration = 0.2) {
         if (!this.mixer || !this.animations[name]) return;
-        if (this.currentAction === this.animations[name] && name !== 'jump') return;
+        if (this.currentAction === this.animations[name] && this.currentAction.isRunning()) return;
 
         const nextAction = this.animations[name];
 
         if (this.currentAction) {
-            this.currentAction.fadeOut(0.2);
+            this.currentAction.fadeOut(fadeDuration);
         }
 
-        nextAction.reset().fadeIn(0.2).play();
+        nextAction.reset();
+        
+        nextAction.fadeIn(fadeDuration).play();
         this.currentAction = nextAction;
     }
 
     updateAnimation(state) {
-        const { isMoving, isGrounded, moveB, isSprinting, modelFile } = state;
+        // Zorg dat je verticalVelocity (rb.linvel().y of body.velocity.y) meegeeft in state!
+        const { isMoving, isGrounded, moveB, isSprinting, modelFile, verticalVelocity } = state;
+        
+        // Check of we met het specifieke leib model werken
+        const isLeib = modelFile === 'assets/leib.glb';
         const isWeissman = modelFile === 'assets/weissman.glb';
+
         let nextAnimation = this.currentAnimation;
 
-        if (!isGrounded) {
-            nextAnimation = 'jump';
-        } else if (isMoving) {
-            if (isWeissman) {
-                if (moveB) nextAnimation = 'walk_backwards';
-                else if (isSprinting) nextAnimation = 'run';
-                else nextAnimation = 'walk';
-            } else {
-                nextAnimation = 'run';
+        // --- SPRONG LOGICA VOOR LEIB ---
+        if (isLeib) {
+            if (this.isLanding) {
+                // Als we aan het landen zijn, onderbreek dit NIET, tenzij we weer springen
+                if (!isGrounded) this.isLanding = false; // Toch weer gevallen/gesprongen
+                else return this.currentAnimation;
             }
-        } else {
-            nextAnimation = 'idle';
+
+            if (!isGrounded) {
+                // We zweven. Gaan we omhoog of omlaag?
+                if (verticalVelocity > 0.5) {
+                    // Omhoog = Jump Up
+                    nextAnimation = 'jump_up';
+                } else {
+                    // Omlaag = Falling Idle
+                    // Gebruik een kleine drempelwaarde zodat hij niet flippert op de top
+                    nextAnimation = 'falling_idle';
+                }
+            } else {
+                // We staan op de grond
+                
+                // Waren we net aan het vallen? Dan nu landen!
+                if (this.currentAnimation === 'falling_idle' || this.currentAnimation === 'jump_up') {
+                    nextAnimation = 'landing';
+                    this.isLanding = true; // Blokkeer movement animaties tot landing klaar is
+                    this.playAnimation(nextAnimation, 0.1); // Snelle fade voor impact
+                    this.currentAnimation = nextAnimation;
+                    return nextAnimation;
+                }
+
+                // Normale beweging op de grond
+                if (isMoving) {
+                    if (moveB) nextAnimation = 'walk_backwards';
+                    else if (isSprinting) nextAnimation = 'run';
+                    else nextAnimation = 'walk';
+                } else {
+                    nextAnimation = 'idle';
+                }
+            }
+        } 
+        // --- OUDE LOGICA (voor fallback/andere models) ---
+        else {
+             if (!isGrounded) {
+                nextAnimation = 'jump';
+            } else if (isMoving) {
+                if (isWeissman && moveB) nextAnimation = 'walk_backwards';
+                else if (isWeissman && !isSprinting) nextAnimation = 'walk'; // Weissman specifieke walk
+                else nextAnimation = 'run';
+            } else {
+                nextAnimation = 'idle';
+            }
         }
 
+        // Als de animatie verandert, speel hem af
         if (nextAnimation !== this.currentAnimation) {
-            this.playAnimation(nextAnimation);
+            // Pas de fade duration aan: sneller reageren bij jump/land, trager bij walk/run
+            const transitionSpeed = (nextAnimation === 'jump_up' || nextAnimation === 'landing') ? 0.1 : 0.2;
+            
+            this.playAnimation(nextAnimation, transitionSpeed);
             this.currentAnimation = nextAnimation;
         }
 
-        return this.currentAnimation; // Return for syncing
+        return this.currentAnimation;
     }
 
     update(delta) {
