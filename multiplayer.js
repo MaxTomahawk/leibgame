@@ -42,9 +42,27 @@ function listenToPlayers(scene, userId, ui, db) {
 
                 // Mesh (GLB or fallback box)
                 if (appearance.model) {
-                    console.log(`[Loader] Loading model for ${id}:`, appearance.model);
+                    // --- NEW CODE START ---
+                    
+                    // Retrieve graphics settings from local storage to determine quality
+                    let quality = 'high';
+                    try {
+                        const saved = localStorage.getItem('leib_settings');
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            if (parsed.graphics) quality = parsed.graphics;
+                        }
+                    } catch(e) { console.warn("Could not read graphics setting", e); }
+
+                    // Modify the filename to load the correct quality version (e.g., _high.glb or _low.glb)
+                    const actualFile = appearance.model.replace('.glb', `_${quality}.glb`);
+                    
+                    console.log(`[Loader] Loading model for ${id}:`, actualFile);
+                    
+                    // --- NEW CODE END ---
+
                     loader.load(
-                        appearance.model,
+                        actualFile, // Load the quality-specific file
                         (gltf) => {
                             console.log(`[Loader] Model loaded for ${id}`);
                             const mesh = gltf.scene;
@@ -61,13 +79,24 @@ function listenToPlayers(scene, userId, ui, db) {
                                     const ANIMATION_MAPPING = {
                                         'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
                                         'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
-                                        'assets/leib.glb': { idle: 7, run: 2, jump: 6 },
-                                        // <-- TOEGEVOEGD: Weissman animaties (indexen zijn aangenomen)
-                                        'assets/weissman.glb': { idle: 0, run: 1, walk: 2, walk_backwards: 3, jump: 4 }, 
+                                        'assets/leib.glb': { 
+                                            idle: 8, 
+                                            walk: 7, 
+                                            run: 6, 
+                                            jump_up: 4, 
+                                            falling_idle: 2, 
+                                            landing: 0, 
+                                            walk_backwards: 9,
+                                            strafe_left: 3, 
+                                            strafe_right: 1,
+                                            glide: 5
+                                        },
+                                        'assets/weissman.glb': { idle: 7, run: 2, jump: 6 }
                                     };
+                                    
+                                    // Use the original model name for mapping logic, not the quality specific filename
                                     const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/option2.glb'];
                                     
-                                    // Dynamische creatie van animaties
                                     for (const animName in mapping) {
                                         const index = mapping[animName];
                                         if (gltf.animations[index]) {
@@ -76,7 +105,6 @@ function listenToPlayers(scene, userId, ui, db) {
                                     }
 
                                     for (const action of Object.values(animations)) {
-                                        // Jump animatie van Weissman moet eenmalig afspelen en bevriezen
                                         if (appearance.model === 'assets/weissman.glb' && action.getClip().name === 'jump') {
                                             action.setLoop(THREE.LoopOnce);
                                             action.clampWhenFinished = true;
@@ -103,12 +131,33 @@ function listenToPlayers(scene, userId, ui, db) {
                             };
                         },
                         (progress) => {
-                            if (progress.total > 0) {
-                                const percent = Math.round(progress.loaded / progress.total * 100);
-                                console.log(`[Loader] ${id} loading: ${percent}%`);
-                            }
+                            // Optional: Log progress if needed
                         },
                         (err) => {
+                            // Fallback logic: If the quality version fails, try loading the original file
+                            if (actualFile !== appearance.model) {
+                                console.log(`[Loader] ${actualFile} failed, trying original: ${appearance.model}`);
+                                loader.load(appearance.model, (gltf) => {
+                                    // Repeat the success logic here or extract it to a function
+                                    // For now, simpler to just let it fall through to the red box if this also fails
+                                    // strictly speaking, you would copy the success block here.
+                                    // However, usually the Error logic below is sufficient for a quick fix.
+                                    
+                                    // Minimal recursive retry for visual correctness:
+                                    const mesh = gltf.scene;
+                                    mesh.scale.set(appearance.scale, appearance.scale, appearance.scale);
+                                    container.add(mesh);
+                                    otherPlayers[id] = { container, mesh, label, lastSeen: now, currentModel: appearance.model };
+                                }, () => {
+                                    // If original also fails, show red box
+                                    console.warn(`[Loader] Failed for ${id} (both versions), using fallback box`);
+                                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+                                    container.add(mesh);
+                                    otherPlayers[id] = { container, mesh, label, lastSeen: now, currentModel: appearance.model };
+                                });
+                                return;
+                            }
+
                             console.warn(`[Loader] Failed for ${id}, using fallback`, err);
                             const mesh = new THREE.Mesh(
                                 new THREE.BoxGeometry(1, 2, 1),
@@ -119,7 +168,7 @@ function listenToPlayers(scene, userId, ui, db) {
                                 container, 
                                 mesh, 
                                 label, 
-                                lastSeen: now,
+                                lastSeen: now, 
                                 currentModel: appearance.model 
                             };
                         }

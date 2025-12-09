@@ -746,6 +746,10 @@ function animate() {
             localVelocity: localVelocity
         });
 
+        if (player) {
+            player.userData.currentAnimation = currentAnim;
+        }
+
         // Abyss check
         if (player.position.y < -30) {
             endGame("Je bent in de afgrond gevallen!", false);
