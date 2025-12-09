@@ -43,14 +43,33 @@ export class ModelManager {
     async loadPlayerModel(modelFile, player, callbacks = {}) {
         const { onProgress, onLoaded, onError } = callbacks;
 
+        // --- GRAPHICS CHECK ---
+        // We lezen direct de settings uit storage om dependency hell in main.js te voorkomen
+        let quality = 'high'; // default
+        try {
+            const saved = localStorage.getItem('leib_settings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.graphics) quality = parsed.graphics;
+            }
+        } catch(e) { console.warn("Could not read graphics setting", e); }
+
+        // Bepaal de bestandsnaam: assets/leib.glb -> assets/leib_low.glb
+        // Zorg dat je build script (uit de vorige stap) deze bestanden heeft aangemaakt!
+        const actualFile = modelFile.replace('.glb', `_${quality}.glb`);
+        
+        console.log(`🎨 Loading graphics: ${quality} (${actualFile})`);
+        // ----------------------
+
         return new Promise((resolve, reject) => {
             if (onProgress) onProgress("model", "🎮 Loading Model... 0%", "purple");
 
             this.loader.load(
-                modelFile,
+                actualFile, // <--- Gebruik hier de nieuwe bestandsnaam
                 (gltf) => {
                     this.playerModel = gltf.scene;
 
+                    // Let op: we gebruiken de schaal van het ORIGINELE bestand in de mapping
                     const scale = MODEL_SCALES[modelFile] || MODEL_SCALES['assets/leib.glb'];
                     this.playerModel.scale.set(scale, scale, scale);
                     this.playerModel.rotation.y = Math.PI;
@@ -59,12 +78,14 @@ export class ModelManager {
                     player.add(this.playerModel);
 
                     player.userData.appearance = {
-                        model: modelFile,
+                        model: modelFile, // Bewaar originele naam voor logica/multiplayer sync
+                        quality: quality,
                         scale: scale
                     };
 
                     if (gltf.animations && gltf.animations.length > 0) {
-                        this.setupAnimations(gltf, modelFile);
+                        // Geef ook hier de originele naam mee voor de ANIMATION_MAPPING lookup
+                        this.setupAnimations(gltf, modelFile); 
                         this.playAnimation('idle');
                     }
 
@@ -78,9 +99,16 @@ export class ModelManager {
                     }
                 },
                 (error) => {
-                    console.error('Error loading model:', error);
+                    console.error(`Error loading model (${actualFile}):`, error);
                     
-                    // Fallback
+                    // Fallback: Als de _low/_high versie niet bestaat, probeer het origineel
+                    if (actualFile !== modelFile) {
+                        console.log("⚠️ Quality version missing, trying original file...");
+                        this.loadPlayerModel(modelFile, player, callbacks).then(resolve);
+                        return;
+                    }
+
+                    // Echte Fallback (groene doos)
                     const fallbackGeo = new THREE.BoxGeometry(1, 2, 1);
                     const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
                     this.playerModel = new THREE.Mesh(fallbackGeo, fallbackMat);
@@ -280,6 +308,8 @@ export class ModelManager {
 
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         renderer.setSize(element.clientWidth, element.clientHeight);
+        // Beperk pixel ratio voor previews ook voor performance
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
         element.appendChild(renderer.domElement);
 
         const light = new THREE.DirectionalLight(0xffffff, 2.2);
@@ -287,10 +317,25 @@ export class ModelManager {
         scene.add(light);
         scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 
-        this.loader.load(modelFile, (gltf) => {
+        // --- GRAPHICS LOGICA TOEVOEGEN ---
+        let quality = 'high';
+        try {
+            const saved = localStorage.getItem('leib_settings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.graphics) quality = parsed.graphics;
+            }
+        } catch(e) {}
+
+        // Vertaal 'assets/leib.glb' naar 'assets/leib_high.glb' of '_low.glb'
+        const actualFile = modelFile.replace('.glb', `_${quality}.glb`);
+        // ---------------------------------
+
+        this.loader.load(actualFile, (gltf) => {
             const container = new THREE.Object3D();
             container.add(gltf.scene);
 
+            // Let op: we gebruiken nog steeds 'modelFile' (de originele naam) voor de schaal-lookup
             const scale = MODEL_SCALES[modelFile] || MODEL_SCALES['assets/leib.glb'];
             container.scale.set(scale, scale, scale);
             container.rotation.y = Math.PI;
@@ -302,6 +347,8 @@ export class ModelManager {
             element.previewCamera = camera;
 
             this.animatePreview(element);
+        }, undefined, (error) => {
+            console.warn(`Preview model failed (${actualFile}):`, error);
         });
     }
 

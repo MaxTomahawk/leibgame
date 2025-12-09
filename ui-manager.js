@@ -327,9 +327,10 @@ export class UIManager {
                     <div class="p-4 border-b border-gray-700 bg-gray-900 rounded-t-lg flex justify-between items-center">
                         <h2 class="text-2xl font-bold text-blue-400">SETTINGS</h2>
                         <div class="flex space-x-2">
-                            <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold active-tab" data-tab="volume">Volume</button>
                             <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold" data-tab="controls">Controls</button>
                             <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold" data-tab="modifiers">Modifiers</button>
+                            <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold" data-tab="graphics">Graphics</button>
+                            <button class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold active-tab" data-tab="volume">Volume</button>
                         </div>
                     </div>
 
@@ -373,15 +374,16 @@ export class UIManager {
 
         // Tijdelijke kopie van settings om in te editen
         this.tempSettings = JSON.parse(JSON.stringify({
-            audio: settingsManager.get('audio'),
+            graphics: settingsManager.get('graphics') || 'high',
             keybinds: settingsManager.get('keybinds'),
-            modifiers: settingsManager.get('modifiers')
+            modifiers: settingsManager.get('modifiers'),
+            audio: settingsManager.get('audio')
         }));
         
         this.currentSettingsManager = settingsManager; // Referentie voor defaults
 
         // Render eerste tab
-        document.querySelector('[data-tab="volume"]').click();
+        document.querySelector('[data-tab="controls"]').click();
 
         // Button events (verwijder oude listeners door cloneNode)
         const saveBtn = document.getElementById('btn-save');
@@ -512,6 +514,55 @@ export class UIManager {
                     
                     e.target.className = `bool-toggle w-full py-2 rounded font-bold ${newVal ? 'bg-green-600' : 'bg-red-600'}`;
                     e.target.innerText = newVal ? 'ENABLED' : 'DISABLED';
+                });
+            });
+        }
+        else if (tabName === 'graphics') {
+            const current = this.tempSettings.graphics;
+
+            container.innerHTML = `
+                <div class="flex flex-col gap-6">
+                    <div class="bg-gray-700 p-6 rounded border border-gray-600 text-center">
+                        <h3 class="font-bold text-xl mb-2 text-white">Graphics Quality</h3>
+                        <p class="text-sm text-gray-300 mb-6">
+                            Kies de grafische kwaliteit. <br>
+                            <span class="text-yellow-400 text-xs italic">Tip: Kies 'Low' als het spel hapert op jouw apparaat.</span>
+                        </p>
+                        
+                        <div class="flex gap-4 justify-center">
+                            <button class="gfx-btn flex-1 max-w-[200px] py-4 rounded-lg font-bold border-2 transition-all duration-200 
+                                ${current === 'low' 
+                                    ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-105' 
+                                    : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:bg-gray-750'}" 
+                                data-value="low">
+                                <div class="text-2xl mb-1">🚀</div>
+                                <div class="text-lg">Performance</div>
+                                <div class="text-[10px] uppercase tracking-wider opacity-70">Low Poly</div>
+                            </button>
+                            
+                            <button class="gfx-btn flex-1 max-w-[200px] py-4 rounded-lg font-bold border-2 transition-all duration-200
+                                ${current === 'high' 
+                                    ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-105' 
+                                    : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:bg-gray-750'}" 
+                                data-value="high">
+                                <div class="text-2xl mb-1">✨</div>
+                                <div class="text-lg">Quality</div>
+                                <div class="text-[10px] uppercase tracking-wider opacity-70">Original</div>
+                            </button>
+                        </div>
+                        
+                        <div class="mt-6 text-xs text-red-400 bg-gray-800 inline-block px-3 py-1 rounded border border-red-900/50">
+                            ⚠️ Een herstart (F5) is vereist om textures opnieuw te laden.
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Click events voor de nieuwe knoppen
+            container.querySelectorAll('.gfx-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.tempSettings.graphics = btn.dataset.value;
+                    this.renderSettingsTab('graphics'); // Her-render direct om de selectie te tonen
                 });
             });
         }

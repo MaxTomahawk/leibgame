@@ -1,49 +1,67 @@
-### Leib the game
- A third person RPG platformer.
- ~~ Can you reach the castle of king willem? ~~~
+# Leib the Game
 
-# Amazing features such as...
+A third-person RPG platformer.
+~~~ Can you reach the castle of King Willem? ~~~
 
-- platformer with moon! - Can you visit the king?
-- 3D renderings of leib!
-- including spring easter egg character.
-- UFO's!
-- Real particles effects!
-- Multiplayer!
-- Mobile support! (iOS, Android, ..)
-- Mountains!
-- Coins and Stars! 
-- Progress bar and Version number to make sure you are on the latest version!
-- Equalized the diversity quota by adding a second character to leib weissman's universe! 
-- New and improved Castle of Willem!
-- Donation option
+## ✨ Amazing Features
 
+* **Platforming Action:** Jump across clouds and reach the King!
+* **3D Character Models:** Featuring Leib and other characters.
+* **Performance Optimized:** Includes a custom LOD (Level of Detail) system for smooth performance on all devices.
+* **Graphics Settings:** Switch between Low (Performance) and High (Quality) graphics.
+* **Multiplayer:** Play together online!
+* **Mobile Support:** Fully playable on iOS and Android with touch controls.
+* **Atmosphere:** Real particle effects, UFOs, and mountains.
+* **Shop System:** Collect Coins and Stars to buy upgrades.
+* **Abilities:** Unlock abilities like Cloud Summoning.
+* **Characters:** Diverse cast including Leib Weissman and an Easter egg character.
+* **World:** A new and improved Castle of Willem.
 
-# Images
-### ![alt text](image.png)
-### ![alt text](image2.png)
+## 🖼️ Images
+![Gameplay Screenshot](image.png)
+![Character Screenshot](image2.png)
 
-# local setup
+## 🛠️ Local Setup
 
-Please run `launcher.py` and then navigate to localhost:8000 for testing local development 
+To test local development, please run the Python launcher:
 
- # playwright tests
-
- ```
- npm init playwright@latest
- npm install --save-dev @playwright/test
- sudo npx playwright install-deps
- npx playwright install
- ```
-then
+```bash
+python launcher.py
 ```
+
+Then navigate to `http://localhost:8000` in your browser.
+
+## 🎨 Development & Assets
+
+We use an automated asset optimization pipeline to ensure the game runs smoothly on high-end PCs and mobile devices alike.
+
+* **Asset Workflow:** Want to add new 3D models? Please read the **[Asset Workflow Wiki](https://github.com/wytzig/leibgame/wiki/Asset%E2%80%90Workflow#asset-workflow--graphics-optimization)** for instructions on using the `optimize-assets.js` script.
+* **Raw Assets:** Always place original `.glb` files in the `raw_assets/` folder, never directly in `assets/`.
+
+## 🧪 Playwright Tests
+
+To run end-to-end tests:
+
+```bash
+# Initialize (first time only)
+npm init playwright@latest
+npm install --save-dev @playwright/test
+sudo npx playwright install-deps
+npx playwright install
+```
+
+**Running tests:**
+
+```bash
 npx playwright test
 ```
-or
-```
-npx playwright test --debug (for debugging steps)
+
+**Debugging tests:**
+
+```bash
+npx playwright test --debug
 ```
 
- # authors
- - G. M. Kaislscherer
- - L. Weissman
+## 👥 Authors
+* G. M. Kaislscherer
+* L. Weissman

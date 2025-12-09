@@ -259,11 +259,13 @@ function createSkyAtmosphere(scene) {
         });
     }
 
-    // 4. SPEED PARTICLES (GEOPTIMALISEERD)
+    // 4. SPEED PARTICLES
     const particleCount = 2500;
     const particlesGeometry = new THREE.BufferGeometry();
     const posArray = new Float32Array(particleCount * 3);
+    const colorArray = new Float32Array(particleCount * 3)
     const particlesData = [];
+    const colorHelper = new THREE.Color();
 
     for(let i = 0; i < particleCount * 3; i+=3) {
         const x = (Math.random() - 0.5) * 300;
@@ -274,20 +276,28 @@ function createSkyAtmosphere(scene) {
         posArray[i+1] = y;
         posArray[i+2] = z;
 
+        const hueOffset = Math.random() * Math.PI * 2;
+        colorHelper.setHSL(Math.random(), 1.0, 0.6);
+
+        colorArray[i] = colorHelper.r;
+        colorArray[i+1] = colorHelper.g;
+        colorArray[i+2] = colorHelper.b;
+
         // We slaan de data op in een los array om te kunnen animeren
         particlesData.push({
             velocity: 6 + Math.random() * 55,
-            hueOffset: Math.random() * Math.PI * 2,
+            hueOffset: hueOffset,
             idx: i // refereer terug naar de positie in de buffer
         });
     }
 
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
 
     // Gebruik PointsMaterial (extreem lichtgewicht)
     const particlesMaterial = new THREE.PointsMaterial({
         size: 0.4, // Iets groter omdat punten anders renderen dan bollen
-        color: 0xffffff,
+        vertexColors: true,
         transparent: true,
         opacity: 0.8,
         sizeAttenuation: true
@@ -320,23 +330,35 @@ function animateAtmosphere(atmosphereObjects, delta) {
     }
     if (atmosphereObjects.particleSystem) {
         const positions = atmosphereObjects.particleSystem.geometry.attributes.position.array;
+        const colors = atmosphereObjects.particleSystem.geometry.attributes.color.array;
         const data = atmosphereObjects.particlesData;
+        const time = Date.now() * 0.001;
+        const colorHelper = new THREE.Color(); 
         
         for(let i = 0; i < data.length; i++) {
             const p = data[i];
-            // Update Z (diepte)
+            
+            // 1. Positie
             let z = positions[p.idx + 2];
             z += p.velocity * delta * 60 * 0.016;
-
-            // Reset als hij te ver is
             if (z > 120) {
                 z = -240;
-                positions[p.idx] = (Math.random() - 0.5) * 300;     // Nieuwe X
-                positions[p.idx + 1] = -10 + Math.random() * 80;    // Nieuwe Y
+                positions[p.idx] = (Math.random() - 0.5) * 300;
+                positions[p.idx + 1] = -10 + Math.random() * 80;
             }
             positions[p.idx + 2] = z;
+
+            // 2. Kleur
+            const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
+            colorHelper.setHSL(hue, 1.0, 0.6);
+
+            colors[p.idx] = colorHelper.r;
+            colors[p.idx + 1] = colorHelper.g;
+            colors[p.idx + 2] = colorHelper.b;
         }
+        
         atmosphereObjects.particleSystem.geometry.attributes.position.needsUpdate = true;
+        atmosphereObjects.particleSystem.geometry.attributes.color.needsUpdate = true;
     }
 }
 
@@ -971,6 +993,7 @@ function setupInputs() {
                 settingsManager.set('audio', newAllSettings.audio);
                 settingsManager.set('keybinds', newAllSettings.keybinds);
                 settingsManager.set('modifiers', newAllSettings.modifiers);
+                settingsManager.set('graphics', newAllSettings.graphics);
 
                 // Update Audio
                 if (audioManager) {

@@ -30,7 +30,8 @@ export class SettingsManager {
                 dragGrounded: 3.0,
                 dragAir: 1.8,
                 infiniteJump: false
-            }
+            },
+            graphics: 'low'
         };
         this.settings = this.loadSettings();
     }
@@ -52,6 +53,9 @@ export class SettingsManager {
                 // 1. Recover/Load 'theme' (only if it is a valid string)
                 if (parsed.theme && typeof parsed.theme === 'string') {
                     settings.theme = parsed.theme;
+                }
+                if (parsed.graphics && typeof parsed.graphics === 'string') {
+                    settings.graphics = parsed.graphics;
                 }
 
                 // 2. Merge nested objects (audio, keybinds, modifiers)

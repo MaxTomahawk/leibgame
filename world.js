@@ -4,6 +4,22 @@ import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
 import { doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
+// Hulpfunctie om de graphics setting op te halen (high/low)
+function getQualitySuffix() {
+    try {
+        const saved = localStorage.getItem('leib_settings');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Als graphics 'low' is, return '_low', anders '_high'
+            return parsed.graphics === 'low' ? '_low' : '_high';
+        }
+    } catch (e) { console.warn(e); }
+    return '_high'; // Default fallback
+}
+
+const QUALITY_SUFFIX = getQualitySuffix();
+console.log("🌍 World loading assets with quality:", QUALITY_SUFFIX);
+
 let worldUnsubscribe = null;
 
 // --- GLOBAL ASSET CONFIGURATION ---
@@ -26,7 +42,7 @@ const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
 // Load Coin GLB
-gltfLoader.load('assets/coin.glb', (gltf) => {
+gltfLoader.load(`assets/coin${QUALITY_SUFFIX}.glb`, (gltf) => {
     cachedCoinScene = gltf.scene;
     cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE);
     cachedCoinScene.traverse((child) => {
@@ -40,7 +56,7 @@ gltfLoader.load('assets/coin.glb', (gltf) => {
 });
 
 // Load Enemy GLB
-gltfLoader.load('assets/enemy.glb', (gltf) => {
+gltfLoader.load(`assets/enemy${QUALITY_SUFFIX}.glb`, (gltf) => {
     cachedEnemyGLTF = gltf;
     cachedEnemyGLTF.scene.traverse((child) => {
         if (child.isMesh) {
@@ -521,7 +537,9 @@ function createPromptTexture() {
 }
                  // --- RONNIE & ABILITIES ---
 export function loadRonnie(scene, gltfLoader, position) {
-    gltfLoader.load('assets/ronnie.glb', (gltf) => {
+    const suffix = getQualitySuffix(); 
+    
+    gltfLoader.load(`assets/ronnie${suffix}.glb`, (gltf) => {
         const ronnie = gltf.scene;
         ronnie.scale.set(1.3, 1.3, 1.3);
         ronnie.position.set(position.x, position.y, position.z);
