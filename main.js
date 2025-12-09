@@ -23,10 +23,6 @@ let auth = null;
 
 // Only load multiplayer if enabled
 async function loadMultiplayerModules() {
-    console.log("🔍 DEBUG: FEATURES.MULTIPLAYER =", FEATURES.MULTIPLAYER);
-    console.log("🔍 DEBUG: firebaseModule =", firebaseModule);
-    console.log("🔍 DEBUG: db =", db);
-    console.log("🔍 DEBUG: auth =", auth);
     if (!FEATURES.MULTIPLAYER) return;
 
     try {
