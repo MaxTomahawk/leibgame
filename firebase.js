@@ -1,4 +1,3 @@
-// firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { 
     getAuth, 
@@ -21,20 +20,23 @@ const firebaseConfig = {
     appId: window.env.VITE_APP_ID
 };
 
-let app, auth, db;
+// Initialize immediately
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Initialize Firebase and set up auth state listener
 function initFirebase(onUserReady) {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-
     onAuthStateChanged(auth, (user) => {
         if (user) {
+            console.log("🔥 Firebase auth state: User logged in", user.uid);
             onUserReady(user);
         } else {
+            console.log("🔥 Firebase auth state: No user, signing in anonymously...");
             // Auto-login anonymously if no user is signed in
-            signInAnonymously(auth).catch(console.error);
+            signInAnonymously(auth)
+                .then(() => console.log("✅ Anonymous sign-in successful"))
+                .catch(err => console.error("❌ Anonymous sign-in failed:", err));
         }
     });
 
@@ -42,7 +44,6 @@ function initFirebase(onUserReady) {
 }
 
 // Link the current anonymous account to an email/password credential
-// This preserves the user's UID and data
 async function linkAnonymousAccountToEmail(email, password) {
     const credential = EmailAuthProvider.credential(email, password);
     try {
@@ -71,7 +72,6 @@ async function logout() {
     try {
         await signOut(auth);
         console.log("User signed out");
-        // Reload to reset game state or trigger anonymous login again
         window.location.reload(); 
     } catch (error) {
         console.error("Logout failed:", error);

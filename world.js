@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
-import { doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 // Hulpfunctie om de graphics setting op te halen (high/low)
 function getQualitySuffix() {
@@ -93,8 +92,12 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
 
     let worldData = null;
 
-    if (isMultiplayer) {
+    // ===== ONLY USE FIREBASE IF MULTIPLAYER IS ENABLED AND DB EXISTS =====
+    if (isMultiplayer && db) {
         try {
+            // Dynamic import of Firestore functions
+            const { doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+
             const worldDocRef = doc(db, "levels", "main_world");
 
             const cachedWorld = localStorage.getItem('cachedWorld');
@@ -124,16 +127,18 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
             }
 
             if (!worldUnsubscribe) {
-                worldUnsubscribe = setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+                worldUnsubscribe = await setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
             }
 
         } catch (e) {
-            console.error("Error fetching world (likely permissions):", e);
-            ui.status.innerHTML = "⚠️ <strong>Database Error:</strong> Access denied.<br><small>Check your Firestore Rules in the Console.</small>";
-            ui.status.className = "bg-red-100 text-red-800 p-3 rounded mb-4 border border-red-400";
+            console.error("Error fetching world:", e);
+            ui.status.innerHTML = "⚠️ <strong>Database Error:</strong> Falling back to offline mode.";
+            ui.status.className = "bg-yellow-100 text-yellow-800 p-3 rounded mb-4 border border-yellow-400";
             worldData = generateWorldData(CASTLE_Z);
         }
     } else {
+        // Offline mode - just generate locally
+        console.log("🎮 Generating offline world");
         worldData = generateWorldData(CASTLE_Z);
     }
 
@@ -149,9 +154,11 @@ export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, pr
     }
 }
 
-// World listener setup
-function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
+async function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
     let lastWorldTimestamp = null;
+
+    // Dynamic import
+    const { onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
 
     const unsubscribe = onSnapshot(worldDocRef, (docSnap) => {
         if (!docSnap.exists()) return;
@@ -253,14 +260,14 @@ function createTextTexture(text) {
     const ctx = canvas.getContext('2d');
 
     // Transparent background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)'; 
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Text style
     ctx.font = 'bold 120px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
+
     // Text outline
     ctx.lineWidth = 8;
     ctx.strokeStyle = 'black';
@@ -271,11 +278,11 @@ function createTextTexture(text) {
     gradient.addColorStop(0, "#FFD700");
     gradient.addColorStop(1, "#FF8C00");
     ctx.fillStyle = gradient;
-    
+
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
     const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter; 
+    texture.minFilter = THREE.LinearFilter;
     return texture;
 }
 
@@ -315,7 +322,7 @@ function createCastle(scene, CASTLE_Z) {
         roof.position.set(x, 15, z);
         castle.add(roof);
     });
-    
+
     // === WALLS ===
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
 
@@ -368,7 +375,8 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
         data.enemies.forEach(e => createEnemy(e.x, e.y, e.z, scene, enemies, platforms));
     }
 
-    createCastle(scene, CASTLE_Z);}
+    createCastle(scene, CASTLE_Z);
+}
 
 // --- ROUND CLOUD GENERATION ---
 function createPlat(x, y, z, w, h, d, scene, platforms, material) {
@@ -445,8 +453,8 @@ function createStar(x, y, z, scene, coins) {
         mesh.rotation.x = Math.PI / 2;
         mesh.userData.isStar = true;
     }
-    
-    mesh.baseY = y; 
+
+    mesh.baseY = y;
     mesh.bobOffset = Math.random() * Math.PI * 2;
 
     mesh.castShadow = true;
@@ -507,7 +515,7 @@ export function cleanupWorldListener() {
         worldUnsubscribe = null;
         console.log("🛑 World listener stopped");
     }
-                 }
+}
 
 function createPromptTexture() {
     const canvas = document.createElement('canvas');
@@ -519,7 +527,7 @@ function createPromptTexture() {
     ctx.beginPath();
     ctx.arc(64, 64, 60, 0, Math.PI * 2);
     ctx.fill();
-    
+
     // Rand
     ctx.strokeStyle = '#FFD700'; // Goud
     ctx.lineWidth = 10;
@@ -535,17 +543,17 @@ function createPromptTexture() {
     const texture = new THREE.CanvasTexture(canvas);
     return texture;
 }
-                 // --- RONNIE & ABILITIES ---
+// --- RONNIE & ABILITIES ---
 export function loadRonnie(scene, gltfLoader, position) {
-    const suffix = getQualitySuffix(); 
-    
+    const suffix = getQualitySuffix();
+
     gltfLoader.load(`assets/ronnie${suffix}.glb`, (gltf) => {
         const ronnie = gltf.scene;
         ronnie.scale.set(1.3, 1.3, 1.3);
         ronnie.position.set(position.x, position.y, position.z);
         // Laat Ronnie naar de spawn kijken (draai 180 graden indien nodig)
-        ronnie.rotation.y = Math.PI; 
-        
+        ronnie.rotation.y = Math.PI;
+
         ronnie.traverse((child) => {
             if (child.isMesh) {
                 child.userData.isRonnie = true;
@@ -553,10 +561,10 @@ export function loadRonnie(scene, gltfLoader, position) {
                 child.userData.parentGroup = ronnie;
             }
         });
-        
+
         ronnie.userData.isRonnie = true;
-        const promptMat = new THREE.SpriteMaterial({ 
-            map: createPromptTexture(), 
+        const promptMat = new THREE.SpriteMaterial({
+            map: createPromptTexture(),
             transparent: true,
             depthTest: false, // Zorg dat hij altijd bovenop rendered (optioneel)
             depthWrite: false
@@ -566,15 +574,15 @@ export function loadRonnie(scene, gltfLoader, position) {
         promptSprite.scale.set(0.8, 0.8, 0.8);
         promptSprite.visible = false; // Standaard onzichtbaar
         promptSprite.name = "InteractionPrompt"; // Makkelijk terugvinden
-        
+
         ronnie.add(promptSprite);
         // ------------------------------------------------
 
         scene.add(ronnie);
-        
+
         // Sla Ronnie globaal op zodat main.js hem makkelijk kan vinden voor afstands-check
-        window.ronnie = ronnie; 
-        
+        window.ronnie = ronnie;
+
         console.log("🧥 Ronnie (met E-prompt) is aanwezig.");
     }, undefined, (err) => console.warn("Ronnie model niet gevonden.", err));
 }
@@ -584,17 +592,17 @@ export function summonCloudPlatform(playerPos, scene, platforms, texture) {
     const geo = new THREE.BoxGeometry(w, h, d);
     const mat = new THREE.MeshStandardMaterial({ map: texture || null, color: 0xaaaaaa });
     const cloud = new THREE.Mesh(geo, mat);
-    
+
     // Spawn iets onder de speler
     cloud.position.set(playerPos.x, playerPos.y - 2, playerPos.z);
-    
+
     scene.add(cloud);
     platforms.push(cloud);
-    
+
     // Verdwijn na 10 seconden
     setTimeout(() => {
         scene.remove(cloud);
         const idx = platforms.indexOf(cloud);
-        if(idx > -1) platforms.splice(idx, 1);
+        if (idx > -1) platforms.splice(idx, 1);
     }, 10000);
 }
