@@ -2,21 +2,68 @@
 
 A third-person RPG platformer.
 
-*Can you reach the castle of king willem?*
+*Can you reach the Cake at the castle of King Willem?*
+
+## 📚 Content
+* [✨ Amazing Features](#-amazing-features)
+* [🎮 Controls](#-controls)
+* [🛒 The Shop (Ronnie's Market)](#-the-shop-ronnies-market)
+* [⚙️ Advanced Settings](#-advanced-settings)
+* [🖼️ Images](#-images)
+* [🛠️ Local Setup](#-local-setup)
+* [🎨 Development & Assets](#-development--assets)
+* [🧪 Playwright Tests](#-playwright-tests)
+* [👥 Authors](#-authors)
 
 ## ✨ Amazing Features
 
-* **Platforming Action:** Jump across clouds and reach the King!
-* **3D Character Models:** Featuring Leib and other characters.
-* **Performance Optimized:** Includes a custom LOD (Level of Detail) system for smooth performance on all devices.
-* **Graphics Settings:** Switch between Low (Performance) and High (Quality) graphics.
-* **Multiplayer:** Play together online!
-* **Mobile Support:** Fully playable on iOS and Android with touch controls.
-* **Atmosphere:** Real particle effects, UFOs, and mountains.
-* **Shop System:** Collect Coins and Stars to buy upgrades.
-* **Abilities:** Unlock abilities like Cloud Summoning.
-* **Characters:** Diverse cast including Leib Weissman and an Easter egg character.
-* **World:** A new and improved Castle of Willem.
+* **Platforming Action:** Jump across clouds, dodge enemies, and navigate procedural worlds.
+* **Combat System:** Spit at enemies to turn them into collectable Stars.
+* **Special Abilities:** Unlock powerful moves like **Double/Triple Jump**, **Cloud Summoning**, and **Gliding**.
+* **Trip Mode:** A unique visual and gameplay modifier that alters gravity and atmosphere.
+* **Multiplayer:** See other players in real-time, complete with synchronized animations and character models.
+* **Progression System:** Collect Coins and Stars to trade with **Ronnie**, the mysterious merchant.
+* **Account Sync:** Play anonymously or link your email to save your coins, stars, and unlocked upgrades across devices.
+* **Atmosphere:** Dynamic Day/Night cycles, fog systems, and interactive particle effects.
+
+## 🎮 Controls
+
+The game supports both Desktop and Mobile (touch) controls. Keybinds are fully rebindable in the Settings menu.
+
+| Action | PC (Default) | Mobile |
+| :--- | :--- | :--- |
+| **Move** | `W`, `A`, `S`, `D` | Left Joystick |
+| **Look** | Mouse | Drag Right Screen |
+| **Jump** | `Space` | Double Tap Right Screen |
+| **Sprint** | `Shift` | (Auto-run based on stick) |
+| **Shoot/Spit** | `Left Mouse` | 💥 Button |
+| **Trip Mode** | `Right Mouse` | 🍃 Button |
+| **Cloud Summon** | `F` | ❌ *Not available on Mobile* |
+| **Glide** | `Q` (Mid-air) | ❌ *Not available on Mobile* |
+| **Interact (Shop)** | `E` | ❌ *Not available on Mobile* |
+
+> **⚠️ Mobile Note:** Advanced abilities (**Cloud Summon**, **Glide**) and **Shop Interaction** are currently **PC Only**. Mobile players can move, jump, shoot, and use Trip Mode, but cannot yet open the shop or use purchased abilities.
+
+## 🛒 The Shop (Ronnie's Market)
+
+You can find **Ronnie** in the world. However, he only does business with successful adventurers.
+* **Requirement:** You must collect **50 Stars** to unlock the shop.
+* **Upgrades available:**
+    * **Double Jump:** Jump again in mid-air.
+    * **Triple Jump:** Reaching new heights.
+    * **Summon Cloud:** Spawn a temporary platform under your feet. *(PC Only)*
+    * **Glide:** Fall slowly and cover large distances. *(PC Only)*
+
+*Note: The shop interface cannot be opened on mobile devices yet.*
+
+## ⚙️ Advanced Settings
+
+Access the Pause Menu (ESC) to tweak the game to your liking:
+* **Graphics:** Switch between **Low** (Performance/Low Poly) and **High** (Quality) modes. Includes a custom LOD system.
+* **Audio:** Mix Master, Music, and SFX volumes independently.
+* **Controls:** Remap any key binding to your preference.
+* **Modifiers:** *Want to cheat physics?* You can tweak Gravity, Jump Speed, and Run Speed in the modifiers tab!
+* **Theme:** Toggle between Light, Dark, or Auto UI themes.
 
 ## 🖼️ Images
 ![Gameplay Screenshot](image.png)
