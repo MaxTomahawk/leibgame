@@ -259,26 +259,45 @@ function createSkyAtmosphere(scene) {
         });
     }
 
-    // 4. SPEED PARTICLES
-    const particles = [];
-    for (let i = 0; i < 2500; i++) {
-        const particleGeo = new THREE.SphereGeometry(0.12, 6, 6);
-        const particleMat = new THREE.MeshBasicMaterial({
-            color: new THREE.Color().setHSL(Math.random(), 1.0, 0.6),
-            transparent: true, opacity: 0.9, blending: THREE.NormalBlending
+    // 4. SPEED PARTICLES (GEOPTIMALISEERD)
+    const particleCount = 2500;
+    const particlesGeometry = new THREE.BufferGeometry();
+    const posArray = new Float32Array(particleCount * 3);
+    const particlesData = [];
+
+    for(let i = 0; i < particleCount * 3; i+=3) {
+        const x = (Math.random() - 0.5) * 300;
+        const y = -10 + Math.random() * 80;
+        const z = (Math.random() - 0.5) * 300;
+        
+        posArray[i] = x;
+        posArray[i+1] = y;
+        posArray[i+2] = z;
+
+        // We slaan de data op in een los array om te kunnen animeren
+        particlesData.push({
+            velocity: 6 + Math.random() * 55,
+            hueOffset: Math.random() * Math.PI * 2,
+            idx: i // refereer terug naar de positie in de buffer
         });
-
-        const particle = new THREE.Mesh(particleGeo, particleMat);
-        particle.position.x = (Math.random() - 0.5) * 300;
-        particle.position.y = -10 + Math.random() * 80;
-        particle.position.z = (Math.random() - 0.5) * 300;
-        particle.rotation.x = (Math.random() - 0.5) * 0.3;
-        particle.rotation.y = (Math.random() - 0.5) * 0.3;
-
-        scene.add(particle);
-        particles.push({ mesh: particle, speed: 6 + Math.random() * 55, hueOffset: Math.random() * Math.PI * 2 });
     }
-    return { ufos, particles };
+
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+    // Gebruik PointsMaterial (extreem lichtgewicht)
+    const particlesMaterial = new THREE.PointsMaterial({
+        size: 0.4, // Iets groter omdat punten anders renderen dan bollen
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+        sizeAttenuation: true
+    });
+
+    const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particleSystem);
+
+    // Geef dit terug in plaats van de array met losse meshes
+    return { ufos, particleSystem, particlesData };
 }
 
 function animateAtmosphere(atmosphereObjects, delta) {
@@ -299,17 +318,25 @@ function animateAtmosphere(atmosphereObjects, delta) {
             }
         });
     }
-    if (atmosphereObjects.particles) {
-        atmosphereObjects.particles.forEach(p => {
-            p.mesh.position.z += p.speed * delta * 60 * 0.016;
-            if (p.mesh.position.z > 120) {
-                p.mesh.position.z = -240;
-                p.mesh.position.x = (Math.random() - 0.5) * 300;
-                p.mesh.position.y = -10 + Math.random() * 80;
+    if (atmosphereObjects.particleSystem) {
+        const positions = atmosphereObjects.particleSystem.geometry.attributes.position.array;
+        const data = atmosphereObjects.particlesData;
+        
+        for(let i = 0; i < data.length; i++) {
+            const p = data[i];
+            // Update Z (diepte)
+            let z = positions[p.idx + 2];
+            z += p.velocity * delta * 60 * 0.016;
+
+            // Reset als hij te ver is
+            if (z > 120) {
+                z = -240;
+                positions[p.idx] = (Math.random() - 0.5) * 300;     // Nieuwe X
+                positions[p.idx + 1] = -10 + Math.random() * 80;    // Nieuwe Y
             }
-            const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
-            p.mesh.material.color.setHSL(hue, 1.0, 0.6);
-        });
+            positions[p.idx + 2] = z;
+        }
+        atmosphereObjects.particleSystem.geometry.attributes.position.needsUpdate = true;
     }
 }
 

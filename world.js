@@ -388,7 +388,7 @@ function createPlat(x, y, z, w, h, d, scene, platforms, material) {
 
         puffMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
 
-        puffMesh.castShadow = true;
+        puffMesh.castShadow = false;
         puffMesh.receiveShadow = true;
         puffMesh.userData.isPlatform = true;
 
