@@ -1,7 +1,8 @@
 # Leib the Game
 
 A third-person RPG platformer.
-~~~ Can you reach the castle of King Willem? ~~~
+
+*Can you reach the castle of king willem?*
 
 ## ✨ Amazing Features
 
