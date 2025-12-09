@@ -429,6 +429,9 @@ function createStar(x, y, z, scene, coins) {
         mesh.rotation.x = Math.PI / 2;
         mesh.userData.isStar = true;
     }
+    
+    mesh.baseY = y; 
+    mesh.bobOffset = Math.random() * Math.PI * 2;
 
     mesh.castShadow = true;
     scene.add(mesh);
