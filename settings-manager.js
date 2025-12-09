@@ -29,7 +29,7 @@ export class SettingsManager {
                 runSpeed: 18.0,
                 dragGrounded: 3.0,
                 dragAir: 1.8,
-                infiniteJump: false
+                infiniteJump: true
             },
             graphics: 'low'
         };

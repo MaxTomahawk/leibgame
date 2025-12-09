@@ -1,20 +1,10 @@
 import * as THREE from 'three';
-import { 
-    initFirebase, 
-    db, 
-    auth, 
-    linkAnonymousAccountToEmail, 
-    loginWithEmail, 
-    logout 
-} from './firebase.js';
-import { listenToPlayers, startBroadcasting, updateOtherPlayerAnimations } from './multiplayer.js';
-import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
 import { AudioManager } from './audio-manager.js';
 import { ModelManager, MODEL_SCALES, getModelAppearance } from './model-manager.js';
 import { UIManager } from './ui-manager.js';
-import { ShopSystem } from './shop-system.js';
+// import { ShopSystem } from './shop-system.js';
 import { SettingsManager } from './settings-manager.js';
 import { loadRonnie, summonCloudPlatform } from './world.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
@@ -39,7 +29,7 @@ const tripBg = new THREE.Color(0x113311);
 let isDarkMode = false;
 
 // --- GLOBALS ---
-let userId, myName = "Player", isMultiplayer = false;
+let userId, myName = "Player"
 let camera, scene, renderer, player = {};
 let modelManager = new ModelManager();
 let uiManager; // New UI Manager instance
@@ -56,7 +46,7 @@ let modelLoaded = false;
 let platformTexture = null;
 let mobile = null;
 let audioManager;
-let shopSystem, settingsManager;
+let settingsManager;
 let jumpCount = 0;
 let isGliding = false;
 
@@ -88,20 +78,20 @@ function handleMobileControls(mobile) {
     mobile.onAbility = () => activateWeed();
 }
 
-// Saves player stats to Firestore
-async function saveUserProgress() {
-    if (!auth.currentUser) return;
-    try {
-        const userRef = doc(db, "users", auth.currentUser.uid);
-        await setDoc(userRef, {
-            coins: coinsCollected,
-            stars: starsCollected,
-            lastSaved: Date.now()
-        }, { merge: true });
-    } catch (e) {
-        console.error("Error saving progress:", e);
-    }
-}
+// // Saves player stats to Firestore
+// async function saveUserProgress() {
+//     if (!auth.currentUser) return;
+//     try {
+//         const userRef = doc(db, "users", auth.currentUser.uid);
+//         await setDoc(userRef, {
+//             coins: coinsCollected,
+//             stars: starsCollected,
+//             lastSaved: Date.now()
+//         }, { merge: true });
+//     } catch (e) {
+//         console.error("Error saving progress:", e);
+//     }
+// }
 
 window.onload = async () => {
     // Initialize UI Manager first
@@ -128,44 +118,44 @@ window.onload = async () => {
     try {
         uiManager.updateStatus("firebase", "🔌 Connecting...", "blue");
 
-        const firebaseGlobals = initFirebase(async (user) => {
-            userId = user.uid;
-            isMultiplayer = true;
-            console.log("Firebase connected! User ID:", userId);
-            uiManager.updateStatus("firebase", "✅ Multiplayer connected!", "green");
-            shopSystem = new ShopSystem(uiManager, db, auth);
-            await shopSystem.syncUserData(userId); 
+        // const firebaseGlobals = initFirebase(async (user) => {
+        //     userId = user.uid;
+        //     isMultiplayer = true;
+        //     console.log("Firebase connected! User ID:", userId);
+        //     uiManager.updateStatus("firebase", "✅ Multiplayer connected!", "green");
+        //     // shopSystem = new ShopSystem(uiManager, db, auth);
+        //     // await shopSystem.syncUserData(userId); 
 
-            // Load saved progress (Stars/Coins)
-            const userRef = doc(db, "users", userId);
-            getDoc(userRef).then((snap) => {
-                if (snap.exists()) {
-                    const data = snap.data();
-                    coinsCollected = data.coins || 0;
-                    starsCollected = data.stars || 0;
+        //     // Load saved progress (Stars/Coins)
+        //     const userRef = doc(db, "users", userId);
+        //     getDoc(userRef).then((snap) => {
+        //         if (snap.exists()) {
+        //             const data = snap.data();
+        //             coinsCollected = data.coins || 0;
+        //             starsCollected = data.stars || 0;
                     
-                    uiManager.initHUD(coinsCollected, starsCollected);
-                    console.log("Progress loaded from database.");
-                }
-            });
+        //             uiManager.initHUD(coinsCollected, starsCollected);
+        //             console.log("Progress loaded from database.");
+        //         }
+        //     });
 
-            checkIfReadyToStart();
-            // Pass uiManager as 'ui' param to listenToPlayers so it can update peer count
-            listenToPlayers(scene, userId, { peers: uiManager.dom.peerCount }, db);
-        });
+        //     checkIfReadyToStart();
+        //     // Pass uiManager as 'ui' param to listenToPlayers so it can update peer count
+        //     listenToPlayers(scene, userId, { peers: uiManager.dom.peerCount }, db);
+        // });
     } catch (e) {
         console.error("Firebase init error:", e);
         uiManager.updateStatus("firebase", "⚠️ Offline Mode (Config Error)", "yellow");
-        isMultiplayer = false;
+        // isMultiplayer = false;
         checkIfReadyToStart();
     }
 };
 
 function checkIfReadyToStart() {
-    console.log("Ready check: modelLoaded =", modelLoaded, ", isMultiplayer =", isMultiplayer, ", userId =", userId);
-    if (modelLoaded && (!isMultiplayer || (isMultiplayer && userId))) {
-        uiManager.enableStartButton();
-    }
+    // console.log("Ready check: modelLoaded =", modelLoaded, ", isMultiplayer =", isMultiplayer, ", userId =", userId);
+    // if (modelLoaded && (!isMultiplayer || (isMultiplayer && userId))) {
+    uiManager.enableStartButton();
+    // }
 }
 
 function createSkyAtmosphere(scene) {
@@ -482,7 +472,7 @@ function activateWeed() {
     // Kosten verrekenen
     coinsCollected--;
     uiManager.updateHUD({ coins: coinsCollected });
-    saveUserProgress();
+    // saveUserProgress();
 
     // Trip starten
     isTripping = true;
@@ -500,7 +490,7 @@ function endGame(reason, won = false) {
     document.exitPointerLock();
     uiManager.showGameOver(reason, won); // Use UI Manager
 
-    if (won && isMultiplayer) {
+    if (won) {
         console.log("🏆 Player won! Regenerating world...");
         regenerateWorld();
     }
@@ -509,7 +499,7 @@ function endGame(reason, won = false) {
 async function regenerateWorld() {
     try {
         const worldData = generateWorldData(CASTLE_Z);
-        await setDoc(doc(db, "levels", "main_world"), worldData);
+        // await setDoc(doc(db, "levels", "main_world"), worldData);
         console.log("✅ New world generated and saved!");
     } catch (e) {
         console.error("❌ Failed to regenerate world:", e);
@@ -564,9 +554,9 @@ function animate() {
     if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
 
     modelManager.update(delta);
-    if (isMultiplayer) {
-        updateOtherPlayerAnimations(delta);
-    }
+    // if (isMultiplayer) {
+    //     updateOtherPlayerAnimations(delta);
+    // }
 
     enemies.forEach(e => {
         if (e.userData.mixer) {
@@ -722,7 +712,7 @@ function animate() {
                     uiManager.updateHUD({ coins: coinsCollected });
                     if (audioManager) audioManager.playSFX('coin');
                 }
-                saveUserProgress();
+                // saveUserProgress();
             }
         }
 
@@ -739,7 +729,7 @@ function animate() {
                 if (coinsCollected > 0) {
                     coinsCollected = Math.max(0, coinsCollected - 3);
                     uiManager.updateHUD({ coins: coinsCollected });
-                    saveUserProgress();
+                    // saveUserProgress();
                 } else {
                     endGame("Gepakt door een vijand!", false);
                 }
@@ -795,7 +785,7 @@ function animate() {
         }
 
         // 1. Check Glide condities in elke frame
-        if (isGrounded || jumpCount > shopSystem.getMaxJumps()) { 
+        if (isGrounded) { 
             // Als je landt of springt terwijl je glidet, stopt glide
             isGliding = false; 
         }
@@ -817,7 +807,7 @@ function animate() {
 
 function performJump() {
     const mods = settingsManager.get('modifiers');
-    const maxJumps = shopSystem ? shopSystem.getMaxJumps() : 1;
+    const maxJumps = 200;
     
     if (isGrounded) {
         jumpCount = 0;
@@ -847,9 +837,9 @@ function performShoot() {
 
 function setupInputs() {
     // --- 1. UI & Auth Events ---
-    uiManager.onLinkAccount(linkAnonymousAccountToEmail);
-    uiManager.onLogin(loginWithEmail);
-    uiManager.onLogout(logout);
+    // uiManager.onLinkAccount(linkAnonymousAccountToEmail);
+    // uiManager.onLogin(loginWithEmail);
+    // uiManager.onLogout(logout);
 
     // Character Selection
     const previews = uiManager.getCharacterPreviewElements();
@@ -875,21 +865,21 @@ function setupInputs() {
         if (name) myName = name;
         uiManager.startGameUI(myName);
 
-        if (isMultiplayer) {
-            const appearance = player.userData.appearance;
-            await setDoc(doc(db, "players", userId), {
-                name: myName,
-                x: player.position.x,
-                y: player.position.y,
-                z: player.position.z,
-                rot: player.rotation.y,
-                lastUpdate: Date.now(),
-                player_appearance: appearance
-            }, { merge: true }).catch(e => {
-                console.error("Error sending initial position:", e);
-            });
-            startBroadcasting(userId, myName, db, auth);
-        }
+        // if (isMultiplayer) {
+        //     const appearance = player.userData.appearance;
+        //     await setDoc(doc(db, "players", userId), {
+        //         name: myName,
+        //         x: player.position.x,
+        //         y: player.position.y,
+        //         z: player.position.z,
+        //         rot: player.rotation.y,
+        //         lastUpdate: Date.now(),
+        //         player_appearance: appearance
+        //     }, { merge: true }).catch(e => {
+        //         console.error("Error sending initial position:", e);
+        //     });
+        //     // startBroadcasting(userId, myName, db, auth);
+        // }
 
         if (audioManager) {
             audioManager.playMusic('bgm');
@@ -902,7 +892,7 @@ function setupInputs() {
             status: uiManager.dom.authStatus 
         };
         
-        await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);   
+        await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, CASTLE_Z, platformTexture, textureLoader);   
 
         if (!mobile || !mobile.enabled) {
             document.body.requestPointerLock();
@@ -1022,32 +1012,32 @@ function setupInputs() {
         if (action === 'jump') performJump();
         
         // INTERACTIE (E) - Praten met Ronnie
-        if (action === 'interact') {
-            if (window.ronnie && shopSystem) {
-                const dist = player.position.distanceTo(window.ronnie.position);
-                if (dist < 5) {
-                    shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {
-                        starsCollected += starDelta;
-                        coinsCollected += coinDelta;
-                        uiManager.updateHUD({ stars: starsCollected, coins: coinsCollected });
-                        saveUserProgress();
-                    });
-                }
-            }
-        }
+        // if (action === 'interact') {
+        //     if (window.ronnie) {
+        //         const dist = player.position.distanceTo(window.ronnie.position);
+        //         if (dist < 5) {
+        //             shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {
+        //                 starsCollected += starDelta;
+        //                 coinsCollected += coinDelta;
+        //                 uiManager.updateHUD({ stars: starsCollected, coins: coinsCollected });
+        //                 // saveUserProgress();
+        //             });
+        //         }
+        //     }
+        // }
         
         // ABILITY (1) - Cloud Summon
         if (action === 'cloud') {
-            if (shopSystem && shopSystem.hasCloudAbility()) {
-                summonCloudPlatform(player.position, scene, platforms, platformTexture);
-            }
+            // if (shopSystem && shopSystem.hasCloudAbility()) {
+            //     summonCloudPlatform(player.position, scene, platforms, platformTexture);
+            // }
         }
 
     if (action === 'glide') {
             // Mag alleen als: Ronnie shop item gekocht is, we in de lucht zijn, en niet aan het vallen in de 'afgrond' (optioneel)
-            if (shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
-                isGliding = !isGliding;            
-            }
+            // if (shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
+            //     isGliding = !isGliding;            
+            // }
         }
     });
 
