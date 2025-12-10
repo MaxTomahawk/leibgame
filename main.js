@@ -858,7 +858,7 @@ let flameMaterial;
 
 function initFireballAssets() {
     // 🔥 Load flame sprite texture ONCE
-    flameTexture = new THREE.TextureLoader().load("/assets/fire.png");
+    flameTexture = new THREE.TextureLoader().load("assets/fire.png");
     flameTexture.encoding = THREE.sRGBEncoding;
     renderer.outputEncoding = THREE.sRGBEncoding;
 
