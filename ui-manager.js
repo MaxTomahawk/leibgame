@@ -247,6 +247,7 @@ export class UIManager {
         if (data.peers !== undefined) this.dom.peerCount.innerText = data.peers;
         if (data.progress !== undefined) {
             this.dom.progressFill.style.width = data.progress + '%';
+            this.dom.progressFill.style.height = '12.5px'
             this.dom.progressText.innerText = Math.round(data.progress) + '%';
         }
     }
