@@ -50,27 +50,66 @@ export class ShopSystem {
         };
     }
 
-    // Check of Ronnie unlocked is EN laad opgeslagen upgrades
-    async syncUserData(userId) {
-        if (!userId) return;
-        const userRef = doc(this.db, "users", userId);
-        const snap = await getDoc(userRef);
-        
-        if (snap.exists()) {
-            const data = snap.data();
-            
-            // 1. Ronnie Check
-            this.isRonnieUnlocked = !!data.ronnieUnlocked;
+    // --- LOCAL STORAGE HELPERS (Offline Mode) ---
+    loadLocalData() {
+        try {
+            const saved = localStorage.getItem('shopProgress');
+            if (saved) {
+                const data = JSON.parse(saved);
+                this.isRonnieUnlocked = !!data.ronnieUnlocked;
+                if (data.upgrades) {
+                    for (const [key, level] of Object.entries(data.upgrades)) {
+                        if (this.upgrades[key]) {
+                            this.upgrades[key].current = level;
+                        }
+                    }
+                }
+                console.log("🛒 Shop data loaded locally");
+            }
+        } catch (e) {
+            console.warn("Kon lokale shop data niet laden:", e);
+        }
+    }
 
-            // 2. Upgrades inladen
-            if (data.upgrades) {
-                for (const [key, level] of Object.entries(data.upgrades)) {
-                    if (this.upgrades[key]) {
-                        this.upgrades[key].current = level;
-                        console.log(`🔧 Upgrade geladen: ${key} niveau ${level}`);
+    _saveLocalData() {
+        try {
+            const data = {
+                ronnieUnlocked: this.isRonnieUnlocked,
+                upgrades: {}
+            };
+            for (const [key, item] of Object.entries(this.upgrades)) {
+                data.upgrades[key] = item.current;
+            }
+            localStorage.setItem('shopProgress', JSON.stringify(data));
+            console.log("💾 Shop data saved locally");
+        } catch (e) {
+            console.warn("Kon shop data niet lokaal opslaan:", e);
+        }
+    }
+
+    // --- ONLINE SYNC ---
+    async syncUserData(userId) {
+        if (!userId || !this.db) return;
+        try {
+            const userRef = doc(this.db, "users", userId);
+            const snap = await getDoc(userRef);
+            
+            if (snap.exists()) {
+                const data = snap.data();
+                this.isRonnieUnlocked = !!data.ronnieUnlocked;
+
+                if (data.upgrades) {
+                    for (const [key, level] of Object.entries(data.upgrades)) {
+                        if (this.upgrades[key]) {
+                            this.upgrades[key].current = level;
+                            console.log(`🔧 Upgrade geladen: ${key} niveau ${level}`);
+                        }
                     }
                 }
             }
+        } catch (e) {
+            console.warn("Sync failed, falling back to local:", e);
+            this.loadLocalData();
         }
     }
 
@@ -80,13 +119,26 @@ export class ShopSystem {
                 const confirmUnlock = confirm("Ronnie: 'Eyyy, je hebt veel van die knakkers uitgeroeid. Voor 50 sterren open ik mijn shop voor je. Deal?'");
                 if (confirmUnlock) {
                     this.isRonnieUnlocked = true;
-                    // Save Ronnie unlock
-                    await setDoc(doc(this.db, "users", this.auth.currentUser.uid), {
-                        ronnieUnlocked: true,
-                        stars: increment(-50)
-                    }, { merge: true });
-
+                    
+                    // Callback voor UI update (sterren eraf)
                     saveProgressCallback(-50, 0); 
+
+                    // 1. Probeer Cloud Save
+                    if (this.auth && this.db && this.auth.currentUser) {
+                        try {
+                            await setDoc(doc(this.db, "users", this.auth.currentUser.uid), {
+                                ronnieUnlocked: true,
+                                stars: increment(-50)
+                            }, { merge: true });
+                        } catch (e) {
+                            console.error("Cloud save failed:", e);
+                            this._saveLocalData(); // Fallback
+                        }
+                    } else {
+                        // 2. Offline Save
+                        this._saveLocalData();
+                    }
+
                     alert("Ronnie: 'Geef me je centjes!'");
                     this.openShopUI(playerCoins, saveProgressCallback);
                 }
@@ -112,28 +164,36 @@ export class ShopSystem {
         if (item.req && this.upgrades[item.req].current < this.upgrades[item.req].max) return { success: false, msg: "Ontgrendel eerst de vorige upgrade!" };
         if (currentCoins < item.cost) return { success: false, msg: "Niet genoeg munten!" };
 
-        // 1. Update lokaal
+        // 1. Update in Memory
         item.current++;
         
-        // 2. Update Coins lokaal via callback (zodat UI update)
+        // 2. Update Coins lokaal via callback
         saveProgressCallback(0, -item.cost); 
 
-        // 3. OPSLAAN IN DATABASE (Persistentie)
-        try {
-            const userRef = doc(this.db, "users", this.auth.currentUser.uid);
-            // We gebruiken dot-notatie om alleen dit specifieke veld in de map te updaten
-            const updateData = {};
-            updateData[`upgrades.${upgradeId}`] = item.current;
-            updateData['coins'] = increment(-item.cost); // Coins ook in DB updaten voor de zekerheid
+        // 3. OPSLAAN (Cloud of Lokaal)
+        if (this.auth && this.db && this.auth.currentUser) {
+            try {
+                const userRef = doc(this.db, "users", this.auth.currentUser.uid);
+                const updateData = {};
+                updateData[`upgrades.${upgradeId}`] = item.current;
+                updateData['coins'] = increment(-item.cost);
 
-            await updateDoc(userRef, updateData);
-            console.log("💾 Upgrade opgeslagen in DB");
-        } catch (e) {
-            console.error("Fout bij opslaan upgrade:", e);
-            // Fallback: als update faalt, probeer set met merge (voor nieuwe users)
-             await setDoc(doc(this.db, "users", this.auth.currentUser.uid), {
-                upgrades: { [upgradeId]: item.current }
-            }, { merge: true });
+                await updateDoc(userRef, updateData);
+                console.log("💾 Upgrade opgeslagen in DB");
+            } catch (e) {
+                console.error("Fout bij opslaan upgrade in cloud:", e);
+                // Fallback: probeer merge als update faalt
+                 try {
+                    await setDoc(doc(this.db, "users", this.auth.currentUser.uid), {
+                        upgrades: { [upgradeId]: item.current }
+                    }, { merge: true });
+                 } catch (e2) {
+                     this._saveLocalData();
+                 }
+            }
+        } else {
+            // Offline save
+            this._saveLocalData();
         }
 
         return { success: true, cost: item.cost, msg: `Je hebt ${item.name} gekocht!` };
@@ -152,11 +212,5 @@ export class ShopSystem {
 
     hasGlideAbility() {
         return this.upgrades.glide && this.upgrades.glide.current > 0;
-    }
-
-    resetRunUpgrades() {
-        // Als je wilt dat upgrades permanent blijven, laat je deze functie leeg of verwijder je hem.
-        // Als je wilt dat upgrades resetten bij doodgaan, uncomment de regel hieronder:
-        // for (let key in this.upgrades) this.upgrades[key].current = 0;
     }
 }

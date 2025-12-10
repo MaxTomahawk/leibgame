@@ -125,10 +125,10 @@ export class MobileControls {
         this.btnAbility = this._makeButton("🍃", "33vh", "15vw");
 
         // Unlockables (Under the main buttons)
-        this.btnCloud = this._makeButton("☁️", "12vh", "28vw"); 
+        this.btnCloud = this._makeButton("☁️", "14vh", "28vw"); 
         this.btnCloud.style.display = 'none'; // Hidden by default
         
-        this.btnGlide = this._makeButton("🪶", "12vh", "15vw"); 
+        this.btnGlide = this._makeButton("🪶", "4vh", "28vw"); 
         this.btnGlide.style.display = 'none'; // Hidden by default
 
         // 4. Interact Button (Floating Finger)

@@ -302,6 +302,7 @@ async function initOfflineMode() {
 
     // Initialize offline shop
     shopSystem = new ShopSystem(uiManager, null, null);
+    shopSystem.loadLocalData(); // <--- NEW: Load local data
 
     await loadUserProgress();
     uiManager.initHUD(coinsCollected, starsCollected);
