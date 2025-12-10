@@ -139,7 +139,7 @@ export class WeatherSystem {
 
             // Ring
             const ringGeo = new THREE.TorusGeometry(2.5, 0.1, 16, 100);
-            const ringMat = new THREE.MeshBasicMaterial({
+            const ringMat = new THREE.MeshStandardMaterial({
                 color: 0x00ffcc,
                 transparent: true,
                 opacity: 0.4,

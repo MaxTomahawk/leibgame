@@ -585,6 +585,17 @@ function animate() {
             window.gameLights.dirLight.color.lerp(targetLightColor, delta);
         }
 
+        const sky = scene.children.find(child => child.userData.skyMaterial);
+        if (sky && sky.userData.skyMaterial) {
+            if (currentWeather === 'night' && !isTripping) {
+                sky.userData.skyMaterial.color.setHex(0x0a0a1a); // Very dark blue
+            } else if (isTripping) {
+                sky.userData.skyMaterial.color.setHex(0x113311); // Trip mode green tint
+            } else {
+                sky.userData.skyMaterial.color.setHex(0xffffff); // Bright day
+            }
+        }
+
         // Apply physics using dynamic modifier values
         targetGravity = isTripping ? mods.tripGravity : mods.baseGravity;
         currentGravity = THREE.MathUtils.lerp(currentGravity, targetGravity, delta * 2);

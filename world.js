@@ -487,7 +487,7 @@ function createEnemy(x, y, z, scene, enemies, platforms) {
 
     } else {
         const geo = new THREE.BoxGeometry(1, 1, 1);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+        const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true });
         mesh = new THREE.Mesh(geo, mat);
         mesh.userData.isPlaceholder = true;
     }
@@ -627,7 +627,7 @@ function createCloudySky() {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     for (let i = 0; i < 15; i++) {
         const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height * 0.6; // Upper portion
+        const y = Math.random() * canvas.height * 0.6;
         const w = 80 + Math.random() * 120;
         const h = 30 + Math.random() * 50;
         
@@ -638,14 +638,17 @@ function createCloudySky() {
     
     const texture = new THREE.CanvasTexture(canvas);
     
-    // Create sky sphere (inside-out)
+    // Create MUCH larger sky sphere - USE BASIC MATERIAL (doesn't need light)
     const skyGeo = new THREE.SphereGeometry(500, 32, 32);
     const skyMat = new THREE.MeshBasicMaterial({
         map: texture,
         side: THREE.BackSide,
-        fog: false // Sky shouldn't be affected by fog
+        fog: false  // Sky not affected by fog
     });
     
     const sky = new THREE.Mesh(skyGeo, skyMat);
+    sky.userData.skyMaterial = skyMat;
+    sky.name = 'SkySphere';
+    
     return sky;
 }
