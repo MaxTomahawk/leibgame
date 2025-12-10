@@ -324,7 +324,7 @@ const AUDIO_ASSETS = {
     coin: 'assets/sounds/effects/coin.wav',
     hava: 'assets/sounds/effects/hava.wav',
     shoot: 'assets/sounds/effects/spit.wav',
-    gameover: 'assets/sounds/fail.wav'
+    gameover: 'assets/sounds/effects/fail.wav'
 };
 
 async function setupAudio() {
@@ -469,6 +469,8 @@ function endGame(reason, won = false) {
     window.gameState = 'ended';
     document.exitPointerLock();
     uiManager.showGameOver(reason, won);
+
+    audioManager.playSFX('gameover') 
 
     // Only regenerate if multiplayer is active
     if (won && FEATURES.MULTIPLAYER && db) {
