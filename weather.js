@@ -7,16 +7,17 @@ export class WeatherSystem {
         this.ufos = [];
         this.particleSystem = null;
         this.particlesData = [];
-        
+
         // Weather cycle settings
         this.cycleInterval = 25000; // 60k is 1 minute. (in milliseconds)
         this.lastCycleTime = Date.now();
         this.weatherMode = 'static'; // 'static' or 'dynamic'
-        
+
         // Spawn chances
-        this.nightParticleChance = 0.5; // 50%
+        this.nightParticleChance = 0.1; // 10% -> todo: maybe always do the particles for tripping
+        this.normalParticleChance = 0.25 //25%
         this.ufoSpawnChance = 0.1; // 10%
-        
+
         // Track what's currently spawned
         this.particlesSpawned = false;
         this.ufosSpawned = false;
@@ -64,11 +65,11 @@ export class WeatherSystem {
     /**
      * Cycles to the next weather state and spawns/despawns elements
      */
-    cycleWeather() {  
+    cycleWeather() {
         // Toggle between day and night
         this.currentWeather = this.currentWeather === 'day' ? 'night' : 'day';
         console.log(`🌦️ Weather changed to: ${this.currentWeather}`);
-        
+
         this.updateWeather();
     }
 
@@ -79,12 +80,18 @@ export class WeatherSystem {
         // Handle particles (50% chance at night)
         if (this.currentWeather === 'night') {
             if (Math.random() < this.nightParticleChance) {
+                this.despawnParticles(); // make sure the previous effects are removed
                 this.spawnParticles();
             } else {
                 this.despawnParticles();
             }
         } else {
-            this.despawnParticles();
+            if (Math.random() < this.normalParticleChance) {
+                this.despawnParticles(); // make sure the previous effects are removed
+                this.spawnParticles('white');
+            } else {
+                this.despawnParticles();
+            }
         }
 
         // Handle UFOs (10% chance regardless of time)
@@ -100,31 +107,31 @@ export class WeatherSystem {
      */
     spawnUFOs() {
         if (this.ufosSpawned) return;
-        
+
         console.log('👽 Spawning UFOs...');
         this.ufosSpawned = true;
 
         for (let i = 0; i < 60; i++) {
             const ufoGroup = new THREE.Group();
-            
+
             // Body
             const bodyGeo = new THREE.CylinderGeometry(1.5, 2.5, 0.6, 32, 1, true);
-            const bodyMat = new THREE.MeshStandardMaterial({ 
-                color: 0x888888, 
-                metalness: 0.7, 
-                roughness: 0.3 
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                metalness: 0.7,
+                roughness: 0.3
             });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
             ufoGroup.add(body);
 
             // Dome
             const domeGeo = new THREE.SphereGeometry(0.75, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
-            const domeMat = new THREE.MeshStandardMaterial({ 
-                color: 0x00ffcc, 
-                transparent: true, 
-                opacity: 0.6, 
-                metalness: 0.2, 
-                roughness: 0.1 
+            const domeMat = new THREE.MeshStandardMaterial({
+                color: 0x00ffcc,
+                transparent: true,
+                opacity: 0.6,
+                metalness: 0.2,
+                roughness: 0.1
             });
             const dome = new THREE.Mesh(domeGeo, domeMat);
             dome.position.y = 0.3;
@@ -132,11 +139,11 @@ export class WeatherSystem {
 
             // Ring
             const ringGeo = new THREE.TorusGeometry(2.5, 0.1, 16, 100);
-            const ringMat = new THREE.MeshBasicMaterial({ 
-                color: 0x00ffcc, 
-                transparent: true, 
-                opacity: 0.4, 
-                side: THREE.DoubleSide 
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x00ffcc,
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.DoubleSide
             });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.rotation.x = Math.PI / 2;
@@ -170,7 +177,7 @@ export class WeatherSystem {
      */
     despawnUFOs() {
         if (!this.ufosSpawned) return;
-        
+
         console.log('👽 Despawning UFOs...');
         this.ufosSpawned = false;
 
@@ -194,11 +201,11 @@ export class WeatherSystem {
     /**
      * Creates and adds particle system to the scene
      */
-    spawnParticles() {
-        console.log("spawning particles....")
+    spawnParticles(color_value = Math.random()) {
         if (this.particlesSpawned) return;
-        
-        console.log('✨ Spawning particles...');
+
+        const isWhite = color_value === 'white'
+        console.log('✨ Spawning particles... with color: ', color_value);
         this.particlesSpawned = true;
 
         const particleCount = 2500;
@@ -217,16 +224,25 @@ export class WeatherSystem {
             posArray[i + 1] = y;
             posArray[i + 2] = z;
 
-            const hueOffset = Math.random() * Math.PI * 2;
-            colorHelper.setHSL(Math.random(), 1.0, 0.6);
+            if (isWhite) {
+                // White particles - set RGB to pure white
+                colorArray[i] = 1.0;
+                colorArray[i + 1] = 1.0;
+                colorArray[i + 2] = 1.0;
+            } else {
+                // Colored particles
+                const hueOffset = color_value;
+                colorHelper.setHSL(color_value, 1.0, 0.6);
 
-            colorArray[i] = colorHelper.r;
-            colorArray[i + 1] = colorHelper.g;
-            colorArray[i + 2] = colorHelper.b;
+                colorArray[i] = colorHelper.r;
+                colorArray[i + 1] = colorHelper.g;
+                colorArray[i + 2] = colorHelper.b;
+            }
 
             this.particlesData.push({
                 velocity: 6 + Math.random() * 55,
-                hueOffset: hueOffset,
+                hueOffset: isWhite ? null : color_value,
+                isWhite: isWhite,
                 idx: i
             });
         }
@@ -251,7 +267,7 @@ export class WeatherSystem {
      */
     despawnParticles() {
         if (!this.particlesSpawned) return;
-        
+
         console.log('✨ Despawning particles...');
         this.particlesSpawned = false;
 
@@ -312,12 +328,14 @@ export class WeatherSystem {
             positions[p.idx + 2] = z;
 
             // Update color
-            const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
-            colorHelper.setHSL(hue, 1.0, 0.6);
+            if (!p.isWhite) {
+                const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
+                colorHelper.setHSL(hue, 1.0, 0.6);
 
-            colors[p.idx] = colorHelper.r;
-            colors[p.idx + 1] = colorHelper.g;
-            colors[p.idx + 2] = colorHelper.b;
+                colors[p.idx] = colorHelper.r;
+                colors[p.idx + 1] = colorHelper.g;
+                colors[p.idx + 2] = colorHelper.b;
+            }
         }
 
         this.particleSystem.geometry.attributes.position.needsUpdate = true;
