@@ -523,7 +523,7 @@ let isGrounded = false;
 function animate(time) {
     requestAnimationFrame(animate);
 
-    const delta = (time - lastFrameTime) / 1000;
+    const delta = (time - lastFrameTime) / 750;
     lastFrameTime = time;
 
     if (delta > 0.1) return;
