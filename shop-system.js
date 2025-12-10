@@ -12,7 +12,7 @@ export class ShopSystem {
             double_jump: { 
                 id: 'double_jump', 
                 name: 'Double Jump', 
-                cost: 20, 
+                cost: 10, 
                 currency: 'coins', 
                 max: 1, 
                 current: 0,
@@ -31,8 +31,8 @@ export class ShopSystem {
             summon_cloud: { 
                 id: 'summon_cloud', 
                 name: 'Summon Cloud', 
-                cost: 100, 
-                currency: 'coins', 
+                cost: 30, 
+                currency: 'stars', 
                 max: 1, 
                 current: 0,
                 desc: 'Roep een wolk op onder je voeten.'
@@ -40,8 +40,8 @@ export class ShopSystem {
             glide: { 
                 id: 'glide', 
                 name: 'Glide', 
-                cost: 100,
-                currency: 'coins', 
+                cost: 30,
+                currency: 'stars', 
                 max: 1, 
                 current: 0,
                 desc: 'Klik Q in de lucht om te zweven.',
@@ -115,20 +115,20 @@ export class ShopSystem {
 
     async interactWithRonnie(playerStars, playerCoins, saveProgressCallback) {
         if (!this.isRonnieUnlocked) {
-            if (playerStars >= 50) {
-                const confirmUnlock = confirm("Ronnie: 'Eyyy, je hebt veel van die knakkers uitgeroeid. Voor 50 sterren open ik mijn shop voor je. Deal?'");
+            if (playerCoins >= 15) {
+                const confirmUnlock = confirm("Ronnie: '20 Muntjes graag!'");
                 if (confirmUnlock) {
                     this.isRonnieUnlocked = true;
                     
-                    // Callback voor UI update (sterren eraf)
-                    saveProgressCallback(-50, 0); 
+                    // Callback voor UI update (munten eraf)
+                    saveProgressCallback(0, -20); 
 
                     // 1. Probeer Cloud Save
                     if (this.auth && this.db && this.auth.currentUser) {
                         try {
                             await setDoc(doc(this.db, "users", this.auth.currentUser.uid), {
                                 ronnieUnlocked: true,
-                                stars: increment(-50)
+                                coins: increment(-20)
                             }, { merge: true });
                         } catch (e) {
                             console.error("Cloud save failed:", e);
@@ -143,7 +143,7 @@ export class ShopSystem {
                     this.openShopUI(playerCoins, saveProgressCallback);
                 }
             } else {
-                alert(`Ronnie: 'Ik praat alleen met mensen die verstand van geld hebben. Kom terug als je 50 sterren hebt. Je hebt er nu ${playerStars}.'`);
+                alert(`Ronnie: 'Ik praat alleen met mensen die verstand van geld hebben. Kom terug als je 15 muntjes hebt. Je hebt er nu ${playerCoins}.'`);
             }
         } else {
             this.openShopUI(playerCoins, saveProgressCallback);
