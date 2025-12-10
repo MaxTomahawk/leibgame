@@ -228,7 +228,7 @@ window.onload = async () => {
             // OPTION 1: Dynamic (Default) 🌈
             console.log("🌈 Dynamic Mode: Activated!");
             weatherSystem.setMode('dynamic');
-            
+
         } else if (themeVal === 'auto') {
             // OPTION 2: System Auto 🌗
             weatherSystem.setMode('static');
@@ -238,7 +238,7 @@ window.onload = async () => {
         } else {
             // OPTION 3 & 4: Manual Light/Dark ☀️/🌙
             weatherSystem.setMode('static');
-            const weatherType = (themeVal === 'dark') ? 'night' : 'day'; 
+            const weatherType = (themeVal === 'dark') ? 'night' : 'day';
             weatherSystem.setWeather(weatherType);
         }
     };
@@ -442,6 +442,8 @@ function initThreeJS() {
 
     animate();
     setupAudio();
+
+    initFireballAssets();
 }
 
 // --- GAMEPLAY FUNCTIONS ---
@@ -470,7 +472,7 @@ function endGame(reason, won = false) {
     document.exitPointerLock();
     uiManager.showGameOver(reason, won);
 
-    audioManager.playSFX('gameover') 
+    audioManager.playSFX('gameover')
 
     // Only regenerate if multiplayer is active
     if (won && FEATURES.MULTIPLAYER && db) {
@@ -521,7 +523,7 @@ function animate() {
     if (settingsManager && settingsManager.get('theme') === 'auto' && weatherSystem) {
         const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const targetWeather = sysDark ? 'night' : 'day';
-        
+
         if (weatherSystem.getCurrentWeather() !== targetWeather) {
             weatherSystem.setWeather(targetWeather);
         }
@@ -734,6 +736,17 @@ function animate() {
             p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
             p.life -= delta;
 
+            // 🔥 Define time for sprite animation
+            const time = performance.now() * 0.001; // seconds
+
+            // Animate flame sprites
+            p.mesh.children.forEach((sprite, idx) => {
+                sprite.material.opacity = 0.8 + Math.sin(time * 10 + idx) * 0.2;
+                const s = 0.5 + Math.sin(time * 10 + idx) * 0.2;
+                sprite.scale.set(s, s, 1);
+                sprite.material.rotation += delta * (idx % 2 === 0 ? 5 : -5);
+            });
+
             let hit = false;
             for (let j = enemies.length - 1; j >= 0; j--) {
                 if (p.mesh.position.distanceTo(enemies[j].position) < 2.0) {
@@ -766,24 +779,24 @@ function animate() {
         // Handle interaction prompts
         if (window.ronnie) {
             const dist = player.position.distanceTo(window.ronnie.position);
-            
+
             // Check mobile vs desktop logic
             if (mobile && mobile.enabled) {
                 // Mobile: Hide "E", show finger emoji at screen coords
                 const prompt = window.ronnie.children.find(c => c.name === "InteractionPrompt");
-                if (prompt) prompt.visible = false; 
+                if (prompt) prompt.visible = false;
 
                 if (dist < 5) {
                     const pos = window.ronnie.position.clone().add(new THREE.Vector3(0, 3.5, 0));
                     pos.project(camera);
-                    
+
                     // Check if object is behind camera
                     if (pos.z < 1) {
-                         const x = (pos.x * .5 + .5) * window.innerWidth;
-                         const y = (-(pos.y * .5) + .5) * window.innerHeight;
-                         mobile.updateInteractPosition(x, y, true);
+                        const x = (pos.x * .5 + .5) * window.innerWidth;
+                        const y = (-(pos.y * .5) + .5) * window.innerHeight;
+                        mobile.updateInteractPosition(x, y, true);
                     } else {
-                         mobile.updateInteractPosition(0, 0, false);
+                        mobile.updateInteractPosition(0, 0, false);
                     }
                 } else {
                     mobile.updateInteractPosition(0, 0, false);
@@ -839,17 +852,55 @@ function performJump() {
     }
 }
 
-function performShoot() {
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
-    ball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
-    scene.add(ball);
+// Global/shared fireball assets
+let flameTexture;
+let flameMaterial;
 
+function initFireballAssets() {
+    // 🔥 Load flame sprite texture ONCE
+    flameTexture = new THREE.TextureLoader().load("/assets/fire.png");
+    flameTexture.encoding = THREE.sRGBEncoding;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    flameMaterial = new THREE.SpriteMaterial({
+        map: flameTexture,
+        transparent: true,
+        opacity: 1.0,
+        depthWrite: false, // prevents sorting issues
+        blending: THREE.AdditiveBlending,
+        color: 0xff3300
+    });
+}
+
+
+function performShoot() {
+    const fireball = new THREE.Object3D(); // container
+
+    // 🔥 Add two overlapping flame sprites for a dynamic look
+    for (let i = 0; i < 2; i++) {
+        const sprite = new THREE.Sprite(flameMaterial.clone());
+        sprite.scale.set(0.5 + Math.random() * 0.3, 0.5 + Math.random() * 0.3, 1);
+        sprite.position.set(0, 0, 0);
+        fireball.add(sprite);
+    }
+
+    // Spawn position
+    fireball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
+    scene.add(fireball);
+
+    // Direction
     let dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
-    projectiles.push({ mesh: ball, velocity: dir.multiplyScalar(30), life: 2.0 });
+
+    projectiles.push({
+        mesh: fireball,
+        velocity: dir.multiplyScalar(30),
+        life: 2.0
+    });
 
     if (audioManager) audioManager.playSFX('shoot');
 }
+
 
 function setupInputs() {
     // --- 1. UI & Auth Events ---
