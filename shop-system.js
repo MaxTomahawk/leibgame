@@ -77,7 +77,7 @@ export class ShopSystem {
     async interactWithRonnie(playerStars, playerCoins, saveProgressCallback) {
         if (!this.isRonnieUnlocked) {
             if (playerStars >= 50) {
-                const confirmUnlock = confirm("Ronnie: 'Eyyy, je hebt veel van die knakker uitgeroeid. Voor 50 sterren open ik mijn shop voor je. Deal?'");
+                const confirmUnlock = confirm("Ronnie: 'Eyyy, je hebt veel van die knakkers uitgeroeid. Voor 50 sterren open ik mijn shop voor je. Deal?'");
                 if (confirmUnlock) {
                     this.isRonnieUnlocked = true;
                     // Save Ronnie unlock
