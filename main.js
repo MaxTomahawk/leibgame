@@ -118,6 +118,43 @@ function handleMobileControls(mobile) {
     mobile.onJump = () => performJump();
     mobile.onShoot = () => performShoot();
     mobile.onAbility = () => activateWeed();
+
+    // Ability: Cloud
+    mobile.onCloud = () => {
+        if (shopSystem && shopSystem.hasCloudAbility()) {
+            summonCloudPlatform(player.position, scene, platforms, platformTexture);
+        }
+    };
+
+    // Ability: Glide
+    mobile.onGlide = () => {
+        if (shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
+            isGliding = !isGliding;
+        }
+    };
+
+    // Interaction (Tapping the floating finger)
+    mobile.onInteract = () => {
+        if (window.ronnie && shopSystem) {
+            const dist = player.position.distanceTo(window.ronnie.position);
+            if (dist < 5) {
+                shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {
+                    starsCollected += starDelta;
+                    coinsCollected += coinDelta;
+                    uiManager.updateHUD({ stars: starsCollected, coins: coinsCollected });
+                    saveUserProgress();
+                    // Update buttons in case we bought something
+                    updateMobileAbilities();
+                });
+            }
+        }
+    };
+}
+
+function updateMobileAbilities() {
+    if (mobile && mobile.enabled && shopSystem) {
+        mobile.setAbilities(shopSystem.hasCloudAbility(), shopSystem.hasGlideAbility());
+    }
 }
 
 async function saveUserProgress() {
@@ -134,6 +171,8 @@ async function saveUserProgress() {
             const userRef = doc(db, "users", auth.currentUser.uid);
             await setDoc(userRef, data, { merge: true });
             console.log("✅ Progress saved to Firebase");
+            // Also update local abilities after save
+            updateMobileAbilities();
             return;
         } catch (e) {
             console.warn("⚠️ Firebase save failed:", e);
@@ -142,6 +181,7 @@ async function saveUserProgress() {
 
     // Fallback to localStorage
     localStorage.setItem('gameProgress', JSON.stringify(data));
+    updateMobileAbilities();
     console.log("💾 Progress saved locally");
 }
 
@@ -723,12 +763,36 @@ function animate() {
         // Handle interaction prompts
         if (window.ronnie) {
             const dist = player.position.distanceTo(window.ronnie.position);
-            const prompt = window.ronnie.children.find(c => c.name === "InteractionPrompt");
+            
+            // Check mobile vs desktop logic
+            if (mobile && mobile.enabled) {
+                // Mobile: Hide "E", show finger emoji at screen coords
+                const prompt = window.ronnie.children.find(c => c.name === "InteractionPrompt");
+                if (prompt) prompt.visible = false; 
 
-            if (prompt) {
-                prompt.visible = (dist < 5);
-                if (prompt.visible) {
-                    prompt.position.y = 2.8 + Math.sin(Date.now() * 0.005) * 0.1;
+                if (dist < 5) {
+                    const pos = window.ronnie.position.clone().add(new THREE.Vector3(0, 3.5, 0));
+                    pos.project(camera);
+                    
+                    // Check if object is behind camera
+                    if (pos.z < 1) {
+                         const x = (pos.x * .5 + .5) * window.innerWidth;
+                         const y = (-(pos.y * .5) + .5) * window.innerHeight;
+                         mobile.updateInteractPosition(x, y, true);
+                    } else {
+                         mobile.updateInteractPosition(0, 0, false);
+                    }
+                } else {
+                    mobile.updateInteractPosition(0, 0, false);
+                }
+            } else {
+                // Desktop: Show "E" prompt
+                const prompt = window.ronnie.children.find(c => c.name === "InteractionPrompt");
+                if (prompt) {
+                    prompt.visible = (dist < 5);
+                    if (prompt.visible) {
+                        prompt.position.y = 2.8 + Math.sin(Date.now() * 0.005) * 0.1;
+                    }
                 }
             }
         }
@@ -858,7 +922,11 @@ function setupInputs() {
             document.body.requestPointerLock();
         }
         window.gameState = 'playing';
-        if (mobile && mobile.enabled) mobile.start();
+        if (mobile && mobile.enabled) {
+            mobile.start();
+            // Init abilities on start
+            updateMobileAbilities();
+        }
     });
 
     uiManager.onPauseToggle((isPaused) => {
@@ -981,6 +1049,8 @@ function setupInputs() {
                         coinsCollected += coinDelta;
                         uiManager.updateHUD({ stars: starsCollected, coins: coinsCollected });
                         saveUserProgress();
+                        // Update abilities after purchase
+                        updateMobileAbilities();
                     });
                 }
             }

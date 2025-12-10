@@ -7,6 +7,7 @@ export class MobileControls {
         this.maxDragDistance = 60; 
         this.touchSensitivity = 0.008; 
         this.doubleTapDelay = 300; // Time in ms for a double tap
+        this.buttonSize = "16vw"; // Default button size
 
         // --- State Movement (Left) ---
         this.move = { x: 0, y: 0 };
@@ -27,6 +28,9 @@ export class MobileControls {
         this.onJump = () => {};
         this.onShoot = () => {};
         this.onAbility = () => {};
+        this.onCloud = () => {};
+        this.onGlide = () => {};
+        this.onInteract = () => {};
 
         this.stickOuter = this._createStickVisual();
         this.stickInner = this.stickOuter.firstChild;
@@ -67,6 +71,23 @@ export class MobileControls {
         });
     }
 
+    setAbilities(hasCloud, hasGlide) {
+        if (this.btnCloud) this.btnCloud.style.display = hasCloud ? 'block' : 'none';
+        if (this.btnGlide) this.btnGlide.style.display = hasGlide ? 'block' : 'none';
+    }
+
+    updateInteractPosition(x, y, visible) {
+        if (!this.btnInteract) return;
+        if (!visible) {
+            this.btnInteract.style.display = 'none';
+            return;
+        }
+        this.btnInteract.style.display = 'block';
+        // Center the button on the coordinates
+        this.btnInteract.style.left = (x - 30) + 'px'; 
+        this.btnInteract.style.top = (y - 30) + 'px';
+    }
+
     _buildUI() {
 
         const header = document.querySelector('.ui-container');
@@ -99,8 +120,42 @@ export class MobileControls {
         document.body.appendChild(this.dragArea);
 
         // 3. Buttons (Unified)
+        // Main Actions
         this.btnShoot = this._makeButton("💥", "24vh", "28vw");
         this.btnAbility = this._makeButton("🍃", "33vh", "15vw");
+
+        // Unlockables (Under the main buttons)
+        this.btnCloud = this._makeButton("☁️", "12vh", "28vw"); 
+        this.btnCloud.style.display = 'none'; // Hidden by default
+        
+        this.btnGlide = this._makeButton("🪶", "12vh", "15vw"); 
+        this.btnGlide.style.display = 'none'; // Hidden by default
+
+        // 4. Interact Button (Floating Finger)
+        this.btnInteract = document.createElement("div");
+        this.btnInteract.innerText = "👆";
+        Object.assign(this.btnInteract.style, {
+            position: "absolute",
+            width: "60px", height: "60px",
+            lineHeight: "60px", textAlign: "center",
+            fontSize: "40px",
+            zIndex: 15, // Above move(10) but below actions(20)
+            cursor: "pointer",
+            userSelect: "none",
+            touchAction: "manipulation",
+            display: "none",
+            pointerEvents: "auto", // Essential to capture clicks over the moveArea
+            filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.5))",
+            animation: "float 1s ease-in-out infinite alternate"
+        });
+        // Add float animation keyframes if not exists
+        if (!document.getElementById('anim-float')) {
+            const style = document.createElement('style');
+            style.id = 'anim-float';
+            style.innerHTML = `@keyframes float { from { transform: translateY(0); } to { transform: translateY(-5px); } }`;
+            document.head.appendChild(style);
+        }
+        document.body.appendChild(this.btnInteract);
     }
 
     _makeButton(text, bottomUnit, rightUnit) {
@@ -115,7 +170,7 @@ export class MobileControls {
             lineHeight: this.buttonSize,
             background: "rgba(0,0,0,0.4)", color: "#fff", textAlign: "center",
             borderRadius: "50%", 
-            fontSize: "10vw",
+            fontSize: "8vw",
             userSelect: "none",
             touchAction: "none", zIndex: 20, cursor: "pointer",
             boxShadow: "0px 4px 5px rgba(0,0,0,0.2)",
@@ -230,7 +285,7 @@ export class MobileControls {
              for (let i=0; i<e.changedTouches.length; i++) handleLookEnd(e.changedTouches[i]);
         });
 
-        // Button Events (pass isButton = true to skip double tap logic)
+        // Button Events (pass isButton = true to skip double tap logic, but allow looking)
         const bindBtn = (btn, action) => {
             btn.addEventListener("touchstart", e => {
                 e.preventDefault();
@@ -256,8 +311,24 @@ export class MobileControls {
             });
         };
 
+        // Interact Button Event (NO Looking, Just Tap)
+        this.btnInteract.addEventListener("touchstart", e => {
+            e.preventDefault();
+            e.stopPropagation(); // Stop movement/look
+            this.btnInteract.style.transform = "scale(0.8)";
+            this.onInteract();
+        }, {passive: false});
+
+        this.btnInteract.addEventListener("touchend", e => {
+            e.preventDefault();
+             this.btnInteract.style.transform = "scale(1.0)";
+        });
+
+        // Bind Actions
         bindBtn(this.btnShoot, () => this.onShoot());
         bindBtn(this.btnAbility, () => this.onAbility());
+        bindBtn(this.btnCloud, () => this.onCloud());
+        bindBtn(this.btnGlide, () => this.onGlide());
     }
 
     _findTouch(e, id) {
