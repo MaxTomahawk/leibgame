@@ -578,40 +578,35 @@ export class UIManager {
         const pauseCard = document.querySelector('#pause-screen .game-card');
         if (!pauseCard) return;
 
-        // Remove existing button to prevent duplicates during hot-reloads or re-initialization
         const oldBtn = document.getElementById('theme-toggle-btn');
         if (oldBtn) oldBtn.remove();
 
-        // Create the toggle button element
         const btn = document.createElement('button');
         btn.id = 'theme-toggle-btn';
         btn.className = "absolute top-10 right-10 w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none";
-        btn.title = "Toggle Theme (Auto -> Light -> Dark)";
+        btn.title = "Toggle Theme";
         
-        // Retrieve initial theme state and render the corresponding icon
-        let currentTheme = settingsManager.get('theme') || 'auto';
+        // HAAL INITIAL THEME OP (Default is nu dynamic)
+        let currentTheme = settingsManager.get('theme') || 'dynamic';
         btn.innerHTML = this._getThemeSVG(currentTheme);
 
-        // Handle click events to cycle through themes
         btn.addEventListener('click', () => {
-            // Re-fetch current value to ensure synchronization with storage
-            const current = settingsManager.get('theme') || 'auto';
-            let newTheme = 'auto';
+            // Huidige status ophalen
+            const current = settingsManager.get('theme') || 'dynamic';
+            let newTheme = 'dynamic';
 
-            // Cycle logic: Auto -> Light -> Dark -> Auto
-            if (current === 'auto') newTheme = 'light';
+            // CYCLUS: Dynamic -> Auto -> Light -> Dark -> Dynamic
+            if (current === 'dynamic') newTheme = 'auto';
+            else if (current === 'auto') newTheme = 'light';
             else if (current === 'light') newTheme = 'dark';
-            else newTheme = 'auto'; // Default fallback for 'dark' or invalid states
+            else newTheme = 'dynamic'; // Terug naar start
 
-            // Persist the new theme setting and update the button icon
             settingsManager.set('theme', newTheme);
             btn.innerHTML = this._getThemeSVG(newTheme);
             
-            // Trigger the callback to apply changes to the game environment
             onThemeChange(newTheme);
         });
 
-        // Ensure parent container positioning allows for absolute child placement
         pauseCard.style.position = 'relative';
         pauseCard.appendChild(btn);
     }
@@ -653,6 +648,27 @@ export class UIManager {
                     <path d="M16.0328 8.12967C15.8718 7.72009 15.2943 7.72009 15.1333 8.12967L14.9764 8.52902C14.9273 8.65407 14.8287 8.75305 14.7041 8.80237L14.3062 8.95987C13.8981 9.12141 13.8981 9.70107 14.3062 9.86261L14.7041 10.0201C14.8287 10.0694 14.9273 10.1684 14.9764 10.2935L15.1333 10.6928C15.2943 11.1024 15.8718 11.1024 16.0328 10.6928L16.1897 10.2935C16.2388 10.1684 16.3374 10.0694 16.462 10.0201L16.8599 9.86261C17.268 9.70107 17.268 9.12141 16.8599 8.95987L16.462 8.80237C16.3374 8.75305 16.2388 8.65407 16.1897 8.52902L16.0328 8.12967Z"/>
                     <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5373 21.3065 11.4608 21.0672 11.8568C19.9289 13.7406 17.8615 15 15.5 15C11.9101 15 9 12.0899 9 8.5C9 6.13845 10.2594 4.07105 12.1432 2.93276C12.5392 2.69347 12.4627 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/>
                 </g>        
+            </svg>`;
+        }
+
+        // Return Dynamic Mode Icon (Rainbow)
+        if (mode === 'dynamic') {
+            return `
+            <svg viewBox="0 0 32 32">
+                <defs>
+                    <clipPath id="clip-bottom">
+                        <rect x="0" y="0" width="32" height="22" />
+                    </clipPath>
+                </defs>
+                <g clip-path="url(#clip-bottom)">
+                    <circle cx="16" cy="25" r="14" fill="none" stroke="#ef4444" stroke-width="3" />
+                    <circle cx="16" cy="25" r="10" fill="none" stroke="#f59e0b" stroke-width="3" />
+                    <circle cx="16" cy="25" r="6" fill="none" stroke="#3b82f6" stroke-width="3" />
+                </g>
+                <circle cx="6" cy="24" r="3" fill="white" opacity="0.8" />
+                <circle cx="9" cy="24" r="2.5" fill="white" opacity="0.8" />
+                <circle cx="26" cy="24" r="3" fill="white" opacity="0.8" />
+                <circle cx="23" cy="24" r="2.5" fill="white" opacity="0.8" />
             </svg>`;
         }
 

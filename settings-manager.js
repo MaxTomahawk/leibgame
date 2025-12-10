@@ -4,7 +4,7 @@ export class SettingsManager {
      */
     constructor() {
         this.defaultSettings = {
-            weather: 'dynamic', // 'dynamic', 'day', or 'night'
+            theme: 'dynamic',
             audio: {
                 master: 100,
                 music: 100, // mp3
@@ -57,7 +57,7 @@ export class SettingsManager {
                 }
                 if (parsed.theme && typeof parsed.theme === 'string') { 
                     settings.theme = parsed.theme; }
-                    
+
                 if (parsed.graphics && typeof parsed.graphics === 'string') {
                     settings.graphics = parsed.graphics;
                 }

@@ -180,14 +180,23 @@ window.onload = async () => {
     settingsManager = new SettingsManager();
     uiManager.setVersion(gameVersion.commit, gameVersion.date);
 
-    // Setup weather system
-    const weatherSetting = settingsManager.get('weather');
+    // Setup weather/theme system
     uiManager.setupThemeToggle(settingsManager, (themeVal) => {
         if (!weatherSystem) return;
 
-        if (themeVal === 'auto') {
+        if (themeVal === 'dynamic') {
+            // OPTIE 1: Dynamic (Standaard) 🌈
+            console.log("🌈 Dynamic Mode: Activated!");
             weatherSystem.setMode('dynamic');
+            
+        } else if (themeVal === 'auto') {
+            // OPTIE 2: Systeem Auto 🌗
+            weatherSystem.setMode('static');
+            const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            weatherSystem.setWeather(isDark ? 'night' : 'day');
+
         } else {
+            // OPTIE 3 & 4: Handmatig Light/Dark ☀️/🌙
             weatherSystem.setMode('static');
             const weatherType = (themeVal === 'dark') ? 'night' : 'day'; 
             weatherSystem.setWeather(weatherType);
@@ -449,6 +458,19 @@ let isGrounded = false;
 
 function animate() {
     requestAnimationFrame(animate);
+
+    // --- START AUTO THEME CHECK ---
+    // Alleen checken als we echt op 'auto' staan
+    if (settingsManager && settingsManager.get('theme') === 'auto' && weatherSystem) {
+        const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const targetWeather = sysDark ? 'night' : 'day';
+        
+        if (weatherSystem.getCurrentWeather() !== targetWeather) {
+            weatherSystem.setWeather(targetWeather);
+        }
+    }
+    // --- EINDE AUTO THEME CHECK ---
+
     const now = Date.now();
     const delta = 0.016;
 
