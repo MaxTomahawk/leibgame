@@ -11,8 +11,8 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
-    MULTIPLAYER: true,  // Set to false to disable all multiplayer
-    SHOP_ONLINE: true   // Set to false for offline shop (localStorage)
+    MULTIPLAYER: false,  // Set to false to disable all multiplayer
+    SHOP_ONLINE: false   // Set to false for offline shop (localStorage)
 };
 
 // ===== CONDITIONAL IMPORTS =====
