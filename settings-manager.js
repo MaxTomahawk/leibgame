@@ -4,7 +4,8 @@ export class SettingsManager {
      */
     constructor() {
         this.defaultSettings = {
-            theme: 'dynamic',
+            // 'auto' is toegevoegd aan de logica voor systeempreference
+            theme: 'dynamic', 
             audio: {
                 master: 100,
                 music: 100, // mp3
@@ -35,6 +36,9 @@ export class SettingsManager {
             sensitivity: 1.0
         };
         this.settings = this.loadSettings();
+        
+        // Zorg ervoor dat het geladen thema direct wordt toegepast
+        this.applyTheme(this.settings.theme); 
     }
 
     /**
@@ -51,13 +55,13 @@ export class SettingsManager {
             try {
                 const parsed = JSON.parse(saved);
 
-                // 1. Recover/Load 'weather' (only if it is a valid string)
+                // 1. Recover/Load primitive values (including theme)
                 if (parsed.weather && typeof parsed.weather === 'string') {
                     settings.weather = parsed.weather;
                 }
                 if (parsed.theme && typeof parsed.theme === 'string') { 
-                    settings.theme = parsed.theme; }
-
+                    settings.theme = parsed.theme; 
+                }
                 if (parsed.graphics && typeof parsed.graphics === 'string') {
                     settings.graphics = parsed.graphics;
                 }
@@ -82,6 +86,46 @@ export class SettingsManager {
      */
     saveSettings() {
         localStorage.setItem('leib_settings', JSON.stringify(this.settings));
+    }
+
+    /**
+     * Applies the selected theme to the <body> element by adding or removing the 'dark' class.
+     * Handles 'light', 'dark', 'auto' (system preference), and 'dynamic' (in-game time) themes.
+     * @param {string} theme - The theme to apply ('light', 'dark', 'auto', 'dynamic').
+     */
+    applyTheme(theme) {
+        const body = document.body;
+        
+        // Verwijder altijd de 'dark' class eerst
+        body.classList.remove('dark');
+
+        let isDark = false;
+
+        switch (theme) {
+            case 'dark':
+                isDark = true;
+                break;
+            case 'light':
+                isDark = false;
+                break;
+            case 'auto':
+                // Volg systeem/browser voorkeur
+                isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                break;
+            case 'dynamic':
+                // Bij 'dynamic' volgt het initieel de 'auto' logica. 
+                // De main game loop moet dit later overschrijven op basis van in-game tijd (dag/nacht).
+                isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                break;
+            default:
+                // Fallback naar auto
+                isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                break;
+        }
+
+        if (isDark) {
+            body.classList.add('dark');
+        }
     }
 
     /**
@@ -119,9 +163,15 @@ export class SettingsManager {
             
             this.settings[category] = { ...this.settings[category], ...value };
         } else {
-            // Otherwise, perform a direct assignment (e.g. for 'weather')
+            // Otherwise, perform a direct assignment (e.g. for 'theme')
             this.settings[category] = value;
         }
+        
+        // Als het thema is bijgewerkt, pas het dan direct toe
+        if (category === 'theme') {
+            this.applyTheme(value);
+        }
+
         this.saveSettings();
     }
 
@@ -131,6 +181,10 @@ export class SettingsManager {
      */
     resetToDefaults() {
         this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
+        
+        // Pas het standaardthema toe
+        this.applyTheme(this.settings.theme); 
+        
         this.saveSettings();
         return this.settings;
     }
