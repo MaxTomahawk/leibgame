@@ -91,6 +91,7 @@ let shopSystem, settingsManager;
 let jumpCount = 0;
 let isGliding = false;
 let weatherSystem;
+let lastFrameTime = 0; 
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
@@ -519,8 +520,13 @@ function getNearestPlayerPosition(enemyPosition) {
 // --- GAME LOOP ---
 let isGrounded = false;
 
-function animate() {
+function animate(time) {
     requestAnimationFrame(animate);
+
+    const delta = (time - lastFrameTime) / 1000;
+    lastFrameTime = time;
+
+    if (delta > 0.1) return;
 
     // --- START AUTO THEME CHECK ---
     // Alleen checken als we echt op 'auto' staan
@@ -533,9 +539,6 @@ function animate() {
         }
     }
     // --- EINDE AUTO THEME CHECK ---
-
-    const now = Date.now();
-    const delta = 0.016;
 
     // Retrieve active modifiers from SettingsManager
     const mods = settingsManager.get('modifiers');
