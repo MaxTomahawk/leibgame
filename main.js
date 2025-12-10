@@ -180,30 +180,38 @@ window.onload = async () => {
     settingsManager = new SettingsManager();
     uiManager.setVersion(gameVersion.commit, gameVersion.date);
 
-    // Setup weather/theme system
-    uiManager.setupThemeToggle(settingsManager, (themeVal) => {
+    // Define theme logic separately so it can be applied on startup
+    const applyThemeSettings = (themeVal) => {
         if (!weatherSystem) return;
 
         if (themeVal === 'dynamic') {
-            // OPTIE 1: Dynamic (Standaard) 🌈
+            // OPTION 1: Dynamic (Default) 🌈
             console.log("🌈 Dynamic Mode: Activated!");
             weatherSystem.setMode('dynamic');
             
         } else if (themeVal === 'auto') {
-            // OPTIE 2: Systeem Auto 🌗
+            // OPTION 2: System Auto 🌗
             weatherSystem.setMode('static');
             const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             weatherSystem.setWeather(isDark ? 'night' : 'day');
 
         } else {
-            // OPTIE 3 & 4: Handmatig Light/Dark ☀️/🌙
+            // OPTION 3 & 4: Manual Light/Dark ☀️/🌙
             weatherSystem.setMode('static');
             const weatherType = (themeVal === 'dark') ? 'night' : 'day'; 
             weatherSystem.setWeather(weatherType);
         }
-    });
+    };
+
+    // Setup theme toggle using the defined logic
+    uiManager.setupThemeToggle(settingsManager, applyThemeSettings);
 
     initThreeJS();
+
+    // Apply the saved theme immediately after initialization
+    const currentTheme = settingsManager.get('theme') || 'dynamic';
+    applyThemeSettings(currentTheme);
+
     mobile = new MobileControls();
     handleMobileControls(mobile);
     uiManager.setControlsHint(mobile.enabled);
