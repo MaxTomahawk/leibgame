@@ -9,7 +9,7 @@ export class WeatherSystem {
         this.particlesData = [];
         
         // Weather cycle settings
-        this.cycleInterval = 45000; // 60k is 1 minute. (in milliseconds)
+        this.cycleInterval = 25000; // 60k is 1 minute. (in milliseconds)
         this.lastCycleTime = Date.now();
         this.weatherMode = 'static'; // 'static' or 'dynamic'
         
@@ -195,6 +195,7 @@ export class WeatherSystem {
      * Creates and adds particle system to the scene
      */
     spawnParticles() {
+        console.log("spawning particles....")
         if (this.particlesSpawned) return;
         
         console.log('✨ Spawning particles...');
@@ -210,7 +211,7 @@ export class WeatherSystem {
         for (let i = 0; i < particleCount * 3; i += 3) {
             const x = (Math.random() - 0.5) * 300;
             const y = -10 + Math.random() * 80;
-            const z = (Math.random() - 0.5) * 300;
+            const z = (Math.random() - 0.5) * 300 + -250;
 
             posArray[i] = x;
             posArray[i + 1] = y;
