@@ -324,7 +324,8 @@ const AUDIO_ASSETS = {
     coin: 'assets/sounds/effects/coin.wav',
     hava: 'assets/sounds/effects/hava.wav',
     shoot: 'assets/sounds/effects/spit.wav',
-    gameover: 'assets/sounds/effects/fail.wav'
+    fail: 'assets/sounds/effects/fail.wav',
+    win: 'assets/sounds/effects/win.wav'
 };
 
 async function setupAudio() {
@@ -468,11 +469,14 @@ function activateWeed() {
 }
 
 function endGame(reason, won = false) {
+    if (!won) {
+        audioManager.playSFX('fail')
+    } else {
+        audioManager.playSFX('win')
+    }
     window.gameState = 'ended';
     document.exitPointerLock();
     uiManager.showGameOver(reason, won);
-
-    audioManager.playSFX('gameover')
 
     // Only regenerate if multiplayer is active
     if (won && FEATURES.MULTIPLAYER && db) {
