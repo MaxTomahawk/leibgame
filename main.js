@@ -8,6 +8,8 @@ import { ShopSystem } from './shop-system.js';
 import { SettingsManager } from './settings-manager.js';
 import { loadRonnie, summonCloudPlatform } from './world.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+import { WeatherSystem } from './weather.js';
+
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
@@ -50,14 +52,20 @@ const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
 
 // --- COLOR CONFIGURATION (Day/Night/Trip) ---
-const dayBg = new THREE.Color(0x87CEEB);
-const dayFog = new THREE.Color(0x87CEEB);
-
-const nightBg = new THREE.Color(0x020210);
-const nightFog = new THREE.Color(0x050515);
-
-const tripFog = new THREE.Color(0x00ff00);
-const tripBg = new THREE.Color(0x113311);
+const COLORS = {
+    day: {
+        bg: new THREE.Color(0x87CEEB),
+        fog: new THREE.Color(0x87CEEB)
+    },
+    night: {
+        bg: new THREE.Color(0x020210),
+        fog: new THREE.Color(0x050515)
+    },
+    trip: {
+        bg: new THREE.Color(0x113311),
+        fog: new THREE.Color(0x00ff00)
+    }
+};
 
 let isDarkMode = false;
 
@@ -82,6 +90,7 @@ let audioManager;
 let shopSystem, settingsManager;
 let jumpCount = 0;
 let isGliding = false;
+let weatherSystem;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
@@ -171,11 +180,18 @@ window.onload = async () => {
     settingsManager = new SettingsManager();
     uiManager.setVersion(gameVersion.commit, gameVersion.date);
 
-    uiManager.setupThemeToggle(settingsManager, (newTheme) => {
-        isDarkMode = getEffectiveDarkMode();
+    // Setup weather system
+    const weatherSetting = settingsManager.get('weather');
+    uiManager.setupThemeToggle(settingsManager, (newWeather) => {
+        if (weatherSystem) {
+            if (newWeather === 'dynamic') {
+                weatherSystem.setMode('dynamic');
+            } else {
+                weatherSystem.setMode('static');
+                weatherSystem.setWeather(newWeather);
+            }
+        }
     });
-
-    isDarkMode = getEffectiveDarkMode();
 
     initThreeJS();
     mobile = new MobileControls();
@@ -243,200 +259,6 @@ function checkIfReadyToStart() {
     }
 }
 
-function createSkyAtmosphere(scene) {
-    // 1. DISTANT GROUND/HORIZON
-    const groundGeo = new THREE.PlaneGeometry(2000, 2000);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a5f3a, fog: true });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -100;
-    scene.add(ground);
-
-    // 2. NATURAL MOUNTAIN LANDSCAPE
-    const mountainRanges = [];
-    const clusters = [
-        { centerX: -200, centerZ: -150, count: 25, spread: 120 },
-        { centerX: 200, centerZ: -200, count: 20, spread: 100 },
-        { centerX: -180, centerZ: 50, count: 15, spread: 80 },
-        { centerX: 180, centerZ: 100, count: 12, spread: 70 },
-        { centerX: 0, centerZ: -450, count: 30, spread: 150 },
-        { centerX: -100, centerZ: -350, count: 18, spread: 90 },
-        { centerX: 100, centerZ: -380, count: 18, spread: 90 }
-    ];
-
-    clusters.forEach(cluster => {
-        for (let i = 0; i < cluster.count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const distance = (Math.random() + Math.random()) / 2 * cluster.spread;
-            const x = cluster.centerX + Math.cos(angle) * distance;
-            const z = cluster.centerZ + Math.sin(angle) * distance;
-            const distFromOrigin = Math.sqrt(x * x + z * z);
-            const heightVariation = 100 + Math.random() * 120;
-            const height = heightVariation * (0.8 + (distFromOrigin / 400) * 0.4);
-            const width = 20 + Math.random() * 25;
-
-            const mountainGeo = new THREE.ConeGeometry(width, height, 4);
-            const mountainMat = new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(0.28 + Math.random() * 0.12, 0.15 + Math.random() * 0.2, 0.2 + Math.random() * 0.2),
-                fog: true
-            });
-
-            const mountain = new THREE.Mesh(mountainGeo, mountainMat);
-            mountain.position.x = x + (Math.random() - 0.5) * 20;
-            mountain.position.z = z + (Math.random() - 0.5) * 20;
-            mountain.position.y = -50 + Math.random() * 30;
-            mountain.rotation.y = Math.random() * Math.PI * 2;
-            scene.add(mountain);
-            mountainRanges.push(mountain);
-        }
-    });
-
-    // 3. UFOs
-    const ufos = [];
-    for (let i = 0; i < 60; i++) {
-        const ufoGroup = new THREE.Group();
-        const bodyGeo = new THREE.CylinderGeometry(1.5, 2.5, 0.6, 32, 1, true);
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 });
-        const body = new THREE.Mesh(bodyGeo, bodyMat);
-        ufoGroup.add(body);
-
-        const domeGeo = new THREE.SphereGeometry(0.75, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
-        const domeMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.6, metalness: 0.2, roughness: 0.1 });
-        const dome = new THREE.Mesh(domeGeo, domeMat);
-        dome.position.y = 0.3;
-        ufoGroup.add(dome);
-
-        const ringGeo = new THREE.TorusGeometry(2.5, 0.1, 16, 100);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = -0.05;
-        ufoGroup.add(ring);
-
-        const startX = (Math.random() - 0.5) * 500;
-        const startY = -20 + Math.random() * 50;
-        const startZ = (Math.random() - 0.5) * 200;
-
-        ufoGroup.position.set(startX, startY, startZ);
-        scene.add(ufoGroup);
-
-        ufos.push({
-            group: ufoGroup,
-            speed: 0.5 + Math.random() * 0.5,
-            pathFrequencyX: 0.2 + Math.random() * 0.3,
-            pathFrequencyY: 0.1 + Math.random() * 0.2,
-            pathFrequencyZ: 0.15 + Math.random() * 0.25,
-            pathAmplitudeX: 20 + Math.random() * 30,
-            pathAmplitudeY: 5 + Math.random() * 5,
-            pathAmplitudeZ: 10 + Math.random() * 20,
-            rotationSpeed: 0.1 + Math.random() * 0.2,
-            startX: startX, startY: startY, startZ: startZ
-        });
-    }
-
-    // 4. SPEED PARTICLES
-    const particleCount = 2500;
-    const particlesGeometry = new THREE.BufferGeometry();
-    const posArray = new Float32Array(particleCount * 3);
-    const colorArray = new Float32Array(particleCount * 3)
-    const particlesData = [];
-    const colorHelper = new THREE.Color();
-
-    for (let i = 0; i < particleCount * 3; i += 3) {
-        const x = (Math.random() - 0.5) * 300;
-        const y = -10 + Math.random() * 80;
-        const z = (Math.random() - 0.5) * 300;
-
-        posArray[i] = x;
-        posArray[i + 1] = y;
-        posArray[i + 2] = z;
-
-        const hueOffset = Math.random() * Math.PI * 2;
-        colorHelper.setHSL(Math.random(), 1.0, 0.6);
-
-        colorArray[i] = colorHelper.r;
-        colorArray[i + 1] = colorHelper.g;
-        colorArray[i + 2] = colorHelper.b;
-
-        // We slaan de data op in een los array om te kunnen animeren
-        particlesData.push({
-            velocity: 6 + Math.random() * 55,
-            hueOffset: hueOffset,
-            idx: i // refereer terug naar de positie in de buffer
-        });
-    }
-
-    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
-
-    // Gebruik PointsMaterial (extreem lichtgewicht)
-    const particlesMaterial = new THREE.PointsMaterial({
-        size: 0.4, // Iets groter omdat punten anders renderen dan bollen
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.8,
-        sizeAttenuation: true
-    });
-
-    const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particleSystem);
-
-    // Geef dit terug in plaats van de array met losse meshes
-    return { ufos, particleSystem, particlesData };
-}
-
-function animateAtmosphere(atmosphereObjects, delta) {
-    const time = Date.now() * 0.001;
-    if (atmosphereObjects.ufos) {
-        atmosphereObjects.ufos.forEach(ufo => {
-            const forward = ufo.speed * delta * 50;
-            ufo.group.position.x = ufo.startX + Math.sin(time * ufo.pathFrequencyX) * ufo.pathAmplitudeX + forward;
-            ufo.group.position.y = ufo.startY + Math.sin(time * ufo.pathFrequencyY) * ufo.pathAmplitudeY;
-            ufo.group.position.z = ufo.startZ + Math.sin(time * ufo.pathFrequencyZ) * ufo.pathAmplitudeZ;
-            ufo.group.rotation.y += ufo.rotationSpeed * delta;
-
-            const ring = ufo.group.children.find(c => c.geometry && c.geometry.type === 'TorusGeometry');
-            if (ring && ring.material) {
-                const pulse = Math.abs(Math.sin(time * 4 + ufo.group.position.x * 0.01)) * 0.6 + 0.6;
-                ring.material.opacity = Math.min(1.0, pulse);
-                ring.scale.set(0.8 + pulse * 0.6, 0.8 + pulse * 0.6, 1);
-            }
-        });
-    }
-    if (atmosphereObjects.particleSystem) {
-        const positions = atmosphereObjects.particleSystem.geometry.attributes.position.array;
-        const colors = atmosphereObjects.particleSystem.geometry.attributes.color.array;
-        const data = atmosphereObjects.particlesData;
-        const time = Date.now() * 0.001;
-        const colorHelper = new THREE.Color();
-
-        for (let i = 0; i < data.length; i++) {
-            const p = data[i];
-
-            // 1. Positie
-            let z = positions[p.idx + 2];
-            z += p.velocity * delta * 60 * 0.016;
-            if (z > 120) {
-                z = -240;
-                positions[p.idx] = (Math.random() - 0.5) * 300;
-                positions[p.idx + 1] = -10 + Math.random() * 80;
-            }
-            positions[p.idx + 2] = z;
-
-            // 2. Kleur
-            const hue = (Math.sin(time * 2 + p.hueOffset) * 0.5 + 0.5);
-            colorHelper.setHSL(hue, 1.0, 0.6);
-
-            colors[p.idx] = colorHelper.r;
-            colors[p.idx + 1] = colorHelper.g;
-            colors[p.idx + 2] = colorHelper.b;
-        }
-
-        atmosphereObjects.particleSystem.geometry.attributes.position.needsUpdate = true;
-        atmosphereObjects.particleSystem.geometry.attributes.color.needsUpdate = true;
-    }
-}
-
 const AUDIO_ASSETS = {
     bgm: 'assets/sounds/soundtrack/hava_leib.mp3',
     jump: 'assets/sounds/effects/male_jump.wav',
@@ -462,8 +284,10 @@ async function setupAudio() {
 function initThreeJS() {
     scene = new THREE.Scene();
 
-    scene.background = isDarkMode ? nightBg.clone() : dayBg.clone();
-    scene.fog = new THREE.Fog(isDarkMode ? nightFog.clone() : dayFog.clone(), 10, 90);
+    let weatherSetting = settingsManager.get('weather');
+    let initialWeather = (weatherSetting === 'dynamic' || weatherSetting === 'day') ? 'day' : 'night';
+    scene.background = COLORS[initialWeather].bg.clone();
+    scene.fog = new THREE.Fog(COLORS[initialWeather].fog.clone(), 10, 90);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -483,8 +307,14 @@ function initThreeJS() {
 
     window.gameLights = { ambient, dirLight, hemiLight };
 
-    const atmosphereObjects = createSkyAtmosphere(scene);
-    window.atmosphereObjects = atmosphereObjects;
+    weatherSystem = new WeatherSystem(scene);
+    weatherSetting = settingsManager.get('weather');
+    if (weatherSetting === 'dynamic') {
+        weatherSystem.setMode('dynamic');
+    } else {
+        weatherSystem.setMode('static');
+        weatherSystem.setWeather(weatherSetting);
+    }
 
     textureLoader = new THREE.TextureLoader();
     renderer.outputEncoding = THREE.sRGBEncoding;
@@ -616,31 +446,18 @@ function getNearestPlayerPosition(enemyPosition) {
 // --- GAME LOOP ---
 let isGrounded = false;
 
-function getEffectiveDarkMode() {
-    if (!settingsManager) {
-        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-
-    const theme = settingsManager.get('theme');
-
-    if (theme === 'dark') return true;
-    if (theme === 'light') return false;
-
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
 function animate() {
     requestAnimationFrame(animate);
     const now = Date.now();
     const delta = 0.016;
 
-    isDarkMode = getEffectiveDarkMode();
-    let targetBg = isTripping ? tripBg : (isDarkMode ? nightBg : dayBg);
-
     // Retrieve active modifiers from SettingsManager
     const mods = settingsManager.get('modifiers');
 
-    if (window.atmosphereObjects) animateAtmosphere(window.atmosphereObjects, delta);
+    // Update weather system
+    if (weatherSystem) {
+        weatherSystem.update(delta, isTripping);
+    }
 
     modelManager.update(delta);
 
@@ -655,9 +472,10 @@ function animate() {
     });
 
     if (window.gameState === 'playing') {
-        // Handle environmental changes based on state
-        let targetBg = isTripping ? tripBg : (isDarkMode ? nightBg : dayBg);
-        let targetFog = isTripping ? tripFog : (isDarkMode ? nightFog : dayFog);
+        const currentWeather = weatherSystem.getCurrentWeather();
+        const weatherType = currentWeather === 'night' ? 'night' : 'day';
+        let targetBg = isTripping ? COLORS.trip.bg : COLORS[weatherType].bg;
+        let targetFog = isTripping ? COLORS.trip.fog : COLORS[weatherType].fog;
 
         scene.background.lerp(targetBg, delta * 2.0);
         scene.fog.color.lerp(targetFog, delta * 2.0);
@@ -668,7 +486,7 @@ function animate() {
             let targetHemiInt = 0.3;
             let targetLightColor = new THREE.Color(0xffffff);
 
-            if (isDarkMode && !isTripping) {
+            if (weatherType === 'night' && !isTripping) {
                 targetAmbInt = 0.05;
                 targetDirInt = 0.2;
                 targetHemiInt = 0.1;

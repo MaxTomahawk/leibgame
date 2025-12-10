@@ -66,8 +66,8 @@ Access the Pause Menu (ESC) to tweak the game to your liking:
 * **Theme:** Toggle between Light, Dark, or Auto UI themes.
 
 ## 🖼️ Images
-![Gameplay Screenshot](image.png)
-![Character Screenshot](image2.png)
+![Gameplay Screenshot](assets/image.png)
+![Character Screenshot](assets/image2.png)
 
 ## 🛠️ Local Setup
 

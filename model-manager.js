@@ -123,8 +123,8 @@ export class ModelManager {
     }
 
     setupAnimations(gltf, modelFile) {
-        console.log(`%c[${modelFile}] Animaties gevonden:`, "color: cyan; font-weight: bold;");
-        gltf.animations.forEach((a, i) => console.log(`Index ${i}: ${a.name}`));
+        // console.log(`%c[${modelFile}] Animaties gevonden:`, "color: cyan; font-weight: bold;");
+        // gltf.animations.forEach((a, i) => console.log(`Index ${i}: ${a.name}`)); // enable to see animations in console
 
         this.mixer = new THREE.AnimationMixer(this.playerModel);
         

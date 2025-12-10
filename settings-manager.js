@@ -4,7 +4,7 @@ export class SettingsManager {
      */
     constructor() {
         this.defaultSettings = {
-            theme: 'auto',
+            weather: 'dynamic', // 'dynamic', 'day', or 'night'
             audio: {
                 master: 100,
                 music: 100, // mp3
@@ -31,14 +31,15 @@ export class SettingsManager {
                 dragAir: 1.8,
                 infiniteJump: false
             },
-            graphics: 'low'
+            graphics: 'low',
+            sensitivity: 1.0
         };
         this.settings = this.loadSettings();
     }
 
     /**
      * Loads settings from local storage and merges them with defaults.
-     * Includes error handling for corrupted data types (e.g. invalid theme objects).
+     * Includes error handling for corrupted data types (e.g. invalid weather objects).
      * @returns {Object} The merged settings object.
      */
     loadSettings() {
@@ -50,12 +51,15 @@ export class SettingsManager {
             try {
                 const parsed = JSON.parse(saved);
 
-                // 1. Recover/Load 'theme' (only if it is a valid string)
-                if (parsed.theme && typeof parsed.theme === 'string') {
-                    settings.theme = parsed.theme;
+                // 1. Recover/Load 'weather' (only if it is a valid string)
+                if (parsed.weather && typeof parsed.weather === 'string') {
+                    settings.weather = parsed.weather;
                 }
                 if (parsed.graphics && typeof parsed.graphics === 'string') {
                     settings.graphics = parsed.graphics;
+                }
+                if (parsed.sensitivity && typeof parsed.sensitivity === 'number') {
+                    settings.sensitivity = parsed.sensitivity;
                 }
 
                 // 2. Merge nested objects (audio, keybinds, modifiers)
@@ -79,7 +83,7 @@ export class SettingsManager {
 
     /**
      * Retrieves a high-level setting category or value.
-     * @param {string} category - The key to retrieve (e.g., 'audio', 'theme').
+     * @param {string} category - The key to retrieve (e.g., 'audio', 'weather').
      * @returns {*} The value of the setting.
      */
     get(category) {
@@ -99,7 +103,7 @@ export class SettingsManager {
     /**
      * Updates a setting value.
      * Automatically handles merging for objects (like audio settings) 
-     * and direct assignment for primitives (like theme strings).
+     * and direct assignment for primitives (like weather strings).
      * @param {string} category - The setting category to update.
      * @param {*} value - The new value or object to merge.
      */
@@ -112,7 +116,7 @@ export class SettingsManager {
             
             this.settings[category] = { ...this.settings[category], ...value };
         } else {
-            // Otherwise, perform a direct assignment (e.g. for 'theme')
+            // Otherwise, perform a direct assignment (e.g. for 'weather')
             this.settings[category] = value;
         }
         this.saveSettings();

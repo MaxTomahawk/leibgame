@@ -288,7 +288,7 @@ function createTextTexture(text) {
 
 // --- LOW POLY CASTLE BUILDER ---
 function createCastle(scene, CASTLE_Z) {
-    console.log("creating castle")
+    // console.log("creating castle") // enable to see when castle is created..
     const castle = new THREE.Group();
 
     // === MAIN KEEP ===
@@ -430,7 +430,7 @@ function createCoin(x, y, z, scene, coins) {
     mesh.rotation.z = Math.PI / 2;
     mesh.baseY = y;
     mesh.bobOffset = Math.random() * Math.PI * 2;
-    console.log("created coin at: ", x, y, z)
+    // console.log("created coin at: ", x, y, z) //enable to check coin
     scene.add(mesh);
     coins.push(mesh);
 }
