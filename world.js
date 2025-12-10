@@ -376,6 +376,8 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     }
 
     createCastle(scene, CASTLE_Z);
+    const sky = createCloudySky();
+    scene.add(sky);
 }
 
 // --- ROUND CLOUD GENERATION ---
@@ -605,4 +607,45 @@ export function summonCloudPlatform(playerPos, scene, platforms, texture) {
         const idx = platforms.indexOf(cloud);
         if (idx > -1) platforms.splice(idx, 1);
     }, 10000);
+}
+
+function createCloudySky() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Sky gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#4A90E2');
+    gradient.addColorStop(0.7, '#87CEEB');
+    gradient.addColorStop(1, '#B0E0E6');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Paint some soft clouds
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    for (let i = 0; i < 15; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height * 0.6; // Upper portion
+        const w = 80 + Math.random() * 120;
+        const h = 30 + Math.random() * 50;
+        
+        ctx.beginPath();
+        ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    
+    // Create sky sphere (inside-out)
+    const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+    const skyMat = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.BackSide,
+        fog: false // Sky shouldn't be affected by fog
+    });
+    
+    const sky = new THREE.Mesh(skyGeo, skyMat);
+    return sky;
 }
