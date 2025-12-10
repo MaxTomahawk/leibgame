@@ -182,14 +182,15 @@ window.onload = async () => {
 
     // Setup weather system
     const weatherSetting = settingsManager.get('weather');
-    uiManager.setupThemeToggle(settingsManager, (newWeather) => {
-        if (weatherSystem) {
-            if (newWeather === 'dynamic') {
-                weatherSystem.setMode('dynamic');
-            } else {
-                weatherSystem.setMode('static');
-                weatherSystem.setWeather(newWeather);
-            }
+    uiManager.setupThemeToggle(settingsManager, (themeVal) => {
+        if (!weatherSystem) return;
+
+        if (themeVal === 'auto') {
+            weatherSystem.setMode('dynamic');
+        } else {
+            weatherSystem.setMode('static');
+            const weatherType = (themeVal === 'dark') ? 'night' : 'day'; 
+            weatherSystem.setWeather(weatherType);
         }
     });
 

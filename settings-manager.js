@@ -55,6 +55,9 @@ export class SettingsManager {
                 if (parsed.weather && typeof parsed.weather === 'string') {
                     settings.weather = parsed.weather;
                 }
+                if (parsed.theme && typeof parsed.theme === 'string') { 
+                    settings.theme = parsed.theme; }
+                    
                 if (parsed.graphics && typeof parsed.graphics === 'string') {
                     settings.graphics = parsed.graphics;
                 }
