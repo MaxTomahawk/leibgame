@@ -286,6 +286,12 @@ async function setupAudio() {
     try {
         await Promise.all(loadPromises);
         console.log("🔊 Audio system ready!");
+
+        const savedAudio = settingsManager.get('audio');
+        if (savedAudio) {
+            audioManager.updateVolumes(savedAudio);
+        }
+
     } catch (error) {
         console.warn("⚠️ Some sounds failed to load:", error);
     }
