@@ -50,6 +50,7 @@ let gameVersion = { commit: 'loading...', date: 'loading...' };
 // --- PHYSICS & GAMEPLAY SETTINGS ---
 const CASTLE_Z = -300;
 const BUFF_DURATION = 8000;
+const CAST_DELAY = 200; // ms. Sneller gemaakt (was 500) voor 1.5x animatie
 
 // --- COLOR CONFIGURATION (Day/Night/Trip) ---
 const COLORS = {
@@ -649,6 +650,7 @@ function animate(time) {
 
         player.position.add(velocity.clone().multiplyScalar(delta));
 
+        // Calculate local velocity for strafing animations
         const localVelocity = velocity.clone();
         localVelocity.applyEuler(new THREE.Euler(0, -player.rotation.y, 0));
         // Nu is localVelocity.z = vooruit, localVelocity.x = opzij
@@ -656,12 +658,10 @@ function animate(time) {
         const currentAnim = modelManager.updateAnimation({
             isMoving: isMoving,
             isGrounded: isGrounded,
-            moveB: moveB,
             isSprinting: isSprinting,
-            modelFile: selectedModelFile,
             verticalVelocity: velocity.y,
             isGliding: isGliding,
-            localVelocity: localVelocity
+            localVelocity: localVelocity // <-- Cruciaal voor strafe animaties
         });
 
         if (player) {
@@ -892,31 +892,49 @@ function initFireballAssets() {
 
 
 function performShoot() {
-    const fireball = new THREE.Object3D(); // container
+    // === COOLDOWN CHECK ===
+    // If we are already attacking (animation playing), do not shoot again.
+    if (modelManager.isAttacking) return;
 
-    // 🔥 Add two overlapping flame sprites for a dynamic look
-    for (let i = 0; i < 2; i++) {
-        const sprite = new THREE.Sprite(flameMaterial.clone());
-        sprite.scale.set(0.5 + Math.random() * 0.3, 0.5 + Math.random() * 0.3, 1);
-        sprite.position.set(0, 0, 0);
-        fireball.add(sprite);
+    // Trigger animation immediately
+    const triggered = modelManager.triggerThrowAnimation();
+    
+    if (triggered) {
+        // Delay the projectile spawn.
+        // Was 500ms, nu CAST_DELAY (200ms) omdat animatie 1.5x sneller is.
+        setTimeout(() => {
+            // Safety check: ensure game is still running
+            if (window.gameState !== 'playing') return;
+
+            const fireball = new THREE.Object3D(); // container
+
+            // 🔥 Add two overlapping flame sprites for a dynamic look
+            for (let i = 0; i < 2; i++) {
+                const sprite = new THREE.Sprite(flameMaterial.clone());
+                sprite.scale.set(0.5 + Math.random() * 0.3, 0.5 + Math.random() * 0.3, 1);
+                sprite.position.set(0, 0, 0);
+                fireball.add(sprite);
+            }
+
+            // Spawn position (Calculated at the moment of firing)
+            const spawnPos = modelManager.getProjectileSpawnPosition(player.position);
+            fireball.position.copy(spawnPos);
+
+            scene.add(fireball);
+            
+            // Direction
+            let dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+
+            projectiles.push({
+                mesh: fireball,
+                velocity: dir.multiplyScalar(30),
+                life: 2.0
+            });
+
+            if (audioManager) audioManager.playSFX('shoot');
+        }, CAST_DELAY);
     }
-
-    // Spawn position
-    fireball.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0));
-    scene.add(fireball);
-
-    // Direction
-    let dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-
-    projectiles.push({
-        mesh: fireball,
-        velocity: dir.multiplyScalar(30),
-        life: 2.0
-    });
-
-    if (audioManager) audioManager.playSFX('shoot');
 }
 
 

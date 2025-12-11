@@ -77,8 +77,8 @@ function listenToPlayers(scene, userId, ui, db) {
                                     mixer = new THREE.AnimationMixer(mesh);
 
                                     const ANIMATION_MAPPING = {
-                                        'assets/option2.glb': { idle: 10, run: 0, jump: 9 },
-                                        'assets/medieval_luuk.glb': { idle: 5, run: 2, jump: 0 },
+                                        'assets/katinka.glb': { idle: 10, run: 0, jump: 9 },
+                                        'assets/marco.glb': { idle: 5, run: 2, jump: 0 },
                                         'assets/leib.glb': { 
                                             idle: 8, 
                                             walk: 7, 
@@ -95,7 +95,7 @@ function listenToPlayers(scene, userId, ui, db) {
                                     };
                                     
                                     // Use the original model name for mapping logic, not the quality specific filename
-                                    const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/option2.glb'];
+                                    const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/katinka.glb'];
                                     
                                     for (const animName in mapping) {
                                         const index = mapping[animName];
