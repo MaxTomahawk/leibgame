@@ -92,7 +92,7 @@ let shopSystem, settingsManager;
 let jumpCount = 0;
 let isGliding = false;
 let weatherSystem;
-let lastFrameTime = 0; 
+let lastFrameTime = 0;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
@@ -591,13 +591,18 @@ function animate(time) {
 
         const sky = scene.children.find(child => child.userData.skyMaterial);
         if (sky && sky.userData.skyMaterial) {
+            let targetSkyColor = new THREE.Color(0xffffff); // Default day
+
             if (currentWeather === 'night' && !isTripping) {
-                sky.userData.skyMaterial.color.setHex(0x0a0a1a); // Very dark blue
+                targetSkyColor.setHex(0x0a0a1a); // Very dark blue
             } else if (isTripping) {
-                sky.userData.skyMaterial.color.setHex(0x113311); // Trip mode green tint
+                targetSkyColor.setHex(0x113311); // Trip mode green tint
             } else {
-                sky.userData.skyMaterial.color.setHex(0xffffff); // Bright day
+                targetSkyColor.setHex(0xffffff); // Bright day
             }
+
+            // LERP the sky color smoothly
+            sky.userData.skyMaterial.color.lerp(targetSkyColor, delta * 2.0);
         }
 
         // Apply physics using dynamic modifier values
@@ -791,10 +796,10 @@ function animate(time) {
         camOffset.applyEuler(player.rotation);
 
         const targetCamPos = player.position.clone().add(camOffset);
-                
-        const smoothFactor = 5.0 * delta; 
+
+        const smoothFactor = 5.0 * delta;
         camera.position.lerp(targetCamPos, smoothFactor);
-        
+
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
 
         // Handle interaction prompts
@@ -901,7 +906,7 @@ function performShoot() {
 
     // Trigger animation immediately
     const triggered = modelManager.triggerThrowAnimation();
-    
+
     if (triggered) {
         // Delay the projectile spawn.
         // Was 500ms, nu CAST_DELAY (200ms) omdat animatie 1.5x sneller is.
@@ -924,7 +929,7 @@ function performShoot() {
             fireball.position.copy(spawnPos);
 
             scene.add(fireball);
-            
+
             // Direction
             let dir = new THREE.Vector3();
             camera.getWorldDirection(dir);
