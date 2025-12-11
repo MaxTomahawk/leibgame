@@ -791,7 +791,10 @@ function animate(time) {
         camOffset.applyEuler(player.rotation);
 
         const targetCamPos = player.position.clone().add(camOffset);
-        camera.position.lerp(targetCamPos, 0.1);
+                
+        const smoothFactor = 5.0 * delta; 
+        camera.position.lerp(targetCamPos, smoothFactor);
+        
         camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
 
         // Handle interaction prompts
