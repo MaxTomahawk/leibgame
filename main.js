@@ -719,7 +719,7 @@ function animate(time) {
             Math.abs(player.position.x) < 10 &&
             player.position.y <= 12) {
             if (window.gameState !== 'ended') {
-                endGame("Je hebt de taart bereikt! GEFELICITEERD!", true);
+                endGame("You reached the castle!", true);
             }
         }
 
