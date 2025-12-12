@@ -83,8 +83,7 @@ Then navigate to `http://localhost:8000` in your browser.
 
 We use an automated asset optimization pipeline to ensure the game runs smoothly on high-end PCs and mobile devices alike.
 
-* **Asset Workflow:** Want to add new 3D models? Please read the **[Asset Workflow Wiki](https://github.com/wytzig/leibgame/wiki/Asset%E2%80%90Workflow#asset-workflow--graphics-optimization)** for instructions on using the `optimize-assets.js` script.
-* **Raw Assets:** Always place original `.glb` files in the `raw_assets/` folder, never directly in `assets/`.
+* **Asset Workflow:** Want to add new 3D models? Please read the **[Asset Workflow Wiki](https://github.com/MaxTomahawk/leibgame-assets/wiki/Workflow:-optimizing-assets)** for instructions on using the `optimize-assets.js` script.
 
 ## 🧪 Playwright Tests
 
