@@ -268,25 +268,69 @@ export class ModelManager {
         return this.currentAnimation;
     }
 
-    // ... (rest ongewijzigd: getProjectileSpawnPosition, update, etc)
     getProjectileSpawnPosition(playerPosition) {
-        let spawnPos = null;
+        let spawnPos = new THREE.Vector3();
+
         if (this.playerModel) {
-            const projectileNode = this.playerModel.getObjectByName('projectile_point');
+            // STAP 1: Probeer het originele punt (voor als je die later weer toevoegt)
+            let projectileNode = this.playerModel.getObjectByName('projectile_point');
+
+            // STAP 2: Probeer de standaard namen
+            if (!projectileNode) {
+                projectileNode = this.playerModel.getObjectByName('mixamorig:RightHand') || 
+                                 this.playerModel.getObjectByName('RightHand') ||
+                                 this.playerModel.getObjectByName('mixamorigRightHand');
+            }
+
+            // STAP 3: "Slimme" zoektocht (als de naam iets afwijkt)
+            if (!projectileNode) {
+                this.playerModel.traverse((child) => {
+                    // Zoek naar iets met 'righthand' in de naam (hoofdletterongevoelig)
+                    // We stoppen bij de eerste match
+                    if (!projectileNode && child.name && child.name.toLowerCase().includes('righthand')) {
+                        console.log("🎯 Hand gevonden via scan:", child.name);
+                        projectileNode = child;
+                    }
+                });
+            }
+
+            // STAP 4: Positie bepalen
             if (projectileNode) {
-                spawnPos = new THREE.Vector3();
                 projectileNode.getWorldPosition(spawnPos);
+
+                // Optioneel: De 'RightHand' bone zit vaak in de pols.
+                // We kunnen hem iets verplaatsen zodat het lijkt alsof het uit de vingers komt.
+                // Dit doen we door lokaal over de Y-as van het bot te schuiven.
+                /*
+                const offset = new THREE.Vector3(0, 0.15, 0); // Pas 0.15 aan naar wens (meters/units)
+                const quat = new THREE.Quaternion();
+                projectileNode.getWorldQuaternion(quat);
+                offset.applyQuaternion(quat);
+                spawnPos.add(offset);
+                */
+
                 return spawnPos;
+            } else {
+                console.warn("⚠️ Echt geen hand gevonden! Model namen:", this.playerModel);
             }
         }
+
+        // FALLBACK: Als alles faalt, spawn gewoon voor de speler (borsthoogte)
         if (this.playerModel) {
             const box = new THREE.Box3().setFromObject(this.playerModel);
             const height = box.max.y - box.min.y;
-            const fallbackY = box.min.y + (height * 0.75);
+            const fallbackY = box.min.y + (height * 0.7); // 70% van hoogte
+            
             const forward = new THREE.Vector3(0, 0, 1);
-            if (this.playerModel.parent) forward.applyQuaternion(this.playerModel.parent.quaternion);
+            // Pak de rotatie van de speler container (parent van het model)
+            if (this.playerModel.parent) {
+                forward.applyQuaternion(this.playerModel.parent.quaternion);
+            }
+            
             return new THREE.Vector3(playerPosition.x, fallbackY, playerPosition.z).add(forward);
         }
+
+        // Ultieme fallback
         return playerPosition.clone().add(new THREE.Vector3(0, 1.5, 0));
     }
 
