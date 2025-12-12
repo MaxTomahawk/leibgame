@@ -10,7 +10,10 @@ import { loadRonnie, summonCloudPlatform } from './world.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { WeatherSystem } from './weather.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
-
+import { OutlineEffect } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/effects/OutlineEffect.js';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
+import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
@@ -365,6 +368,23 @@ function initThreeJS() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
+
+    // --- POST-PROCESSING SETUP (Voor Trip Mode) ---
+    const composer = new EffectComposer(renderer);
+    window.composer = composer; // Maak globaal bereikbaar
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+    outlinePass.edgeStrength = 3.0; // Dikte/Kracht
+    outlinePass.edgeGlow = 0.5;     // Gloed
+    outlinePass.edgeThickness = 1.0;
+    outlinePass.pulsePeriod = 0;    // We doen dit handmatig op audio
+    outlinePass.visibleEdgeColor.set('#ffffff'); 
+    outlinePass.hiddenEdgeColor.set('#000000'); 
+    window.outlinePass = outlinePass; // Maak globaal
+    composer.addPass(outlinePass);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.25);
     scene.add(ambient);
@@ -883,8 +903,56 @@ function animate(time) {
         }
     }
 
+    // --- RENDER LOGICA ---
+    if (isTripping && window.composer && window.outlinePass) {
+        // 1. Audio data ophalen
+        let bass = 0;
+        let mid = 0;
+        if (audioManager && audioManager.musicSound && audioManager.musicSound.isPlaying) {
+            const data = audioManager.getAudioData();
+            // We pakken de bass iets gevoeliger (alles boven 0.1 telt)
+            bass = Math.max(0, (data.bass / 255.0) - 0.1); 
+            mid = data.mid / 255.0;
+        }
 
-    renderer.render(scene, camera);
+        // 2. Selecteer objecten (indien nodig, dit kan ook buiten de loop als het traag wordt)
+        const targets = [];
+        scene.traverse((obj) => {
+            if (obj.isMesh && obj.name !== 'SkySphere') {
+                targets.push(obj);
+            }
+        });
+        window.outlinePass.selectedObjects = targets;
+
+        // 3. VISUALIZER: Het "Dans" Effect
+        // edgeThickness: Maakt de lijn fysiek breder (van 1.0 naar 4.0 op de beat)
+        // Dit zorgt voor het 'dikker/dunner' worden effect waar je om vroeg
+        window.outlinePass.edgeThickness = 1.0 + (bass * 3.0);
+        
+        // edgeStrength: Hoeveelheid 'inkt' (van 3.0 naar 10.0)
+        window.outlinePass.edgeStrength = 1.0 + (bass * 9.0);
+        
+        // edgeGlow: De wazige gloed eromheen (geeft een 'aura' effect bij harde bass)
+        window.outlinePass.edgeGlow = 0.0 + (bass * 1.5);
+
+        // 4. KLEUR: Rustiger en trager
+        // Snelheid: * 0.0002 is 10x trager dan * 0.002
+        const time = Date.now() * 0.0002; 
+        
+        // Hue: Draait langzaam rond, met een heel klein beetje invloed van de melodie (mid)
+        const hue = (time + (mid * 0.1)) % 1; 
+        
+        // Kleur instellen: Saturation op 0.6 (i.p.v. 1.0) maakt het minder fel/neon
+        const color = new THREE.Color().setHSL(hue, 0.2, 0.4);
+        window.outlinePass.visibleEdgeColor.set(color);
+
+        // Render via de Composer
+        window.composer.render();
+
+    } else {
+        // Normale modus
+        renderer.render(scene, camera);
+    }
 }
 
 function performJump() {
