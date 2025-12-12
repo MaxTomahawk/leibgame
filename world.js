@@ -40,8 +40,10 @@ dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
+const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
+
 // Load Coin GLB
-gltfLoader.load(`assets/coin${QUALITY_SUFFIX}.glb`, (gltf) => {
+gltfLoader.load(`${ASSET_BASE_URL}coin${QUALITY_SUFFIX}.glb`, (gltf) => {
     cachedCoinScene = gltf.scene;
     cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE);
     cachedCoinScene.traverse((child) => {
@@ -55,7 +57,7 @@ gltfLoader.load(`assets/coin${QUALITY_SUFFIX}.glb`, (gltf) => {
 });
 
 // Load Enemy GLB
-gltfLoader.load(`assets/enemy${QUALITY_SUFFIX}.glb`, (gltf) => {
+gltfLoader.load(`${ASSET_BASE_URL}enemy${QUALITY_SUFFIX}.glb`, (gltf) => {
     cachedEnemyGLTF = gltf;
     cachedEnemyGLTF.scene.traverse((child) => {
         if (child.isMesh) {
@@ -549,7 +551,7 @@ function createPromptTexture() {
 export function loadRonnie(scene, gltfLoader, position) {
     const suffix = getQualitySuffix();
 
-    gltfLoader.load(`assets/ronnie${suffix}.glb`, (gltf) => {
+    gltfLoader.load(`${ASSET_BASE_URL}ronnie${suffix}.glb`, (gltf) => {
         const ronnie = gltf.scene;
         ronnie.scale.set(1.3, 1.3, 1.3);
         ronnie.position.set(position.x, position.y, position.z);

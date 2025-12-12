@@ -148,6 +148,14 @@ export class SettingsManager {
     }
 
     /**
+     * Validates graphics setting to ensure it matches available tiers
+     */
+    validateGraphics(value) {
+        const validTiers = ['low', 'medium', 'high', 'ultra'];
+        return validTiers.includes(value) ? value : 'medium';
+    }
+
+    /**
      * Updates a setting value.
      * Automatically handles merging for objects (like audio settings) 
      * and direct assignment for primitives (like weather strings).
@@ -156,6 +164,11 @@ export class SettingsManager {
      */
     set(category, value) {
         // If both the current value and new value are objects, perform a merge
+
+        if (category === 'graphics') {
+            value = this.validateGraphics(value);
+        }
+
         if (this.settings[category] !== undefined && 
             typeof this.settings[category] === 'object' && 
             typeof value === 'object' && 

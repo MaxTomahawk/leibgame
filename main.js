@@ -9,6 +9,7 @@ import { SettingsManager } from './settings-manager.js';
 import { loadRonnie, summonCloudPlatform } from './world.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { WeatherSystem } from './weather.js';
+import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 
 
 // ===== FEATURE FLAGS =====
@@ -44,7 +45,7 @@ async function loadMultiplayerModules() {
 }
 
 
-let selectedModelFile = 'assets/leib.glb'; // default
+let selectedModelFile = 'leib.glb'; // default
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 // --- PHYSICS & GAMEPLAY SETTINGS ---
@@ -96,6 +97,8 @@ let lastFrameTime = 0;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
+
+const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
 
 // Trip Mode Variables
 let isTripping = false;
@@ -321,13 +324,13 @@ function checkIfReadyToStart() {
 }
 
 const AUDIO_ASSETS = {
-    bgm: 'assets/sounds/soundtrack/hava_leib.mp3',
-    jump: 'assets/sounds/effects/male_jump.wav',
-    coin: 'assets/sounds/effects/coin.wav',
-    hava: 'assets/sounds/effects/hava.wav',
-    shoot: 'assets/sounds/effects/spit.wav',
-    fail: 'assets/sounds/effects/fail.wav',
-    win: 'assets/sounds/effects/win.wav'
+    bgm:   `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
+    jump:  `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
+    coin:  `${ASSET_BASE_URL}sounds/effects/coin.wav`,
+    hava:  `${ASSET_BASE_URL}sounds/effects/hava.wav`,
+    shoot: `${ASSET_BASE_URL}sounds/effects/spit.wav`,
+    fail:  `${ASSET_BASE_URL}sounds/effects/fail.wav`,
+    win:   `${ASSET_BASE_URL}sounds/effects/win.wav`
 };
 
 async function setupAudio() {
@@ -388,7 +391,7 @@ function initThreeJS() {
     renderer.outputEncoding = THREE.sRGBEncoding;
 
     platformTexture = textureLoader.load(
-        "assets/hava.png",
+        `${ASSET_BASE_URL}hava.png`,
         (tex) => {
             tex.encoding = THREE.sRGBEncoding;
             tex.wrapS = THREE.RepeatWrapping;
@@ -416,7 +419,11 @@ function initThreeJS() {
     player.position.set(0, 5, 0);
     window.player = player;
     scene.add(player);
-    loadRonnie(scene, new GLTFLoader(), { x: 0, y: 0, z: 5 });
+    const ronnieLoader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    ronnieLoader.setDRACOLoader(dracoLoader);
+    loadRonnie(scene, ronnieLoader, { x: 0, y: 0, z: 5 });
 
     modelManager.loadPlayerModel(selectedModelFile, player, {
         onProgress: (type, msg, color) => {
@@ -884,7 +891,7 @@ let flameMaterial;
 
 function initFireballAssets() {
     // 🔥 Load flame sprite texture ONCE
-    flameTexture = new THREE.TextureLoader().load("assets/fire.png");
+    flameTexture = new THREE.TextureLoader().load(`${ASSET_BASE_URL}fire.png`);
     flameTexture.encoding = THREE.sRGBEncoding;
     renderer.outputEncoding = THREE.sRGBEncoding;
 
