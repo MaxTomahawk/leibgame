@@ -18,8 +18,8 @@ import * as HomeWorld from './worlds/home_lobby.js';
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
-    MULTIPLAYER: false,  // Set to false to disable all multiplayer
-    SHOP_ONLINE: false   // Set to false for offline shop (localStorage)
+    MULTIPLAYER: true,  // Set to false to disable all multiplayer
+    SHOP_ONLINE: true   // Set to false for offline shop (localStorage)
 };
 
 // ===== CONDITIONAL IMPORTS =====
