@@ -651,6 +651,7 @@ function animate(time) {
         });
     }
 
+    // Only allow movement if state is playing or lobby
     if (window.gameState === 'playing' || window.gameState === 'lobby') {
         // --- FORCEER DAGLICHT IN LOBBY ---
         let targetBg, targetFog;
@@ -1154,6 +1155,24 @@ function setupInputs() {
         uiManager.onLogout(() => console.log('Auth disabled in offline mode'));
     }
 
+    // Connect Kiosk UI Events with callbacks
+    uiManager.onKioskClose(() => {
+        // Close UI
+        uiManager.toggleKiosk(false);
+        // Reset state to lobby so controls work again
+        window.gameState = 'lobby';
+        // Lock pointer again
+        document.body.requestPointerLock();
+    });
+
+    uiManager.onKioskNameChange((newName) => {
+        myName = newName;
+        // Optionally save to Firebase if online
+        if (FEATURES.MULTIPLAYER && db && auth && auth.currentUser) {
+             // ... save logic ...
+        }
+    });
+
     // Character Selection
     const previews = uiManager.getCharacterPreviewElements();
     previews.forEach(el => {
@@ -1367,6 +1386,9 @@ function setupInputs() {
     document.addEventListener('keydown', e => {
         if (e.repeat) return; // Voorkomt spammen bij inhouden
 
+        // Block inputs when Kiosk is open (state 'kiosk')
+        if (window.gameState !== 'playing' && window.gameState !== 'lobby') return;
+
         const action = settingsManager.getKeyAction(e.code);
 
         if (action === 'forward') moveF = true;
@@ -1378,7 +1400,30 @@ function setupInputs() {
 
         // INTERACTIE (E) - Praten met Ronnie
         if (action === 'interact') {
-            if (window.ronnie && shopSystem) {
+            // 1. KIOSK INTERACTIE (LOBBY)
+            if (window.gameState === 'lobby' && lobbyState) {
+                let foundKiosk = false;
+                lobbyState.objects.forEach(obj => {
+                    if (obj.children) {
+                        const hitbox = obj.children.find(c => c.userData.isKiosk);
+                        if (hitbox) {
+                            const dist = player.position.distanceTo(obj.position);
+                            if (dist < 3.0) { 
+                                foundKiosk = true;
+                            }
+                        }
+                    }
+                });
+
+                if (foundKiosk) {
+                    document.exitPointerLock();
+                    window.gameState = 'kiosk'; // Set state to kiosk to freeze movement
+                    uiManager.toggleKiosk(true);
+                }
+            }
+
+            // 2. RONNIE INTERACTIE (GAME)
+            if (window.ronnie && shopSystem && window.gameState === 'playing') {
                 const dist = player.position.distanceTo(window.ronnie.position);
                 if (dist < 5) {
                     shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {

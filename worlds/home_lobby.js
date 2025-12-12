@@ -39,7 +39,12 @@ export function build(scene) {
     scene.add(portalOn);
     homeObjects.push(portalOn);
 
-    // 4. Garderobe (Standbeelden)
+    // 4. De Kiosk (Interactieve Terminal) - NIEUW!
+    const kiosk = createKiosk(new THREE.Vector3(0, 0, 8)); // Voor de spawn, makkelijk te vinden
+    scene.add(kiosk);
+    homeObjects.push(kiosk);
+
+    // 5. Garderobe (Standbeelden)
     const wardrobes = [
         { id: 'leib', x: -3, z: 4, file: 'leib' },
         { id: 'marco', x: 0, z: 5, file: 'marco' },
@@ -104,5 +109,42 @@ function createPortal(pos, color) {
     hitbox.userData.isPortal = true;
     group.add(hitbox);
     
+    return group;
+}
+
+// NIEUWE FUNCTIE: Maak een Kiosk object
+function createKiosk(pos) {
+    const group = new THREE.Group();
+    group.position.copy(pos);
+    // Kijk naar het midden (0,0,0) - maar kiosk staat op Z=8, dus draai 180 graden
+    group.rotation.y = Math.PI; 
+
+    // Voet
+    const stand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 1.5, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0x333333 })
+    );
+    stand.position.y = 0.75;
+    group.add(stand);
+
+    // Scherm / Console
+    const consoleBox = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 1, 0.8),
+        new THREE.MeshStandardMaterial({ color: 0x5555ff }) // Blauw scherm
+    );
+    consoleBox.position.y = 1.75;
+    // Beetje kantelen
+    consoleBox.rotation.x = -0.2;
+    group.add(consoleBox);
+
+    // Hitbox voor interactie
+    const hitbox = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 3, 2),
+        new THREE.MeshBasicMaterial({ visible: false })
+    );
+    hitbox.userData.isKiosk = true; // TAG voor main.js
+    hitbox.position.y = 1.5;
+    group.add(hitbox);
+
     return group;
 }
