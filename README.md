@@ -38,9 +38,9 @@ The game supports both Desktop and Mobile (touch) controls. Keybinds are fully r
 | **Sprint** | `Shift` | (Auto-run based on stick) |
 | **Shoot/Spit** | `Left Mouse` | 💥 Button |
 | **Trip Mode** | `Right Mouse` | 🍃 Button |
-| **Cloud Summon** | `F` | ❌ *Not available on Mobile* |
-| **Glide** | `Q` (Mid-air) | ❌ *Not available on Mobile* |
-| **Interact (Shop)** | `E` | ❌ *Not available on Mobile* |
+| **Cloud Summon** | `F` | ☁️ Button |
+| **Glide** | `Q` (Mid-air) | 🪶 Button |
+| **Interact** | `E` | Tap when you see 👇 |
 
 > **⚠️ Mobile Note:** Advanced abilities (**Cloud Summon**, **Glide**) and **Shop Interaction** are currently **PC Only**. Mobile players can move, jump, shoot, and use Trip Mode, but cannot yet open the shop or use purchased abilities.
 
@@ -51,10 +51,8 @@ You can find **Ronnie** in the world. However, he only does business with succes
 * **Upgrades available:**
     * **Double Jump:** Jump again in mid-air.
     * **Triple Jump:** Reaching new heights.
-    * **Summon Cloud:** Spawn a temporary platform under your feet. *(PC Only)*
-    * **Glide:** Fall slowly and cover large distances. *(PC Only)*
-
-*Note: The shop interface cannot be opened on mobile devices yet.*
+    * **Summon Cloud:** Spawn a temporary platform under your feet.
+    * **Glide:** Fall slowly and cover large distances.
 
 ## ⚙️ Advanced Settings
 
