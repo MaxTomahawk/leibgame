@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
+
+const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
 
 export const MODEL_SCALES = {
     'assets/katinka.glb': 1,
     'assets/marco.glb': 1,
     'assets/leib.glb': 1,
-    'assets/weissman.glb': 1.3,
 };
 
 export class ModelManager {
@@ -18,6 +20,13 @@ export class ModelManager {
         this.playerModel = null;
         this.isLanding = false;
         this.isAttacking = false; // Alleen voor cooldown
+        this.loader = new GLTFLoader();
+
+        // Setup Draco Loader
+        const dracoLoader = new DRACOLoader();
+        // Point to a CDN for the decoders (standard practice)
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        this.loader.setDRACOLoader(dracoLoader);
     }
 
     async loadPlayerModel(modelFile, player, callbacks = {}) {
@@ -32,14 +41,17 @@ export class ModelManager {
             }
         } catch(e) { console.warn("Could not read graphics setting", e); }
 
-        const actualFile = modelFile.replace('.glb', `_${quality}.glb`);
-        console.log(`🎨 Loading graphics: ${quality} (${actualFile})`);
+        // Construct URL: ${ASSET_BASE_URL}leib.glb -> https://.../leib_medium.glb
+        const modelName = modelFile.split('/').pop().replace('.glb', ''); 
+        const remoteUrl = `${ASSET_BASE_URL}${modelName}_${quality}.glb`;
+
+        console.log(`🎨 Loading remote asset: ${remoteUrl}`);
 
         return new Promise((resolve, reject) => {
             if (onProgress) onProgress("model", "🎮 Loading Model... 0%", "purple");
 
             this.loader.load(
-                actualFile,
+                remoteUrl,
                 (gltf) => {
                     this.playerModel = gltf.scene;
 
@@ -65,7 +77,7 @@ export class ModelManager {
                     }
                 },
                 (error) => {
-                    console.error(`Error loading model (${actualFile}):`, error);
+                    console.error(`Error loading model (${remoteUrl}):`, error);
                     const fallbackGeo = new THREE.BoxGeometry(1, 2, 1);
                     const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
                     this.playerModel = new THREE.Mesh(fallbackGeo, fallbackMat);
@@ -294,6 +306,8 @@ export class ModelManager {
     loadPreviewModel(element, modelFile) {
         if (element.previewRenderer) element.removeChild(element.previewRenderer.domElement);
         const scene = new THREE.Scene();
+        const modelName = modelFile.split('/').pop().replace('.glb', '');
+        const previewUrl = `${ASSET_BASE_URL}${modelName}_medium.glb`;
         const camera = new THREE.PerspectiveCamera(50, element.clientWidth / element.clientHeight, 0.1, 100);
         camera.position.set(0, 1.5, 3);
         camera.lookAt(0, 1, 0);
@@ -305,11 +319,10 @@ export class ModelManager {
         light.position.set(5, 10, 5);
         scene.add(light);
         scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-        const actualFile = modelFile.replace('.glb', '_high.glb');
-        this.loader.load(actualFile, (gltf) => {
+        this.loader.load(previewUrl, (gltf) => {
             const container = new THREE.Object3D();
             container.add(gltf.scene);
-            const scale = MODEL_SCALES[modelFile] || 1;
+            const scale = 1;
             container.scale.set(scale, scale, scale);
             container.rotation.y = Math.PI;
             scene.add(container);

@@ -6,6 +6,8 @@ import { setDoc, doc, deleteDoc, collection, onSnapshot } from "https://www.gsta
 let otherPlayers = {};
 let playersUnsubscribe = null; // ✅ Store unsubscribe function
 
+const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
+
 function listenToPlayers(scene, userId, ui, db) {
     const playersRef = collection(db, "players");
     const loader = new GLTFLoader();
@@ -55,14 +57,14 @@ function listenToPlayers(scene, userId, ui, db) {
                     } catch(e) { console.warn("Could not read graphics setting", e); }
 
                     // Modify the filename to load the correct quality version (e.g., _high.glb or _low.glb)
-                    const actualFile = appearance.model.replace('.glb', `_${quality}.glb`);
+                    const remoteUrl = appearance.model.replace('.glb', `_${quality}.glb`);
                     
-                    console.log(`[Loader] Loading model for ${id}:`, actualFile);
+                    console.log(`[Loader] Loading model for ${id}:`, remoteUrl);
                     
                     // --- NEW CODE END ---
 
                     loader.load(
-                        actualFile, // Load the quality-specific file
+                        remoteUrl, // Load the quality-specific file
                         (gltf) => {
                             console.log(`[Loader] Model loaded for ${id}`);
                             const mesh = gltf.scene;
@@ -77,9 +79,9 @@ function listenToPlayers(scene, userId, ui, db) {
                                     mixer = new THREE.AnimationMixer(mesh);
 
                                     const ANIMATION_MAPPING = {
-                                        'assets/katinka.glb': { idle: 10, run: 0, jump: 9 },
-                                        'assets/marco.glb': { idle: 5, run: 2, jump: 0 },
-                                        'assets/leib.glb': { 
+                                        '${ASSET_BASE_URL}katinka.glb': { idle: 10, run: 0, jump: 9 },
+                                        '${ASSET_BASE_URL}marco.glb': { idle: 5, run: 2, jump: 0 },
+                                        '${ASSET_BASE_URL}leib.glb': { 
                                             idle: 8, 
                                             walk: 7, 
                                             run: 6, 
@@ -91,11 +93,11 @@ function listenToPlayers(scene, userId, ui, db) {
                                             strafe_right: 1,
                                             glide: 5
                                         },
-                                        'assets/weissman.glb': { idle: 7, run: 2, jump: 6 }
+                                        '${ASSET_BASE_URL}weissman.glb': { idle: 7, run: 2, jump: 6 }
                                     };
                                     
                                     // Use the original model name for mapping logic, not the quality specific filename
-                                    const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['assets/katinka.glb'];
+                                    const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['${ASSET_BASE_URL}katinka.glb'];
                                     
                                     for (const animName in mapping) {
                                         const index = mapping[animName];
@@ -105,7 +107,7 @@ function listenToPlayers(scene, userId, ui, db) {
                                     }
 
                                     for (const action of Object.values(animations)) {
-                                        if (appearance.model === 'assets/weissman.glb' && action.getClip().name === 'jump') {
+                                        if (appearance.model === '${ASSET_BASE_URL}weissman.glb' && action.getClip().name === 'jump') {
                                             action.setLoop(THREE.LoopOnce);
                                             action.clampWhenFinished = true;
                                         } else {
@@ -135,8 +137,8 @@ function listenToPlayers(scene, userId, ui, db) {
                         },
                         (err) => {
                             // Fallback logic: If the quality version fails, try loading the original file
-                            if (actualFile !== appearance.model) {
-                                console.log(`[Loader] ${actualFile} failed, trying original: ${appearance.model}`);
+                            if (remoteUrl !== appearance.model) {
+                                console.log(`[Loader] ${remoteUrl} failed, trying original: ${appearance.model}`);
                                 loader.load(appearance.model, (gltf) => {
                                     // Repeat the success logic here or extract it to a function
                                     // For now, simpler to just let it fall through to the red box if this also fails
