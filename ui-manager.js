@@ -536,9 +536,19 @@ export class UIManager {
                                     ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-105' 
                                     : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:bg-gray-750'}" 
                                 data-value="low">
-                                <div class="text-2xl mb-1">🚀</div>
+                                <div class="text-2xl mb-1">🦾</div>
                                 <div class="text-lg">Performance</div>
-                                <div class="text-[10px] uppercase tracking-wider opacity-70">Low Poly</div>
+                                <div class="text-[10px] uppercase tracking-wider opacity-70">Low poly</div>
+                            </button>
+                            
+                            <button class="gfx-btn flex-1 max-w-[200px] py-4 rounded-lg font-bold border-2 transition-all duration-200 
+                                ${current === 'medium' 
+                                    ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-105' 
+                                    : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:bg-gray-750'}" 
+                                data-value="medium">
+                                <div class="text-2xl mb-1">🚀</div>
+                                <div class="text-lg">Smooth</div>
+                                <div class="text-[10px] uppercase tracking-wider opacity-70">Good textures</div>
                             </button>
                             
                             <button class="gfx-btn flex-1 max-w-[200px] py-4 rounded-lg font-bold border-2 transition-all duration-200
@@ -546,9 +556,19 @@ export class UIManager {
                                     ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-105' 
                                     : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:bg-gray-750'}" 
                                 data-value="high">
-                                <div class="text-2xl mb-1">✨</div>
+                                <div class="text-2xl mb-1">👑</div>
                                 <div class="text-lg">Quality</div>
-                                <div class="text-[10px] uppercase tracking-wider opacity-70">Original</div>
+                                <div class="text-[10px] uppercase tracking-wider opacity-70">Premium stuff</div>
+                            </button>
+                            
+                            <button class="gfx-btn flex-1 max-w-[200px] py-4 rounded-lg font-bold border-2 transition-all duration-200
+                                ${current === 'ultra' 
+                                    ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-105' 
+                                    : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:bg-gray-750'}" 
+                                data-value="ultra">
+                                <div class="text-2xl mb-1">✨</div>
+                                <div class="text-lg">Original</div>
+                                <div class="text-[10px] uppercase tracking-wider opacity-70">For the high end pc's</div>
                             </button>
                         </div>
                         
