@@ -568,6 +568,18 @@ function animate(time) {
         }
     });
 
+    let audioLevel = 0;
+    let bassLevel = 0;
+    if (audioManager && audioManager.musicSound.isPlaying) {
+        const audioData = audioManager.getAudioData();
+        audioLevel = audioData.average / 255.0;
+        bassLevel = audioData.bass / 255.0;
+    }
+
+    if (weatherSystem) {
+        weatherSystem.update(delta, isTripping, audioLevel); 
+    }
+
     if (window.gameState === 'playing') {
         const currentWeather = weatherSystem.getCurrentWeather();
         const weatherType = currentWeather === 'night' ? 'night' : 'day';
@@ -860,6 +872,14 @@ function animate(time) {
             targetGravity = 8.0; // Verlaagde zwaartekracht
             // Optioneel: rem de valsnelheid direct af als je begint met gliden
             if (velocity.y < -2) velocity.y = THREE.MathUtils.lerp(velocity.y, -2, delta * 5);
+        }
+
+        if (isTripping) {
+            const pulse = 1.0 + (bassLevel * 0.5);
+            scene.fog.density = 0.02 * pulse;
+            
+            const hueShift = (Date.now() * 0.001) + (audioLevel * 0.2);
+            scene.fog.color.setHSL(hueShift % 1, 0.6, 0.5);
         }
     }
 

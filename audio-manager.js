@@ -11,6 +11,8 @@ export class AudioManager {
         this.audioLoader = new THREE.AudioLoader();
         
         this.volumes = { master: 1, music: 1, sfx: 1 };
+
+        this.analyser = new THREE.AudioAnalyser(this.musicSound, 32);
     }
 
     async load(key, path) {
@@ -59,5 +61,19 @@ export class AudioManager {
         if(this.musicSound) {
             this.musicSound.setVolume(this.volumes.music);
         }
+    }
+    
+    getAudioData() {
+        // getAverageFrequency geeft een waarde tussen 0-255
+        const avg = this.analyser.getAverageFrequency(); 
+        // getFrequencyData geeft een array met data (voor bass/mid/treble)
+        const data = this.analyser.getFrequencyData(); 
+        
+        return {
+            average: avg,
+            bass: data[0], // De allerlaagste frequenties
+            mid: data[8],  // Iets in het midden
+            treble: data[12] // Hoge tonen
+        };
     }
 }
