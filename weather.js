@@ -22,6 +22,9 @@ export class WeatherSystem {
         this.particlesSpawned = false;
         this.ufosSpawned = false;
 
+        this.starField = null;
+        this.starFieldSpawned = false;
+
         this.updateWeather();
     }
 
@@ -99,6 +102,16 @@ export class WeatherSystem {
             this.spawnUFOs();
         } else {
             this.despawnUFOs();
+        }
+
+        if (this.currentWeather === 'night') {
+            if (Math.random() < 0.3) {
+                this.showSkyClouds();
+            } else {
+                this.hideSkyClouds();
+            }
+        } else {
+            this.showSkyClouds(); // Always show during day
         }
     }
 
@@ -340,6 +353,26 @@ export class WeatherSystem {
 
         this.particleSystem.geometry.attributes.position.needsUpdate = true;
         this.particleSystem.geometry.attributes.color.needsUpdate = true;
+    }
+
+    /**
+ * Shows the sky sphere clouds
+ */
+    showSkyClouds() {
+        const sky = this.scene.children.find(child => child.name === 'SkySphere');
+        if (sky) {
+            sky.visible = true;
+        }
+    }
+
+    /**
+     * Hides the sky sphere clouds (clear night)
+     */
+    hideSkyClouds() {
+        const sky = this.scene.children.find(child => child.name === 'SkySphere');
+        if (sky) {
+            sky.visible = false;
+        }
     }
 
     /**
