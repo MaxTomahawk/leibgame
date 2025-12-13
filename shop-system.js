@@ -6,46 +6,55 @@ export class ShopSystem {
         this.db = db;
         this.auth = auth;
         this.isRonnieUnlocked = false;
-        
+
         // Shop Inventory Configuration
         this.upgrades = {
-            double_jump: { 
-                id: 'double_jump', 
-                name: 'Double Jump', 
-                cost: 10, 
-                currency: 'coins', 
-                max: 1, 
+            double_jump: {
+                id: 'double_jump',
+                name: 'Double Jump',
+                cost: 10,
+                currency: 'coins',
+                max: 1,
                 current: 0,
                 desc: 'Spring nog een keer in de lucht!'
             },
-            triple_jump: { 
-                id: 'triple_jump', 
-                name: 'Triple Jump', 
-                cost: 50, 
-                currency: 'coins', 
-                max: 1, 
+            triple_jump: {
+                id: 'triple_jump',
+                name: 'Triple Jump',
+                cost: 50,
+                currency: 'coins',
+                max: 1,
                 current: 0,
                 req: 'double_jump',
                 desc: 'De ultieme sprongkracht.'
             },
-            summon_cloud: { 
-                id: 'summon_cloud', 
-                name: 'Summon Cloud', 
-                cost: 30, 
-                currency: 'stars', 
-                max: 1, 
+            summon_cloud: {
+                id: 'summon_cloud',
+                name: 'Summon Cloud',
+                cost: 30,
+                currency: 'stars',
+                max: 1,
                 current: 0,
                 desc: 'Roep een wolk op onder je voeten.'
             },
-            glide: { 
-                id: 'glide', 
-                name: 'Glide', 
+            glide: {
+                id: 'glide',
+                name: 'Glide',
                 cost: 30,
-                currency: 'stars', 
-                max: 1, 
+                currency: 'stars',
+                max: 1,
                 current: 0,
                 desc: 'Klik Q in de lucht om te zweven.',
                 req: 'double_jump'
+            },
+            rapid_fire: {
+                id: 'rapid_fire',
+                name: 'Rapid Fire',
+                cost: 10,
+                currency: 'coins',
+                max: 1,
+                current: 0,
+                desc: 'Schiet vuurballen zonder cooldown!'
             }
         };
     }
@@ -93,7 +102,7 @@ export class ShopSystem {
         try {
             const userRef = doc(this.db, "users", userId);
             const snap = await getDoc(userRef);
-            
+
             if (snap.exists()) {
                 const data = snap.data();
                 this.isRonnieUnlocked = !!data.ronnieUnlocked;
@@ -119,9 +128,9 @@ export class ShopSystem {
                 const confirmUnlock = confirm("Ronnie: '20 Muntjes graag!'");
                 if (confirmUnlock) {
                     this.isRonnieUnlocked = true;
-                    
+
                     // Callback voor UI update (munten eraf)
-                    saveProgressCallback(0, -20); 
+                    saveProgressCallback(0, -20);
 
                     // 1. Probeer Cloud Save
                     if (this.auth && this.db && this.auth.currentUser) {
@@ -158,7 +167,7 @@ export class ShopSystem {
 
     async purchaseUpgrade(upgradeId, currentCoins, saveProgressCallback) {
         const item = this.upgrades[upgradeId];
-        
+
         // Validatie
         if (item.current >= item.max) return { success: false, msg: "Al gekocht!" };
         if (item.req && this.upgrades[item.req].current < this.upgrades[item.req].max) return { success: false, msg: "Ontgrendel eerst de vorige upgrade!" };
@@ -166,9 +175,9 @@ export class ShopSystem {
 
         // 1. Update in Memory
         item.current++;
-        
+
         // 2. Update Coins lokaal via callback
-        saveProgressCallback(0, -item.cost); 
+        saveProgressCallback(0, -item.cost);
 
         // 3. OPSLAAN (Cloud of Lokaal)
         if (this.auth && this.db && this.auth.currentUser) {
@@ -183,13 +192,13 @@ export class ShopSystem {
             } catch (e) {
                 console.error("Fout bij opslaan upgrade in cloud:", e);
                 // Fallback: probeer merge als update faalt
-                 try {
+                try {
                     await setDoc(doc(this.db, "users", this.auth.currentUser.uid), {
                         upgrades: { [upgradeId]: item.current }
                     }, { merge: true });
-                 } catch (e2) {
-                     this._saveLocalData();
-                 }
+                } catch (e2) {
+                    this._saveLocalData();
+                }
             }
         } else {
             // Offline save
@@ -213,4 +222,8 @@ export class ShopSystem {
     hasGlideAbility() {
         return this.upgrades.glide && this.upgrades.glide.current > 0;
     }
+
+    hasRapidFire() {
+    return this.upgrades.rapid_fire && this.upgrades.rapid_fire.current > 0;
+}
 }

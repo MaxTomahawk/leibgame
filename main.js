@@ -326,13 +326,13 @@ function checkIfReadyToStart() {
 }
 
 const AUDIO_ASSETS = {
-    bgm:   `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
-    jump:  `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
-    coin:  `${ASSET_BASE_URL}sounds/effects/coin.wav`,
-    hava:  `${ASSET_BASE_URL}sounds/effects/hava.wav`,
+    bgm: `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
+    jump: `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
+    coin: `${ASSET_BASE_URL}sounds/effects/coin.wav`,
+    hava: `${ASSET_BASE_URL}sounds/effects/hava.wav`,
     shoot: `${ASSET_BASE_URL}sounds/effects/spit.wav`,
-    fail:  `${ASSET_BASE_URL}sounds/effects/fail.wav`,
-    win:   `${ASSET_BASE_URL}sounds/effects/win.wav`
+    fail: `${ASSET_BASE_URL}sounds/effects/fail.wav`,
+    win: `${ASSET_BASE_URL}sounds/effects/win.wav`
 };
 
 async function setupAudio() {
@@ -380,8 +380,8 @@ function initThreeJS() {
     outlinePass.edgeGlow = 0.5;     // Gloed
     outlinePass.edgeThickness = 1.0;
     outlinePass.pulsePeriod = 0;    // We doen dit handmatig op audio
-    outlinePass.visibleEdgeColor.set('#ffffff'); 
-    outlinePass.hiddenEdgeColor.set('#000000'); 
+    outlinePass.visibleEdgeColor.set('#ffffff');
+    outlinePass.hiddenEdgeColor.set('#000000');
     window.outlinePass = outlinePass; // Maak globaal
     composer.addPass(outlinePass);
 
@@ -596,7 +596,7 @@ function animate(time) {
     }
 
     if (weatherSystem) {
-        weatherSystem.update(delta, isTripping, audioLevel); 
+        weatherSystem.update(delta, isTripping, audioLevel);
     }
 
     if (window.gameState === 'playing') {
@@ -896,7 +896,7 @@ function animate(time) {
         if (isTripping) {
             const pulse = 1.0 + (bassLevel * 0.5);
             scene.fog.density = 0.02 * pulse;
-            
+
             const hueShift = (Date.now() * 0.001) + (audioLevel * 0.2);
             scene.fog.color.setHSL(hueShift % 1, 0.6, 0.5);
         }
@@ -910,7 +910,7 @@ function animate(time) {
         if (audioManager && audioManager.musicSound && audioManager.musicSound.isPlaying) {
             const data = audioManager.getAudioData();
             // We pakken de bass iets gevoeliger (alles boven 0.1 telt)
-            bass = Math.max(0, (data.bass / 255.0) - 0.1); 
+            bass = Math.max(0, (data.bass / 255.0) - 0.1);
             mid = data.mid / 255.0;
         }
 
@@ -927,20 +927,20 @@ function animate(time) {
         // edgeThickness: Maakt de lijn fysiek breder (van 1.0 naar 4.0 op de beat)
         // Dit zorgt voor het 'dikker/dunner' worden effect waar je om vroeg
         window.outlinePass.edgeThickness = 1.0 + (bass * 3.0);
-        
+
         // edgeStrength: Hoeveelheid 'inkt' (van 3.0 naar 10.0)
         window.outlinePass.edgeStrength = 1.0 + (bass * 9.0);
-        
+
         // edgeGlow: De wazige gloed eromheen (geeft een 'aura' effect bij harde bass)
         window.outlinePass.edgeGlow = 0.0 + (bass * 1.5);
 
         // 4. KLEUR: Rustiger en trager
         // Snelheid: * 0.0002 is 10x trager dan * 0.002
-        const time = Date.now() * 0.0002; 
-        
+        const time = Date.now() * 0.0002;
+
         // Hue: Draait langzaam rond, met een heel klein beetje invloed van de melodie (mid)
-        const hue = (time + (mid * 0.1)) % 1; 
-        
+        const hue = (time + (mid * 0.1)) % 1;
+
         // Kleur instellen: Saturation op 0.6 (i.p.v. 1.0) maakt het minder fel/neon
         const color = new THREE.Color().setHSL(hue, 0.2, 0.4);
         window.outlinePass.visibleEdgeColor.set(color);
@@ -995,10 +995,8 @@ function initFireballAssets() {
 
 function performShoot() {
     // === COOLDOWN CHECK ===
-    // If we are already attacking (animation playing), do not shoot again.
-    if (modelManager.isAttacking) return;
-
-    // Trigger animation immediately
+    // Only block if NOT rapid fire
+    if (!shopSystem?.hasRapidFire() && modelManager.isAttacking) return;
     const triggered = modelManager.triggerThrowAnimation();
 
     if (triggered) {
