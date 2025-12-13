@@ -25,6 +25,9 @@ A third-person RPG platformer.
 * **Progression System:** Collect Coins and Stars to trade with **Ronnie**, the mysterious merchant.
 * **Account Sync:** Play anonymously or link your email to save your coins, stars, and unlocked upgrades across devices.
 * **Atmosphere:** Dynamic Day/Night cycles, fog systems, and interactive particle effects.
+* **Complete weather system:** Will you spot the UFO's? see the starry night sky with the constellations or maybe get your trip on with the rare magic particles. Warning: chance of snow ☃️
+* **Katinka & Marco:** De enige echte Katinka! (pas op, marco is een smeerlap!)
+* **Ronnie store:** Ronnie R Rietman kan soms verschijnen. Maak zo veel mogelijk deals met hem! Hij weet alles te regelen.
 
 ## 🎮 Controls
 
