@@ -382,49 +382,6 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     scene.add(sky);
 }
 
-// --- ROUND CLOUD GENERATION ---
-function createPlat(x, y, z, w, h, d, scene, platforms, material) {
-    const useMat = material || new THREE.MeshStandardMaterial({ color: 0xffffff });
-
-    const baseRadius = Math.min(w, d) * 0.4;
-
-    const mainGeo = new THREE.IcosahedronGeometry(baseRadius, 0);
-    const mainMesh = new THREE.Mesh(mainGeo, useMat);
-
-    mainMesh.scale.set(w / baseRadius * 0.5, h / baseRadius * 0.5, d / baseRadius * 0.5);
-    mainMesh.position.set(x, y, z);
-
-    mainMesh.castShadow = true;
-    mainMesh.receiveShadow = true;
-    mainMesh.userData.isPlatform = true;
-
-    scene.add(mainMesh);
-    platforms.push(mainMesh);
-
-    const puffCount = 4 + Math.floor(Math.random() * 4);
-
-    for (let i = 0; i < puffCount; i++) {
-        const puffRadius = baseRadius * (0.6 + Math.random() * 0.5);
-        const puffGeo = new THREE.IcosahedronGeometry(puffRadius, 0);
-        const puffMesh = new THREE.Mesh(puffGeo, useMat);
-
-        puffMesh.position.set(
-            x + (Math.random() - 0.5) * w * 0.8,
-            y + (Math.random() - 0.5) * h * 0.5,
-            z + (Math.random() - 0.5) * d * 0.8
-        );
-
-        puffMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-
-        puffMesh.castShadow = false;
-        puffMesh.receiveShadow = true;
-        puffMesh.userData.isPlatform = true;
-
-        scene.add(puffMesh);
-        platforms.push(puffMesh);
-    }
-}
-
 function createCoin(x, y, z, scene, coins) {
     const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(0.5, 0.5, 0.1),
@@ -592,23 +549,93 @@ export function loadRonnie(scene, gltfLoader, position) {
 }
 
 export function summonCloudPlatform(playerPos, scene, platforms, texture) {
-    const w = 4, h = 1, d = 4;
-    const geo = new THREE.BoxGeometry(w, h, d);
-    const mat = new THREE.MeshStandardMaterial({ map: texture || null, color: 0xaaaaaa });
-    const cloud = new THREE.Mesh(geo, mat);
+    // Create shared material (same as world clouds)
+    const cloudMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.9,
+        metalness: 0.1,
+        flatShading: true
+    });
 
-    // Spawn iets onder de speler
-    cloud.position.set(playerPos.x, playerPos.y - 2, playerPos.z);
+    // Spawn a normal cloud platform below player
+    const w = 4, h = 1.5, d = 4;
+    const mainMesh = createPlat(
+        playerPos.x, 
+        playerPos.y - 2, 
+        playerPos.z, 
+        w, h, d, 
+        scene, 
+        platforms, 
+        cloudMaterial
+    );
 
-    scene.add(cloud);
-    platforms.push(cloud);
+    // Mark it as temporary so we can remove it later
+    mainMesh.userData.isTemporary = true;
 
-    // Verdwijn na 10 seconden
+    // Fade out and remove after 8 seconds
     setTimeout(() => {
-        scene.remove(cloud);
-        const idx = platforms.indexOf(cloud);
-        if (idx > -1) platforms.splice(idx, 1);
-    }, 10000);
+        const fadeInterval = setInterval(() => {
+            cloudMaterial.opacity -= 0.05;
+            cloudMaterial.transparent = true;
+            
+            if (cloudMaterial.opacity <= 0) {
+                clearInterval(fadeInterval);
+                
+                // Remove ALL meshes created by createPlat (main + puffs)
+                platforms.forEach((p, idx) => {
+                    if (p.material === cloudMaterial) {
+                        scene.remove(p);
+                        platforms.splice(idx, 1);
+                    }
+                });
+            }
+        }, 50);
+    }, 8000);
+}
+
+function createPlat(x, y, z, w, h, d, scene, platforms, material) {
+    const useMat = material || new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+    const baseRadius = Math.min(w, d) * 0.4;
+
+    const mainGeo = new THREE.IcosahedronGeometry(baseRadius, 0);
+    const mainMesh = new THREE.Mesh(mainGeo, useMat);
+
+    mainMesh.scale.set(w / baseRadius * 0.5, h / baseRadius * 0.5, d / baseRadius * 0.5);
+    mainMesh.position.set(x, y, z);
+
+    mainMesh.castShadow = true;
+    mainMesh.receiveShadow = true;
+    mainMesh.userData.isPlatform = true;
+
+    scene.add(mainMesh);
+    platforms.push(mainMesh);
+
+    const puffCount = 4 + Math.floor(Math.random() * 4);
+
+    for (let i = 0; i < puffCount; i++) {
+        const puffRadius = baseRadius * (0.6 + Math.random() * 0.5);
+        const puffGeo = new THREE.IcosahedronGeometry(puffRadius, 0);
+        const puffMesh = new THREE.Mesh(puffGeo, useMat);
+
+        puffMesh.position.set(
+            x + (Math.random() - 0.5) * w * 0.8,
+            y + (Math.random() - 0.5) * h * 0.5,
+            z + (Math.random() - 0.5) * d * 0.8
+        );
+
+        puffMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+
+        puffMesh.castShadow = false;
+        puffMesh.receiveShadow = true;
+        puffMesh.userData.isPlatform = true;
+
+        scene.add(puffMesh);
+        platforms.push(puffMesh);
+    }
+    
+    // ADD THIS LINE AT THE END:
+    return mainMesh; // Return the main mesh so we can reference it later
 }
 
 function createCloudySky() {
