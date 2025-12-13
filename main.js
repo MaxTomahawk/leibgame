@@ -599,6 +599,13 @@ function animate(time) {
         weatherSystem.update(delta, isTripping, audioLevel);
     }
 
+    const isClearNight = weatherSystem.getCurrentWeather() === 'night' && weatherSystem.isStarFieldVisible();
+    if (isClearNight || isTripping) {
+        scene.fog.far = 10000; // Effectively disable fog
+    } else {
+        scene.fog.far = 90; // Normal fog distance
+    }
+
     if (window.gameState === 'playing') {
         const currentWeather = weatherSystem.getCurrentWeather();
         const weatherType = currentWeather === 'night' ? 'night' : 'day';

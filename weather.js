@@ -385,6 +385,13 @@ export class WeatherSystem {
     }
 
     /**
+     * Returns whether stars are currently visible
+     */
+    isStarFieldVisible() {
+        return this.starFieldSpawned;
+    }
+
+    /**
  * Creates a beautiful starfield with constellations
  */
     spawnStarField() {
@@ -479,8 +486,8 @@ export class WeatherSystem {
     }
 
     /**
-     * Adds recognizable constellation patterns
-     */
+ * Adds recognizable constellation patterns
+ */
     addConstellations() {
         // Big Dipper (Ursa Major)
         const bigDipperPositions = [
@@ -509,10 +516,47 @@ export class WeatherSystem {
             [330, 270, -210]
         ];
 
+        // Sagittarius (Teapot shape)
+        const sagittariusPositions = [
+            [-100, 180, -350],  // Spout
+            [-80, 175, -340],
+            [-60, 180, -330],   // Body
+            [-50, 190, -325],
+            [-40, 185, -320],   // Handle
+            [-30, 180, -315],
+            [-50, 170, -325],   // Lid
+            [-60, 180, -330]    // Back to body
+        ];
+
+        // Virgo (Maiden - simplified Y shape)
+        const virgoPositions = [
+            [200, 160, -280],   // Head
+            [190, 150, -290],   // Body
+            [180, 140, -300],   // Waist
+            [170, 130, -310],   // Left leg
+            [180, 140, -300],   // Back to waist
+            [190, 130, -295]    // Right leg
+        ];
+
+        // Scorpio (Scorpion with curved tail)
+        const scorpioPositions = [
+            [-250, 170, -200],  // Head/claws
+            [-240, 165, -210],
+            [-230, 160, -220],  // Body
+            [-220, 155, -230],
+            [-210, 150, -235],
+            [-200, 145, -240],  // Tail curve
+            [-195, 140, -245],
+            [-190, 135, -250],  // Stinger
+        ];
+
         const constellations = [
             { name: 'Big Dipper', positions: bigDipperPositions, color: 0xffffaa },
             { name: 'Orion Belt', positions: orionBeltPositions, color: 0xaaaaff },
-            { name: 'Cassiopeia', positions: cassiopeiaPositions, color: 0xffaaaa }
+            { name: 'Cassiopeia', positions: cassiopeiaPositions, color: 0xffaaaa },
+            { name: 'Sagittarius', positions: sagittariusPositions, color: 0xffaa55 },
+            { name: 'Virgo', positions: virgoPositions, color: 0xaaffaa },
+            { name: 'Scorpio', positions: scorpioPositions, color: 0xff5555 }
         ];
 
         constellations.forEach(constellation => {
@@ -565,7 +609,12 @@ export class WeatherSystem {
         // Remove constellation stars and lines
         const toRemove = [];
         this.scene.children.forEach(child => {
-            if (child.name.includes('Dipper') || child.name.includes('Orion') || child.name.includes('Cassiopeia')) {
+            if (child.name.includes('Dipper') ||
+                child.name.includes('Orion') ||
+                child.name.includes('Cassiopeia') ||
+                child.name.includes('Sagittarius') ||
+                child.name.includes('Virgo') ||
+                child.name.includes('Scorpio')) {
                 toRemove.push(child);
             }
         });
