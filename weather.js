@@ -105,10 +105,12 @@ export class WeatherSystem {
         }
 
         if (this.currentWeather === 'night') {
-            if (Math.random() < 0.3) {
+            if (Math.random() < 0.3) { // 30% chance for clouds? 
                 this.showSkyClouds();
+                this.despawnStarField();
             } else {
                 this.hideSkyClouds();
+                this.spawnStarField();
             }
         } else {
             this.showSkyClouds(); // Always show during day
@@ -383,10 +385,204 @@ export class WeatherSystem {
     }
 
     /**
+ * Creates a beautiful starfield with constellations
+ */
+    spawnStarField() {
+        if (this.starFieldSpawned) return;
+
+        console.log('⭐ Spawning starfield...');
+        this.starFieldSpawned = true;
+
+        const starCount = 3000;
+        const starsGeometry = new THREE.BufferGeometry();
+        const posArray = new Float32Array(starCount * 3);
+        const colorArray = new Float32Array(starCount * 3);
+        const sizeArray = new Float32Array(starCount);
+
+        // Generate random stars
+        for (let i = 0; i < starCount * 3; i += 3) {
+            // Spherical distribution
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            const radius = 400 + Math.random() * 100;
+
+            posArray[i] = radius * Math.sin(phi) * Math.cos(theta);
+            posArray[i + 1] = Math.abs(radius * Math.cos(phi)); // Only above horizon
+            posArray[i + 2] = radius * Math.sin(phi) * Math.sin(theta);
+
+            // Star colors (white to blue-white to yellow-white)
+            const colorChoice = Math.random();
+            if (colorChoice < 0.7) {
+                // White stars (most common)
+                colorArray[i] = 1.0;
+                colorArray[i + 1] = 1.0;
+                colorArray[i + 2] = 1.0;
+            } else if (colorChoice < 0.9) {
+                // Blue-white stars
+                colorArray[i] = 0.8;
+                colorArray[i + 1] = 0.9;
+                colorArray[i + 2] = 1.0;
+            } else {
+                // Yellow-white stars
+                colorArray[i] = 1.0;
+                colorArray[i + 1] = 0.95;
+                colorArray[i + 2] = 0.8;
+            }
+
+            // Varied sizes (most small, some bright)
+            sizeArray[i / 3] = Math.random() < 0.9 ? 1.0 + Math.random() * 2.0 : 3.0 + Math.random() * 3.0;
+        }
+
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        starsGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+        starsGeometry.setAttribute('size', new THREE.BufferAttribute(sizeArray, 1));
+
+        const starsMaterial = new THREE.PointsMaterial({
+            size: 2.0,
+            vertexColors: true,
+            transparent: true,
+            opacity: 1.0,
+            sizeAttenuation: true,
+            map: this.createStarTexture(),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        this.starField = new THREE.Points(starsGeometry, starsMaterial);
+        this.starField.name = 'StarField';
+        this.scene.add(this.starField);
+
+        // Add major constellations
+        this.addConstellations();
+    }
+
+    /**
+     * Creates a soft glow texture for stars
+     */
+    createStarTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+
+        const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+        gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+        gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 32, 32);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+
+    /**
+     * Adds recognizable constellation patterns
+     */
+    addConstellations() {
+        // Big Dipper (Ursa Major)
+        const bigDipperPositions = [
+            [100, 200, -300],
+            [120, 210, -290],
+            [140, 215, -280],
+            [160, 210, -275],
+            [165, 195, -270],
+            [150, 180, -280],
+            [130, 185, -290]
+        ];
+
+        // Orion's Belt
+        const orionBeltPositions = [
+            [-200, 150, -250],
+            [-180, 145, -255],
+            [-160, 140, -260]
+        ];
+
+        // Cassiopeia (W shape)
+        const cassiopeiaPositions = [
+            [250, 250, -200],
+            [270, 260, -210],
+            [290, 255, -220],
+            [310, 265, -215],
+            [330, 270, -210]
+        ];
+
+        const constellations = [
+            { name: 'Big Dipper', positions: bigDipperPositions, color: 0xffffaa },
+            { name: 'Orion Belt', positions: orionBeltPositions, color: 0xaaaaff },
+            { name: 'Cassiopeia', positions: cassiopeiaPositions, color: 0xffaaaa }
+        ];
+
+        constellations.forEach(constellation => {
+            // Create bright stars
+            constellation.positions.forEach(pos => {
+                const starGeo = new THREE.SphereGeometry(1.5, 8, 8);
+                const starMat = new THREE.MeshBasicMaterial({
+                    color: constellation.color,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const star = new THREE.Mesh(starGeo, starMat);
+                star.position.set(pos[0], pos[1], pos[2]);
+                star.name = `${constellation.name}_star`;
+                this.scene.add(star);
+            });
+
+            // Connect with lines
+            const linePoints = constellation.positions.map(pos => new THREE.Vector3(pos[0], pos[1], pos[2]));
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
+            const lineMat = new THREE.LineBasicMaterial({
+                color: constellation.color,
+                transparent: true,
+                opacity: 0.3,
+                linewidth: 2
+            });
+            const line = new THREE.Line(lineGeo, lineMat);
+            line.name = `${constellation.name}_line`;
+            this.scene.add(line);
+        });
+    }
+
+    /**
+     * Removes the starfield
+     */
+    despawnStarField() {
+        if (!this.starFieldSpawned) return;
+
+        console.log('⭐ Despawning starfield...');
+        this.starFieldSpawned = false;
+
+        // Remove main starfield
+        if (this.starField) {
+            this.scene.remove(this.starField);
+            this.starField.geometry.dispose();
+            this.starField.material.dispose();
+            this.starField = null;
+        }
+
+        // Remove constellation stars and lines
+        const toRemove = [];
+        this.scene.children.forEach(child => {
+            if (child.name.includes('Dipper') || child.name.includes('Orion') || child.name.includes('Cassiopeia')) {
+                toRemove.push(child);
+            }
+        });
+
+        toRemove.forEach(obj => {
+            this.scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
+        });
+    }
+
+    /**
      * Cleanup method
      */
     dispose() {
         this.despawnUFOs();
         this.despawnParticles();
+        this.despawnStarField();
     }
 }
