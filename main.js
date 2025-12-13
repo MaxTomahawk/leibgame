@@ -122,7 +122,7 @@ fetch('version.json')
     });
 
 function handleMobileControls(mobile) {
-    mobile.onJump = () => performJump();
+    mobile.onJump = () => performJump(!isFemaleCharacter());
     mobile.onShoot = () => performShoot();
     mobile.onAbility = () => activateWeed();
 
@@ -328,6 +328,7 @@ function checkIfReadyToStart() {
 const AUDIO_ASSETS = {
     bgm: `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
     jump: `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
+    jump_female: `${ASSET_BASE_URL}sounds/effects/female_jump.wav`,
     coin: `${ASSET_BASE_URL}sounds/effects/coin.wav`,
     hava: `${ASSET_BASE_URL}sounds/effects/hava.wav`,
     shoot: `${ASSET_BASE_URL}sounds/effects/spit.wav`,
@@ -961,7 +962,7 @@ function animate(time) {
     }
 }
 
-function performJump() {
+function performJump(male=true) {
     const mods = settingsManager.get('modifiers');
     const maxJumps = shopSystem ? shopSystem.getMaxJumps() : 1;
 
@@ -975,7 +976,11 @@ function performJump() {
         velocity.y = mods.jumpSpeed;
         isGrounded = false;
         jumpCount++;
-        if (audioManager) audioManager.playSFX('jump');
+        if (male) {
+            if (audioManager) audioManager.playSFX('jump');
+        } else {
+            if (audioManager) audioManager.playSFX("jump_female")
+        }
     }
 }
 
@@ -1234,7 +1239,7 @@ function setupInputs() {
         if (action === 'left') moveL = true;
         if (action === 'right') moveR = true;
         if (action === 'sprint') isSprinting = true;
-        if (action === 'jump') performJump();
+        if (action === 'jump') performJump(!isFemaleCharacter());
 
         // INTERACTIE (E) - Praten met Ronnie
         if (action === 'interact') {
@@ -1292,4 +1297,14 @@ function setupInputs() {
             activateWeed();
         }
     });
+}
+
+function isFemaleCharacter() {
+    // Add your female model filenames here
+    const femaleModels = ['https://MaxTomahawk.github.io/leibgame-assets/assets/katinka.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_low.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_ultra.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_medium.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_high.glb']; 
+    let result = femaleModels.includes(selectedModelFile);
+    console.log('modal is: ', selectedModelFile)
+    console.log('femaleModels is: ', femaleModels)
+    console.log('result is: ', result)
+    return result;
 }
