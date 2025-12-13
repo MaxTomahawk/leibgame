@@ -114,6 +114,7 @@ export class WeatherSystem {
             }
         } else {
             this.showSkyClouds(); // Always show during day
+            this.despawnStarField();
         }
     }
 
