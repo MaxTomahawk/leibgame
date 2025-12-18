@@ -145,6 +145,7 @@ function handleMobileControls(mobile) {
         if (window.ronnie && shopSystem) {
             const dist = player.position.distanceTo(window.ronnie.position);
             if (dist < 5) {
+                resetMovementFlags();
                 shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {
                     starsCollected += starDelta;
                     coinsCollected += coinDelta;
@@ -1049,6 +1050,15 @@ function performShoot() {
     }
 }
 
+function resetMovementFlags() {
+    moveF = false;
+    moveB = false;
+    moveL = false;
+    moveR = false;
+    isSprinting = false;
+    isGliding = false;
+}
+
 
 function setupInputs() {
     // --- 1. UI & Auth Events ---
@@ -1246,6 +1256,7 @@ function setupInputs() {
             if (window.ronnie && shopSystem) {
                 const dist = player.position.distanceTo(window.ronnie.position);
                 if (dist < 5) {
+                    resetMovementFlags();
                     shopSystem.interactWithRonnie(starsCollected, coinsCollected, (starDelta, coinDelta) => {
                         starsCollected += starDelta;
                         coinsCollected += coinDelta;
