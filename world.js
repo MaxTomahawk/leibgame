@@ -378,6 +378,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     }
 
     createCastle(scene, CASTLE_Z);
+    createRonnieStall(scene, { x: 0, y: 1.2, z: 5, rotation: Math.PI}); 
     const sky = createCloudySky();
     scene.add(sky);
 }
@@ -504,7 +505,72 @@ function createPromptTexture() {
     const texture = new THREE.CanvasTexture(canvas);
     return texture;
 }
+
+
 // --- RONNIE & ABILITIES ---
+
+function createRonnieStall(scene, position) {
+    const stall = new THREE.Group();
+    
+    // Base platform (wooden floor)
+    const floorGeo = new THREE.BoxGeometry(3, 0.2, 2);
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+    const floor = new THREE.Mesh(floorGeo, woodMat);
+    floor.position.y = 0.1;
+    floor.castShadow = true;
+    floor.receiveShadow = true;
+    stall.add(floor);
+    
+    // Back wall
+    const backWall = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 2, 0.2),
+        woodMat
+    );
+    backWall.position.set(0, 1, -0.9);
+    backWall.castShadow = true;
+    stall.add(backWall);
+    
+    // Roof
+    const roofGeo = new THREE.BoxGeometry(3.5, 0.1, 2.5);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = 2.5;
+    roof.castShadow = true;
+    stall.add(roof);
+    
+    // Left support pole
+    const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 2.5);
+    const leftPole = new THREE.Mesh(poleGeo, woodMat);
+    leftPole.position.set(-1.3, 1.25, -0.7);
+    leftPole.castShadow = true;
+    stall.add(leftPole);
+    
+    // Right support pole
+    const rightPole = new THREE.Mesh(poleGeo, woodMat);
+    rightPole.position.set(1.3, 1.25, -0.7);
+    rightPole.castShadow = true;
+    stall.add(rightPole);
+    
+    // Counter (front)
+    const counter = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 0.8, 0.3),
+        new THREE.MeshStandardMaterial({ color: 0xA0522D })
+    );
+    counter.position.set(0, 0.6, 0.85);
+    counter.castShadow = true;
+    stall.add(counter);
+    
+    // Position the entire stall
+    stall.position.set(position.x, position.y, position.z);
+    if (position.rotation) {
+        stall.rotation.y = position.rotation;
+    }
+    scene.add(stall);
+    
+    console.log("🏪 Ronnie's stall created!");
+}
+
+
 export function loadRonnie(scene, gltfLoader, position) {
     const suffix = getQualitySuffix();
 

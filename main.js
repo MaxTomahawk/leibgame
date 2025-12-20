@@ -444,7 +444,7 @@ function initThreeJS() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     ronnieLoader.setDRACOLoader(dracoLoader);
-    loadRonnie(scene, ronnieLoader, { x: 0, y: 0, z: 5 });
+    loadRonnie(scene, ronnieLoader, { x: 0, y: 1.4, z: 5 });
 
     modelManager.loadPlayerModel(selectedModelFile, player, {
         onProgress: (type, msg, color) => {
