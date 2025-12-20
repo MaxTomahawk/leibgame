@@ -232,7 +232,7 @@ export function generateWorldData(CASTLE_Z) {
     };
 
     // Start platform
-    data.platforms.push({ x: 0, y: -2, z: 0, w: 10, h: 2, d: 10 });
+    data.platforms.push({ x: 0, y: -2, z: 2.5, w: 10, h: 2, d: 15 });
 
     let z = -10;
     while (z > CASTLE_Z + 20) {
