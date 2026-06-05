@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
-
-const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
+import { resolveModelAsset } from './asset-library.js';
 
 export const MODEL_SCALES = {
-    'assets/katinka.glb': 1,
-    'assets/marco.glb': 1,
-    'assets/leib.glb': 1,
+    player_katinka: 1,
+    player_marco: 1,
+    player_leib: 1,
+    katinka: 1,
+    marco: 1,
+    leib: 1,
 };
 
 export class ModelManager {
@@ -31,19 +33,8 @@ export class ModelManager {
 
     async loadPlayerModel(modelFile, player, callbacks = {}) {
         const { onProgress, onLoaded, onError } = callbacks;
-
-        let quality = 'high';
-        try {
-            const saved = localStorage.getItem('leib_settings');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed.graphics) quality = parsed.graphics;
-            }
-        } catch(e) { console.warn("Could not read graphics setting", e); }
-
-        // Construct URL: ${ASSET_BASE_URL}leib.glb -> https://.../leib_medium.glb
-        const modelName = modelFile.split('/').pop().replace('.glb', ''); 
-        const remoteUrl = `${ASSET_BASE_URL}${modelName}_${quality}.glb`;
+        const modelAsset = await resolveModelAsset(modelFile, 'player');
+        const remoteUrl = modelAsset.url;
 
         console.log(`🎨 Loading remote asset: ${remoteUrl}`);
 
@@ -55,13 +46,18 @@ export class ModelManager {
                 (gltf) => {
                     this.playerModel = gltf.scene;
 
-                    const scale = MODEL_SCALES[modelFile] || 1;
+                    const scale = modelAsset.scale || MODEL_SCALES[modelAsset.id] || 1;
                     this.playerModel.scale.set(scale, scale, scale);
                     this.playerModel.rotation.y = Math.PI;
                     this.playerModel.position.y = -1.1;
 
                     player.add(this.playerModel);
-                    player.userData.appearance = { model: modelFile, quality: quality, scale: scale };
+                    player.userData.appearance = {
+                        model: modelAsset.id,
+                        quality: modelAsset.quality,
+                        scale: scale,
+                        gender: modelAsset.gender
+                    };
 
                     if (gltf.animations && gltf.animations.length > 0) {
                         this.setupAnimations(gltf); 
@@ -347,11 +343,11 @@ export class ModelManager {
         player.add(pointLight);
     }
 
-    loadPreviewModel(element, modelFile) {
+    async loadPreviewModel(element, modelFile) {
         if (element.previewRenderer) element.removeChild(element.previewRenderer.domElement);
         const scene = new THREE.Scene();
-        const modelName = modelFile.split('/').pop().replace('.glb', '');
-        const previewUrl = `${ASSET_BASE_URL}${modelName}_medium.glb`;
+        const modelAsset = await resolveModelAsset(modelFile, 'player');
+        const previewUrl = modelAsset.url;
         const camera = new THREE.PerspectiveCamera(50, element.clientWidth / element.clientHeight, 0.1, 100);
         camera.position.set(0, 1.5, 3);
         camera.lookAt(0, 1, 0);

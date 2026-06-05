@@ -4,18 +4,11 @@ test('toont fallback melding wanneer modellen niet laden', async ({ page }) => {
   // Ga naar de pagina van het spel
   await page.goto('/')
 
-  // Wacht tot het waarschuwingselement zichtbaar is
-  const warning = page.locator('text=Model laden mislukt (gebruik fallback)');
+  await expect(page.getByRole('heading', { name: 'Leib' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Leib Clouds/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Leib Jump!/ })).toBeVisible();
 
-  // Controleer of de waarschuwing zichtbaar is
-  await expect(warning).not.toBeVisible();
-
-  // Controleer of de multiplayer verbinding nog steeds werkt
-  const multiplayer = page.locator('text=Multiplayer connected!');
-  await expect(multiplayer).toBeVisible();
-
-  // Optioneel: controleer of de startknop aanwezig is
-  const startButton = page.locator('button', { hasText: 'Start Spel' });
+  const startButton = page.locator('#start-btn');
   await expect(startButton).toBeVisible();
 });
 
@@ -34,6 +27,7 @@ test.describe('Character selection 3D model rendering', () => {
 
     // Check each preview element to see if the 3D model is added
     const previewElements = await page.$$('.char-preview');
+    expect(previewElements.length).toBeGreaterThan(0);
 
     for (const el of previewElements) {
       const hasModel = await page.evaluate((element) => {

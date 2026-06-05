@@ -2,22 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
+import { resolveAssetUrl, getPreferredQuality } from './asset-library.js';
 
-// Hulpfunctie om de graphics setting op te halen (high/low)
-function getQualitySuffix() {
-    try {
-        const saved = localStorage.getItem('leib_settings');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            // Als graphics 'low' is, return '_low', anders '_high'
-            return parsed.graphics === 'low' ? '_low' : '_high';
-        }
-    } catch (e) { console.warn(e); }
-    return '_high'; // Default fallback
-}
-
-const QUALITY_SUFFIX = getQualitySuffix();
-console.log("🌍 World loading assets with quality:", QUALITY_SUFFIX);
+console.log("🌍 World loading assets with quality:", getPreferredQuality());
 
 let worldUnsubscribe = null;
 
@@ -40,10 +27,8 @@ dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
-const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
-
 // Load Coin GLB
-gltfLoader.load(`${ASSET_BASE_URL}coin${QUALITY_SUFFIX}.glb`, (gltf) => {
+loadWorldModel('collectible', 'collectible_coin', (gltf) => {
     cachedCoinScene = gltf.scene;
     cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE);
     cachedCoinScene.traverse((child) => {
@@ -52,12 +37,12 @@ gltfLoader.load(`${ASSET_BASE_URL}coin${QUALITY_SUFFIX}.glb`, (gltf) => {
         }
     });
     console.log("🪙 Coin model loaded successfully!");
-}, undefined, (err) => {
+}, (err) => {
     console.warn("Could not load coin.glb, using fallback cylinder.", err);
 });
 
 // Load Enemy GLB
-gltfLoader.load(`${ASSET_BASE_URL}enemy${QUALITY_SUFFIX}.glb`, (gltf) => {
+loadWorldModel('enemy', 'enemy_cloud_imp', (gltf) => {
     cachedEnemyGLTF = gltf;
     cachedEnemyGLTF.scene.traverse((child) => {
         if (child.isMesh) {
@@ -65,9 +50,18 @@ gltfLoader.load(`${ASSET_BASE_URL}enemy${QUALITY_SUFFIX}.glb`, (gltf) => {
         }
     });
     console.log("😈 Enemy model loaded successfully!");
-}, undefined, (err) => {
+}, (err) => {
     console.warn("Could not load enemy.glb, using fallback placeholder.", err);
 });
+
+async function loadWorldModel(purpose, assetId, onLoad, onError) {
+    try {
+        const url = await resolveAssetUrl(assetId, { purpose, quality: getPreferredQuality() });
+        gltfLoader.load(url, onLoad, undefined, onError);
+    } catch (error) {
+        onError(error);
+    }
+}
 
 
 // --- WORLD SYNC LOGIC ---
@@ -572,9 +566,8 @@ function createRonnieStall(scene, position) {
 
 
 export function loadRonnie(scene, gltfLoader, position) {
-    const suffix = getQualitySuffix();
-
-    gltfLoader.load(`${ASSET_BASE_URL}ronnie${suffix}.glb`, (gltf) => {
+    resolveAssetUrl('npc_ronnie', { purpose: 'npc', quality: getPreferredQuality() }).then((url) => {
+        gltfLoader.load(url, (gltf) => {
         const ronnie = gltf.scene;
         ronnie.scale.set(1.3, 1.3, 1.3);
         ronnie.position.set(position.x, position.y, position.z);
@@ -611,7 +604,8 @@ export function loadRonnie(scene, gltfLoader, position) {
         window.ronnie = ronnie;
 
         console.log("🧥 Ronnie (met E-prompt) is aanwezig.");
-    }, undefined, (err) => console.warn("Ronnie model niet gevonden.", err));
+        }, undefined, (err) => console.warn("Ronnie model niet gevonden.", err));
+    }).catch((err) => console.warn("Ronnie asset niet gevonden.", err));
 }
 
 export function summonCloudPlatform(playerPos, scene, platforms, texture) {

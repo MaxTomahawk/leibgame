@@ -1,7 +1,7 @@
 {
   "name": "leibgame",
   "version": "1.0.0",
-  "description": "a third person RPG platformer  can you reach the castle of king willem?",
+  "description": "Leib multi-game platform featuring Leib Clouds and Leib Jump!",
   "main": "main.js",
   "scripts": {
     "test:e2e": "npx playwright test"

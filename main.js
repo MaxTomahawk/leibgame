@@ -13,6 +13,9 @@ import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
 import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
+import { getAudioAssetMap, getPlayerModelAssets, getTextureUrl } from './asset-library.js';
+import { LEIB_CLOUDS_ID, LEIB_JUMP_ID, LEIB_PLATFORM_GAMES } from './games.js';
+import { LeibJumpGame } from './leib-jump.js';
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
@@ -47,7 +50,9 @@ async function loadMultiplayerModules() {
 }
 
 
-let selectedModelFile = 'leib.glb'; // default
+let selectedModelFile = 'player_leib'; // default
+let selectedGameId = LEIB_CLOUDS_ID;
+let activeGameId = LEIB_CLOUDS_ID;
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 // --- PHYSICS & GAMEPLAY SETTINGS ---
@@ -96,11 +101,10 @@ let jumpCount = 0;
 let isGliding = false;
 let weatherSystem;
 let lastFrameTime = 0;
+let jumpGame = null;
 
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
-
-const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
 
 // Trip Mode Variables
 let isTripping = false;
@@ -122,27 +126,31 @@ fetch('version.json')
     });
 
 function handleMobileControls(mobile) {
-    mobile.onJump = () => performJump(!isFemaleCharacter());
-    mobile.onShoot = () => performShoot();
-    mobile.onAbility = () => activateWeed();
+    mobile.onJump = () => requestJump();
+    mobile.onShoot = () => {
+        if (activeGameId === LEIB_CLOUDS_ID) performShoot();
+    };
+    mobile.onAbility = () => {
+        if (activeGameId === LEIB_CLOUDS_ID) activateWeed();
+    };
 
     // Ability: Cloud
     mobile.onCloud = () => {
-        if (shopSystem && shopSystem.hasCloudAbility()) {
+        if (activeGameId === LEIB_CLOUDS_ID && shopSystem && shopSystem.hasCloudAbility()) {
             summonCloudPlatform(player.position, scene, platforms, platformTexture);
         }
     };
 
     // Ability: Glide
     mobile.onGlide = () => {
-        if (shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
+        if (activeGameId === LEIB_CLOUDS_ID && shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
             isGliding = !isGliding;
         }
     };
 
     // Interaction (Tapping the floating finger)
     mobile.onInteract = () => {
-        if (window.ronnie && shopSystem) {
+        if (activeGameId === LEIB_CLOUDS_ID && window.ronnie && shopSystem) {
             const dist = player.position.distanceTo(window.ronnie.position);
             if (dist < 5) {
                 resetMovementFlags();
@@ -254,6 +262,20 @@ window.onload = async () => {
     // Setup theme toggle using the defined logic
     uiManager.setupThemeToggle(settingsManager, applyThemeSettings);
 
+    uiManager.renderGameSelection(LEIB_PLATFORM_GAMES, selectedGameId);
+    uiManager.onGameSelect((gameId) => {
+        selectedGameId = gameId;
+    });
+
+    try {
+        const playerModels = await getPlayerModelAssets();
+        uiManager.renderCharacterOptions(playerModels);
+        const leibModel = playerModels.find(model => model.id === 'player_leib') || playerModels[0];
+        if (leibModel) selectedModelFile = leibModel.id;
+    } catch (error) {
+        console.warn('Could not load dynamic character catalog:', error);
+    }
+
     initThreeJS();
 
     // Apply the saved theme immediately after initialization
@@ -326,19 +348,11 @@ function checkIfReadyToStart() {
     }
 }
 
-const AUDIO_ASSETS = {
-    bgm: `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
-    jump: `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
-    jump_female: `${ASSET_BASE_URL}sounds/effects/female_jump.wav`,
-    coin: `${ASSET_BASE_URL}sounds/effects/coin.wav`,
-    hava: `${ASSET_BASE_URL}sounds/effects/hava.wav`,
-    shoot: `${ASSET_BASE_URL}sounds/effects/spit.wav`,
-    fail: `${ASSET_BASE_URL}sounds/effects/fail.wav`,
-    win: `${ASSET_BASE_URL}sounds/effects/win.wav`
-};
+let AUDIO_ASSETS = {};
 
 async function setupAudio() {
     audioManager = new AudioManager(camera);
+    AUDIO_ASSETS = await getAudioAssetMap();
     const loadPromises = Object.entries(AUDIO_ASSETS).map(([key, path]) => {
         return audioManager.load(key, path);
     });
@@ -411,9 +425,10 @@ function initThreeJS() {
     textureLoader = new THREE.TextureLoader();
     renderer.outputEncoding = THREE.sRGBEncoding;
 
-    platformTexture = textureLoader.load(
-        `${ASSET_BASE_URL}hava.png`,
-        (tex) => {
+    getTextureUrl('texture_cloud_tile').then((textureUrl) => {
+        platformTexture = textureLoader.load(
+            textureUrl,
+            (tex) => {
             tex.encoding = THREE.sRGBEncoding;
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
@@ -431,10 +446,11 @@ function initThreeJS() {
                 }
             });
             console.log("Platform texture loaded.");
-        },
-        undefined,
-        (err) => console.warn("Failed to load hava.png", err)
-    );
+            },
+            undefined,
+            (err) => console.warn("Failed to load cloud platform texture", err)
+        );
+    });
 
     player = new THREE.Object3D();
     player.position.set(0, 5, 0);
@@ -498,10 +514,10 @@ function activateWeed() {
     }, BUFF_DURATION);
 }
 
-function endGame(reason, won = false) {
-    if (!won) {
+function endGame(reason, won = false, options = {}) {
+    if (options.playSound !== false && !won) {
         audioManager.playSFX('fail')
-    } else {
+    } else if (options.playSound !== false) {
         audioManager.playSFX('win')
     }
     window.gameState = 'ended';
@@ -544,6 +560,46 @@ function getNearestPlayerPosition(enemyPosition) {
         });
     }
     return closestTarget;
+}
+
+function ensureJumpGame() {
+    if (jumpGame) return jumpGame;
+
+    jumpGame = new LeibJumpGame({
+        scene,
+        camera,
+        player,
+        modelManager,
+        uiManager,
+        audioManager,
+        onCoins: (amount) => {
+            coinsCollected += amount;
+            uiManager.updateHUD({ coins: coinsCollected });
+            saveUserProgress();
+        },
+        onStars: (amount) => {
+            starsCollected += amount;
+            uiManager.updateHUD({ stars: starsCollected });
+            saveUserProgress();
+        },
+        onComplete: (message) => {
+            endGame(message, true, { playSound: false });
+        },
+        onFail: (reason) => {
+            endGame(reason, false, { playSound: false });
+        }
+    });
+
+    return jumpGame;
+}
+
+function getMovementInputState() {
+    return {
+        forward: moveF,
+        backward: moveB,
+        left: moveL,
+        right: moveR
+    };
 }
 
 // --- GAME LOOP ---
@@ -609,6 +665,12 @@ function animate(time) {
     }
 
     if (window.gameState === 'playing') {
+        if (activeGameId === LEIB_JUMP_ID && jumpGame?.isActive()) {
+            jumpGame.update(delta, getMovementInputState());
+            renderer.render(scene, camera);
+            return;
+        }
+
         const currentWeather = weatherSystem.getCurrentWeather();
         const weatherType = currentWeather === 'night' ? 'night' : 'day';
         let targetBg = isTripping ? COLORS.trip.bg : COLORS[weatherType].bg;
@@ -963,6 +1025,15 @@ function animate(time) {
     }
 }
 
+function requestJump() {
+    if (activeGameId === LEIB_JUMP_ID && jumpGame?.isActive()) {
+        jumpGame.jump(!isFemaleCharacter());
+        return;
+    }
+
+    performJump(!isFemaleCharacter());
+}
+
 function performJump(male=true) {
     const mods = settingsManager.get('modifiers');
     const maxJumps = shopSystem ? shopSystem.getMaxJumps() : 1;
@@ -989,9 +1060,10 @@ function performJump(male=true) {
 let flameTexture;
 let flameMaterial;
 
-function initFireballAssets() {
+async function initFireballAssets() {
     // 🔥 Load flame sprite texture ONCE
-    flameTexture = new THREE.TextureLoader().load(`${ASSET_BASE_URL}fire.png`);
+    const fireTextureUrl = await getTextureUrl('texture_fireball');
+    flameTexture = new THREE.TextureLoader().load(fireTextureUrl);
     flameTexture.encoding = THREE.sRGBEncoding;
     renderer.outputEncoding = THREE.sRGBEncoding;
 
@@ -1096,8 +1168,9 @@ function setupInputs() {
     uiManager.onStart(async (name) => {
         if (name) myName = name;
         uiManager.startGameUI(myName);
+        activeGameId = selectedGameId;
 
-        if (FEATURES.MULTIPLAYER && firebaseModule && db) {
+        if (activeGameId === LEIB_CLOUDS_ID && FEATURES.MULTIPLAYER && firebaseModule && db) {
             try {
                 const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
                 const appearance = player.userData.appearance;
@@ -1120,6 +1193,19 @@ function setupInputs() {
         if (audioManager) {
             audioManager.playMusic('bgm');
         }
+
+        if (activeGameId === LEIB_JUMP_ID) {
+            resetMovementFlags();
+            const game = ensureJumpGame();
+            await game.start(uiManager.getJumpDifficulty());
+            window.gameState = 'playing';
+            if (mobile && mobile.enabled) {
+                mobile.start();
+            }
+            return;
+        }
+
+        if (window.ronnie) window.ronnie.visible = true;
 
         const worldUI = {
             progressBar: uiManager.dom.progressBar,
@@ -1199,7 +1285,7 @@ function setupInputs() {
     });
 
     document.addEventListener('mousemove', e => {
-        if (window.gameState === 'playing') {
+        if (window.gameState === 'playing' && activeGameId === LEIB_CLOUDS_ID) {
             // Haal de sensitivity op uit de settingsManager
             const sens = settingsManager.get('sensitivity') || 1.0;
             const baseSens = 0.002;
@@ -1249,10 +1335,10 @@ function setupInputs() {
         if (action === 'left') moveL = true;
         if (action === 'right') moveR = true;
         if (action === 'sprint') isSprinting = true;
-        if (action === 'jump') performJump(!isFemaleCharacter());
+        if (action === 'jump') requestJump();
 
         // INTERACTIE (E) - Praten met Ronnie
-        if (action === 'interact') {
+        if (activeGameId === LEIB_CLOUDS_ID && action === 'interact') {
             if (window.ronnie && shopSystem) {
                 const dist = player.position.distanceTo(window.ronnie.position);
                 if (dist < 5) {
@@ -1270,13 +1356,13 @@ function setupInputs() {
         }
 
         // ABILITY (1) - Cloud Summon
-        if (action === 'cloud') {
+        if (activeGameId === LEIB_CLOUDS_ID && action === 'cloud') {
             if (shopSystem && shopSystem.hasCloudAbility()) {
                 summonCloudPlatform(player.position, scene, platforms, platformTexture);
             }
         }
 
-        if (action === 'glide') {
+        if (activeGameId === LEIB_CLOUDS_ID && action === 'glide') {
             // Mag alleen als: Ronnie shop item gekocht is, we in de lucht zijn, en niet aan het vallen in de 'afgrond' (optioneel)
             if (shopSystem && shopSystem.hasGlideAbility() && !isGrounded) {
                 isGliding = !isGliding;
@@ -1299,23 +1385,19 @@ function setupInputs() {
         if (window.gameState !== 'playing') return;
 
         // Linker muisknop (0) = Schieten
-        if (e.button === 0) {
+        if (activeGameId === LEIB_CLOUDS_ID && e.button === 0) {
             performShoot();
         }
 
         // Rechter muisknop (2) = Oude Weed Actie
-        if (e.button === 2) {
+        if (activeGameId === LEIB_CLOUDS_ID && e.button === 2) {
             activateWeed();
         }
     });
 }
 
 function isFemaleCharacter() {
-    // Add your female model filenames here
-    const femaleModels = ['https://MaxTomahawk.github.io/leibgame-assets/assets/katinka.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_low.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_ultra.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_medium.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_high.glb']; 
-    let result = femaleModels.includes(selectedModelFile);
-    console.log('modal is: ', selectedModelFile)
-    console.log('femaleModels is: ', femaleModels)
-    console.log('result is: ', result)
-    return result;
+    const appearance = player?.userData?.appearance;
+    if (appearance?.gender) return appearance.gender === 'F';
+    return String(selectedModelFile).toLowerCase().includes('katinka');
 }

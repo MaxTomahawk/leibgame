@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { setDoc, doc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { resolveModelAsset } from './asset-library.js';
 
 
 let otherPlayers = {};
 let playersUnsubscribe = null; // ✅ Store unsubscribe function
-
-const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
 
 function listenToPlayers(scene, userId, ui, db) {
     const playersRef = collection(db, "players");
@@ -44,26 +43,11 @@ function listenToPlayers(scene, userId, ui, db) {
 
                 // Mesh (GLB or fallback box)
                 if (appearance.model) {
-                    // --- NEW CODE START ---
-                    
-                    // Retrieve graphics settings from local storage to determine quality
-                    let quality = 'high';
-                    try {
-                        const saved = localStorage.getItem('leib_settings');
-                        if (saved) {
-                            const parsed = JSON.parse(saved);
-                            if (parsed.graphics) quality = parsed.graphics;
-                        }
-                    } catch(e) { console.warn("Could not read graphics setting", e); }
+                    resolveModelAsset(appearance.model, 'player').then(({ url }) => {
+                        const remoteUrl = url;
+                        console.log(`[Loader] Loading model for ${id}:`, remoteUrl);
 
-                    // Modify the filename to load the correct quality version (e.g., _high.glb or _low.glb)
-                    const remoteUrl = appearance.model.replace('.glb', `_${quality}.glb`);
-                    
-                    console.log(`[Loader] Loading model for ${id}:`, remoteUrl);
-                    
-                    // --- NEW CODE END ---
-
-                    loader.load(
+                        loader.load(
                         remoteUrl, // Load the quality-specific file
                         (gltf) => {
                             console.log(`[Loader] Model loaded for ${id}`);
@@ -78,36 +62,15 @@ function listenToPlayers(scene, userId, ui, db) {
                                 if (gltf.animations && gltf.animations.length > 0) {
                                     mixer = new THREE.AnimationMixer(mesh);
 
-                                    const ANIMATION_MAPPING = {
-                                        '${ASSET_BASE_URL}katinka.glb': { idle: 10, run: 0, jump: 9 },
-                                        '${ASSET_BASE_URL}marco.glb': { idle: 5, run: 2, jump: 0 },
-                                        '${ASSET_BASE_URL}leib.glb': { 
-                                            idle: 8, 
-                                            walk: 7, 
-                                            run: 6, 
-                                            jump_up: 4, 
-                                            falling_idle: 2, 
-                                            landing: 0, 
-                                            walk_backwards: 9,
-                                            strafe_left: 3, 
-                                            strafe_right: 1,
-                                            glide: 5
-                                        },
-                                        '${ASSET_BASE_URL}weissman.glb': { idle: 7, run: 2, jump: 6 }
-                                    };
-                                    
-                                    // Use the original model name for mapping logic, not the quality specific filename
-                                    const mapping = ANIMATION_MAPPING[appearance.model] || ANIMATION_MAPPING['${ASSET_BASE_URL}katinka.glb'];
-                                    
-                                    for (const animName in mapping) {
-                                        const index = mapping[animName];
-                                        if (gltf.animations[index]) {
-                                            animations[animName] = mixer.clipAction(gltf.animations[index]);
-                                        }
+                                    for (const clip of gltf.animations) {
+                                        let cleanName = clip.name;
+                                        if (cleanName.includes('|')) cleanName = cleanName.split('|').pop();
+                                        cleanName = cleanName.split('.')[0];
+                                        animations[cleanName] = mixer.clipAction(clip);
                                     }
 
                                     for (const action of Object.values(animations)) {
-                                        if (appearance.model === '${ASSET_BASE_URL}weissman.glb' && action.getClip().name === 'jump') {
+                                        if (action.getClip().name === 'jump') {
                                             action.setLoop(THREE.LoopOnce);
                                             action.clampWhenFinished = true;
                                         } else {
@@ -174,7 +137,22 @@ function listenToPlayers(scene, userId, ui, db) {
                                 currentModel: appearance.model 
                             };
                         }
-                    );
+                        );
+                    }).catch((err) => {
+                        console.warn(`[Loader] Failed to resolve model for ${id}, using fallback`, err);
+                        const mesh = new THREE.Mesh(
+                            new THREE.BoxGeometry(1, 2, 1),
+                            new THREE.MeshStandardMaterial({ color: 0xff0000 })
+                        );
+                        container.add(mesh);
+                        otherPlayers[id] = {
+                            container,
+                            mesh,
+                            label,
+                            lastSeen: now,
+                            currentModel: appearance.model
+                        };
+                    });
                 } else {
                     const mesh = new THREE.Mesh(
                         new THREE.BoxGeometry(1, 2, 1),

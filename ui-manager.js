@@ -19,8 +19,12 @@ export class UIManager {
             authError: document.getElementById('auth-error'),
 
             // Character Selection
+            charOptions: document.getElementById('character-options'),
             charPreviews: document.querySelectorAll('.char-preview'),
             usernameInput: document.getElementById('username-input'),
+            gameSelection: document.getElementById('game-selection'),
+            jumpOptions: document.getElementById('jump-options'),
+            jumpDifficulty: document.getElementById('jump-difficulty'),
 
             // HUD
             uiContainer: document.querySelector('.ui-container'),
@@ -129,6 +133,61 @@ export class UIManager {
 
     // --- EVENT BINDING ---
 
+    renderGameSelection(games, selectedGameId) {
+        if (!this.dom.gameSelection) return;
+
+        this.dom.gameSelection.innerHTML = games.map(game => `
+            <button type="button"
+                class="game-select-card border rounded-lg p-4 input-border hover:border-indigo-600 dark:hover:border-indigo-400 transition text-left ${game.id === selectedGameId ? 'selected' : ''}"
+                data-game-id="${game.id}">
+                <div class="font-bold text-lg text-primary">${game.title}</div>
+                <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2">${game.tagline}</div>
+                <p class="text-xs text-secondary">${game.description}</p>
+            </button>
+        `).join('');
+
+        this.updateJumpOptions(selectedGameId);
+    }
+
+    onGameSelect(callback) {
+        if (!this.dom.gameSelection) return;
+
+        this.dom.gameSelection.addEventListener('click', (event) => {
+            const card = event.target.closest('.game-select-card');
+            if (!card) return;
+
+            this.dom.gameSelection.querySelectorAll('.game-select-card').forEach(item => item.classList.remove('selected'));
+            card.classList.add('selected');
+            this.updateJumpOptions(card.dataset.gameId);
+            callback(card.dataset.gameId);
+        });
+    }
+
+    updateJumpOptions(gameId) {
+        if (!this.dom.jumpOptions) return;
+        this.dom.jumpOptions.classList.toggle('hidden', gameId !== 'leib-jump');
+    }
+
+    getJumpDifficulty() {
+        return this.dom.jumpDifficulty?.value || 'normal';
+    }
+
+    renderCharacterOptions(models) {
+        if (!this.dom.charOptions) return;
+
+        this.dom.charOptions.innerHTML = models.map((model, index) => `
+            <button type="button"
+                class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border ${index === 0 ? 'selected' : ''}"
+                data-model="${model.id}"
+                title="${model.displayName || model.id}"
+                style="width:120px; height:170px;">
+                <span class="block text-xs font-bold text-center text-label mb-1">${model.displayName || model.id}</span>
+            </button>
+        `).join('');
+
+        this.dom.charPreviews = document.querySelectorAll('.char-preview');
+    }
+
     onStart(callback) {
         this.dom.startBtn.addEventListener('click', () => {
             const name = this.dom.usernameInput.value.trim();
@@ -149,6 +208,7 @@ export class UIManager {
     }
 
     getCharacterPreviewElements() {
+        this.dom.charPreviews = document.querySelectorAll('.char-preview');
         return this.dom.charPreviews;
     }
 

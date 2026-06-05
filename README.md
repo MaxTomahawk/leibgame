@@ -1,8 +1,14 @@
-# Leib the Game
+# Leib Platform
 
-A third-person RPG platformer.
+Leib is a multi-game browser platform centered around Leib.
 
-*Can you reach the castle of King Willem?*
+## Games
+
+### Leib Clouds
+The original third-person cloud RPG platformer. *Can you reach the castle of King Willem?*
+
+### Leib Jump!
+A 2D side-scrolling platformer with procedurally generated, validated-completable levels. Higher difficulty levels add tighter jumps and more hazards, but pay larger coin and star rewards.
 
 ## 📚 Content
 * [✨ Amazing Features](#-amazing-features)
@@ -17,7 +23,9 @@ A third-person RPG platformer.
 
 ## ✨ Amazing Features
 
-* **Platforming Action:** Jump across clouds, dodge enemies, and navigate procedural worlds.
+* **Multi-game launcher:** Choose between Leib Clouds and Leib Jump! from the start screen.
+* **Platforming Action:** Jump across clouds, dodge enemies, and navigate procedural worlds in Leib Clouds.
+* **2D Platforming:** Run through validated-completable side-scrolling levels in Leib Jump!.
 * **Combat System:** Spit at enemies to turn them into collectable Stars.
 * **Special Abilities:** Unlock powerful moves like **Double/Triple Jump**, **Cloud Summoning**, and **Gliding**.
 * **Trip Mode:** A unique visual and gameplay modifier that alters gravity and atmosphere.
@@ -84,7 +92,10 @@ Then navigate to `http://localhost:8000` in your browser.
 
 We use an automated asset optimization pipeline to ensure the game runs smoothly on high-end PCs and mobile devices alike.
 
-* **Asset Workflow:** Want to add new 3D models? Please read the **[Asset Workflow Wiki](https://github.com/MaxTomahawk/leibgame-assets/wiki/Workflow:-optimizing-assets)** for instructions on using the `optimize-assets.js` script.
+* **Asset Workflow:** Want to add new 3D models? Please read the **[Asset Workflow Wiki](https://github.com/MaxTomahawk/leibgame-assets/wiki/Workflow:-optimizing-assets)** for instructions on using the optimizer.
+* **Dynamic Asset Library:** Published assets are discovered from `assets/asset-manifest.json` in `leibgame-assets`.
+  * Model files use `<purpose>_<name>_<quality>.glb`, for example `player_leib_high.glb`, `npc_ronnie_medium.glb`, `enemy_cloud_imp_low.glb`, and `collectible_coin_ultra.glb`.
+  * The game filters by purpose (`player`, `npc`, `enemy`, `collectible`, `texture`, `audio`) so adding/removing manifest entries updates what games can load without hardcoding each asset.
 
 ## 🧪 Playwright Tests
 
