@@ -12,9 +12,9 @@ test('toont fallback melding wanneer modellen niet laden', async ({ page }) => {
   await expect(startButton).toBeVisible();
 });
 
-test.describe('Character selection 3D model rendering', () => {
+test.describe('Character selection catalog rendering', () => {
 
-  test('should render a 3D model under "kies je karakter"', async ({ page }) => {
+  test('should render dynamic character choices under "Choose your character"', async ({ page }) => {
     // Load your page
     await page.goto('/'); // Replace with your dev URL
 
@@ -22,20 +22,15 @@ test.describe('Character selection 3D model rendering', () => {
     const charContainer = page.locator('#character-selection');
     await expect(charContainer).toBeVisible();
 
-    // Wait a bit for the 3D models to load asynchronously
-    await page.waitForTimeout(3000);
-
-    // Check each preview element to see if the 3D model is added
     const previewElements = await page.$$('.char-preview');
     expect(previewElements.length).toBeGreaterThan(0);
 
     for (const el of previewElements) {
-      const hasModel = await page.evaluate((element) => {
-        // previewModel is added when GLB loads
-        return !!element.previewModel;
+      const modelId = await page.evaluate((element) => {
+        return element.dataset.model;
       }, el);
 
-      expect(hasModel).toBeTruthy(); // Fails if the model isn't loaded
+      expect(modelId).toMatch(/^player_/);
     }
   });
 
