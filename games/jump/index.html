@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Leib Jump!</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="../../favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js" } }
+    </script>
+</head>
+<body>
+    <div id="start-screen" class="overlay active">
+        <div class="menu-card">
+            <a href="../../index.html" class="text-sm text-indigo-500 hover:text-indigo-700 mb-3 inline-block">← Back to Leib Platform</a>
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-1">Leib Jump!</h1>
+            <p class="text-gray-500 mb-6">NSMB-style side-scrolling platformer</p>
+
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Difficulty</label>
+                <div class="flex gap-2 justify-center flex-wrap">
+                    <button class="diff-btn easy" data-diff="easy">Easy ×1</button>
+                    <button class="diff-btn normal selected" data-diff="normal">Normal ×2</button>
+                    <button class="diff-btn hard" data-diff="hard">Hard ×4</button>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">Harder levels = bigger coin rewards</p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Character</label>
+                <div id="char-container" class="flex gap-3 justify-center flex-wrap"></div>
+            </div>
+
+            <button id="start-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full text-lg transition disabled:opacity-50" disabled>
+                Loading...
+            </button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="overlay">
+        <div class="menu-card">
+            <h1 id="go-title" class="text-3xl font-bold mb-2">Level Complete!</h1>
+            <p id="go-score" class="text-gray-600 mb-4"></p>
+            <button id="restart-btn" class="bg-green-500 text-white px-6 py-3 rounded-full font-bold mr-2">Play Again</button>
+            <a href="../../index.html" class="inline-block bg-gray-200 text-gray-800 px-6 py-3 rounded-full font-bold">Hub</a>
+        </div>
+    </div>
+
+    <div class="hud" style="display:none" id="hud">
+        <div>🪙 <span id="score-display">0</span> <span class="text-xs opacity-70" id="mult-display">×1</span></div>
+        <div id="level-display" class="text-sm opacity-80">Level 1</div>
+        <div>⭐ <span id="star-display">0</span></div>
+    </div>
+
+    <div class="mobile-controls" id="mobile-controls">
+        <button class="mob-btn mob-left" id="mob-left">◀</button>
+        <button class="mob-btn mob-right" id="mob-right">▶</button>
+        <button class="mob-btn mob-jump" id="mob-jump">▲</button>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

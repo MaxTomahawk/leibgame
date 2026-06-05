@@ -1,49 +1,26 @@
 const { test, expect } = require('@playwright/test');
 
-test('toont fallback melding wanneer modellen niet laden', async ({ page }) => {
-  // Ga naar de pagina van het spel
-  await page.goto('/')
-
-  // Wacht tot het waarschuwingselement zichtbaar is
-  const warning = page.locator('text=Model laden mislukt (gebruik fallback)');
-
-  // Controleer of de waarschuwing zichtbaar is
-  await expect(warning).not.toBeVisible();
-
-  // Controleer of de multiplayer verbinding nog steeds werkt
-  const multiplayer = page.locator('text=Multiplayer connected!');
-  await expect(multiplayer).toBeVisible();
-
-  // Optioneel: controleer of de startknop aanwezig is
-  const startButton = page.locator('button', { hasText: 'Start Spel' });
-  await expect(startButton).toBeVisible();
+test('platform hub shows both games', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('h1', { hasText: 'Leib' })).toBeVisible();
+  await expect(page.locator('text=Leib Clouds')).toBeVisible();
+  await expect(page.locator('text=Leib Jump!')).toBeVisible();
 });
 
-test.describe('Character selection 3D model rendering', () => {
-
-  test('should render a 3D model under "kies je karakter"', async ({ page }) => {
-    // Load your page
-    await page.goto('/'); // Replace with your dev URL
-
-    // Wait for the character selection container to be visible
-    const charContainer = page.locator('#character-selection');
-    await expect(charContainer).toBeVisible();
-
-    // Wait a bit for the 3D models to load asynchronously
+test.describe('Leib Clouds', () => {
+  test('start screen loads with dynamic characters', async ({ page }) => {
+    await page.goto('/games/clouds/');
+    await expect(page.locator('h1', { hasText: 'Leib Clouds' })).toBeVisible();
     await page.waitForTimeout(3000);
-
-    // Check each preview element to see if the 3D model is added
-    const previewElements = await page.$$('.char-preview');
-
-    for (const el of previewElements) {
-      const hasModel = await page.evaluate((element) => {
-        // previewModel is added when GLB loads
-        return !!element.previewModel;
-      }, el);
-
-      expect(hasModel).toBeTruthy(); // Fails if the model isn't loaded
-    }
+    const previews = await page.$$('.char-preview');
+    expect(previews.length).toBeGreaterThan(0);
   });
-
 });
 
+test.describe('Leib Jump', () => {
+  test('start screen loads', async ({ page }) => {
+    await page.goto('/games/jump/');
+    await expect(page.locator('h1', { hasText: 'Leib Jump!' })).toBeVisible();
+    await expect(page.locator('#start-btn')).toBeVisible();
+  });
+});

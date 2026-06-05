@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
+import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition, preloadWorldAssets } from './world.js';
 import { MobileControls } from './mobile-controls.js';
-import { AudioManager } from './audio-manager.js';
-import { ModelManager } from './model-manager.js';
+import { AudioManager } from '../../shared/audio-manager.js';
+import { ModelManager } from '../../shared/model-manager.js';
 import { UIManager } from './ui-manager.js';
 import { ShopSystem } from './shop-system.js';
-import { SettingsManager } from './settings-manager.js';
+import { SettingsManager } from '../../shared/settings-manager.js';
 import { loadRonnie, summonCloudPlatform } from './world.js';
+import { assetRegistry } from '../../shared/asset-registry.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { WeatherSystem } from './weather.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
@@ -47,7 +48,7 @@ async function loadMultiplayerModules() {
 }
 
 
-let selectedModelFile = 'leib.glb'; // default
+let selectedModelId = 'leib';
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 // --- PHYSICS & GAMEPLAY SETTINGS ---
@@ -100,8 +101,6 @@ let lastFrameTime = 0;
 const raycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
 
-const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
-
 // Trip Mode Variables
 let isTripping = false;
 let tripTimer = null;
@@ -109,7 +108,7 @@ let currentGravity = 20.0;
 let targetGravity = 20.0;
 
 // Fetch version on load
-fetch('version.json')
+fetch('../../version.json')
     .then(r => r.json())
     .then(v => {
         gameVersion = v;
@@ -254,6 +253,10 @@ window.onload = async () => {
     // Setup theme toggle using the defined logic
     uiManager.setupThemeToggle(settingsManager, applyThemeSettings);
 
+    await assetRegistry.load();
+    await populateCharacterSelection();
+    await preloadWorldAssets();
+
     initThreeJS();
 
     // Apply the saved theme immediately after initialization
@@ -326,22 +329,11 @@ function checkIfReadyToStart() {
     }
 }
 
-const AUDIO_ASSETS = {
-    bgm: `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
-    jump: `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
-    jump_female: `${ASSET_BASE_URL}sounds/effects/female_jump.wav`,
-    coin: `${ASSET_BASE_URL}sounds/effects/coin.wav`,
-    hava: `${ASSET_BASE_URL}sounds/effects/hava.wav`,
-    shoot: `${ASSET_BASE_URL}sounds/effects/spit.wav`,
-    fail: `${ASSET_BASE_URL}sounds/effects/fail.wav`,
-    win: `${ASSET_BASE_URL}sounds/effects/win.wav`
-};
-
 async function setupAudio() {
     audioManager = new AudioManager(camera);
-    const loadPromises = Object.entries(AUDIO_ASSETS).map(([key, path]) => {
-        return audioManager.load(key, path);
-    });
+    await assetRegistry.load();
+    const audioAssets = assetRegistry.buildAudioMap();
+    const loadPromises = Object.entries(audioAssets).map(([key, path]) => audioManager.load(key, path));
     try {
         await Promise.all(loadPromises);
         console.log("🔊 Audio system ready!");
@@ -412,7 +404,7 @@ function initThreeJS() {
     renderer.outputEncoding = THREE.sRGBEncoding;
 
     platformTexture = textureLoader.load(
-        `${ASSET_BASE_URL}hava.png`,
+        assetRegistry.getTextureUrl('hava'),
         (tex) => {
             tex.encoding = THREE.sRGBEncoding;
             tex.wrapS = THREE.RepeatWrapping;
@@ -446,7 +438,7 @@ function initThreeJS() {
     ronnieLoader.setDRACOLoader(dracoLoader);
     loadRonnie(scene, ronnieLoader, { x: 0, y: 1.4, z: 5 });
 
-    modelManager.loadPlayerModel(selectedModelFile, player, {
+    modelManager.loadPlayerModel(selectedModelId, player, {
         onProgress: (type, msg, color) => {
             uiManager.updateStatus(type, msg, color);
         },
@@ -991,7 +983,7 @@ let flameMaterial;
 
 function initFireballAssets() {
     // 🔥 Load flame sprite texture ONCE
-    flameTexture = new THREE.TextureLoader().load(`${ASSET_BASE_URL}fire.png`);
+    flameTexture = new THREE.TextureLoader().load(assetRegistry.getTextureUrl('fire'));
     flameTexture.encoding = THREE.sRGBEncoding;
     renderer.outputEncoding = THREE.sRGBEncoding;
 
@@ -1073,19 +1065,19 @@ function setupInputs() {
         uiManager.onLogout(() => console.log('Auth disabled in offline mode'));
     }
 
-    // Character Selection
+    // Character Selection (populated from asset manifest at startup)
     const previews = uiManager.getCharacterPreviewElements();
     previews.forEach(el => {
         modelManager.loadPreviewModel(el, el.dataset.model);
     });
 
-    uiManager.onCharacterSelect((modelPath) => {
-        selectedModelFile = modelPath;
+    uiManager.onCharacterSelect((modelId) => {
+        selectedModelId = modelId;
         modelManager.dispose();
         if (modelManager.playerModel) {
             player.remove(modelManager.playerModel);
         }
-        modelManager.loadPlayerModel(selectedModelFile, player, {
+        modelManager.loadPlayerModel(selectedModelId, player, {
             onProgress: (t, m, c) => uiManager.updateStatus(t, m, c),
             onLoaded: (t, m, c) => uiManager.updateStatus(t, m, c),
             onError: (t, m, c) => uiManager.updateStatus(t, m, c)
@@ -1311,11 +1303,33 @@ function setupInputs() {
 }
 
 function isFemaleCharacter() {
-    // Add your female model filenames here
-    const femaleModels = ['https://MaxTomahawk.github.io/leibgame-assets/assets/katinka.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_low.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_ultra.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_medium.glb', 'https://MaxTomahawk.github.io/leibgame-assets/assets/katinka_high.glb']; 
-    let result = femaleModels.includes(selectedModelFile);
-    console.log('modal is: ', selectedModelFile)
-    console.log('femaleModels is: ', femaleModels)
-    console.log('result is: ', result)
-    return result;
+    const model = assetRegistry.getModel(selectedModelId);
+    return model?.gender === 'F';
+}
+
+async function populateCharacterSelection() {
+    await assetRegistry.load();
+    const container = document.querySelector('#character-selection .flex');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const players = assetRegistry.getSelectablePlayers();
+
+    players.forEach((playerModel, index) => {
+        const div = document.createElement('div');
+        div.className = 'char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border';
+        div.dataset.model = playerModel.id;
+        div.title = playerModel.displayName || playerModel.id;
+        div.style.width = '120px';
+        div.style.height = '150px';
+        if (playerModel.default || index === 0) div.classList.add('selected');
+        container.appendChild(div);
+    });
+
+    if (players.length > 0) {
+        const defaultPlayer = players.find(p => p.default) || players[0];
+        selectedModelId = defaultPlayer.id;
+    }
+
+    uiManager.dom.charPreviews = document.querySelectorAll('.char-preview');
 }

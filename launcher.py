@@ -43,7 +43,7 @@ def open_browser(url):
             print(f"Open handmatig: {url}")
 
 def main():
-    print("--- Leib Weissman Game Launcher ---")
+    print("--- Leib Platform Launcher ---")
     
     # Navigeer naar de map van het script
     script_dir = os.path.dirname(os.path.abspath(__file__))
