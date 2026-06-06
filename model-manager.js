@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 
-const ASSET_BASE_URL = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
+import { ASSET_BASE_URL } from './asset-config.js';
 
 export const MODEL_SCALES = {
     'assets/katinka.glb': 1,

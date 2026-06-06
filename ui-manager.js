@@ -50,7 +50,7 @@ export class UIManager {
             controlsHint: document.getElementById('controls-hint')
         };
 
-        this.statusMessages = { model: "", firebase: "" };
+        this.statusMessages = { model: '', online: '' };
         
         // Bind internal UI logic (toggles that don't need main.js)
         this._bindInternalEvents();
@@ -102,9 +102,9 @@ export class UIManager {
             messages.push(this.statusMessages.model.text);
             colors.push(this.statusMessages.model.color);
         }
-        if (this.statusMessages.firebase.text) {
-            messages.push(this.statusMessages.firebase.text);
-            colors.push(this.statusMessages.firebase.color);
+        if (this.statusMessages.online.text) {
+            messages.push(this.statusMessages.online.text);
+            colors.push(this.statusMessages.online.color);
         }
 
         const colorPriority = { red: 1, yellow: 2, purple: 3, blue: 4, green: 5 };

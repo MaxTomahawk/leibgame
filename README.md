@@ -80,6 +80,10 @@ python launcher.py
 
 Then navigate to `http://localhost:8000` in your browser.
 
+### Online mode (Supabase)
+
+Multiplayer and cloud progression use Supabase. See **[SUPABASE.md](SUPABASE.md)** for setup (`config.js`, database schema, Realtime).
+
 ## 🎨 Development & Assets
 
 We use an automated asset optimization pipeline to ensure the game runs smoothly on high-end PCs and mobile devices alike.
