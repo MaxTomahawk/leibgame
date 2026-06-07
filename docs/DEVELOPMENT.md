@@ -1,6 +1,8 @@
 # Development guide
 
-Human-friendly setup for **leibgame** + **leibgame-assets**. For coding agents, also read [`AGENTS.md`](../AGENTS.md) and [`docs/AGENT_PROMPTS.md`](AGENT_PROMPTS.md).
+Human-friendly setup for **leibgame** + **leibgame-assets**.
+
+**New agent?** You only say what you want — see [`AGENT_PROMPTS.md`](AGENT_PROMPTS.md). Agents read [`CONTEXT.md`](CONTEXT.md) + [`AGENTS.md`](../AGENTS.md) from the repo.
 
 ## What this project is
 
@@ -36,24 +38,18 @@ npm install
 npx playwright install chromium   # optional, for tests
 ```
 
-### 2. Supabase keys
+### 2. Supabase (already configured)
 
-```bash
-cp config.example.js config.js
-```
+**Nothing to paste.** `config.js` in the repo has dev + prod anon keys and picks the right project automatically:
 
-Edit `config.js` and paste the **anon public key** for:
+| Environment | Project | When |
+|-------------|---------|------|
+| **dev** | Leibgame-dev | `localhost`, Cursor Cloud agents |
+| **prod** | Leibgame | GitHub Pages |
 
-| Environment | Project | When it’s used |
-|-------------|---------|----------------|
-| **dev** | Leibgame-dev (`qriaaekzknwffqlflftx`) | `localhost`, `127.0.0.1`, Cursor Cloud agents |
-| **prod** | Leibgame (`hwpxsaamvtqabtxyndlm`) | `*.github.io` (GitHub Pages) |
+Override: `?supabase=dev` or `?supabase=prod`.
 
-**You only need the dev key for local work.** Prod key is for deployment.
-
-Routing is automatic (`config.js`). Force with `?supabase=dev` or `?supabase=prod`.
-
-If keys are empty → **offline mode** (localStorage only). Status shows “Offline”.
+Clone and run — status should show **Online!** on localhost.
 
 ### 3. Local assets (optional)
 
@@ -163,7 +159,7 @@ npm run optimize -- --help   # script: scripts/optimize-assets.mjs
 
 | Problem | Fix |
 |---------|-----|
-| “Offline” on localhost | Paste **dev** anon key into `config.js` |
+| “Offline” on localhost | Check `config.js` exists; Anonymous auth enabled in Supabase dev project |
 | Models 404 locally | `ln -sf ../leibgame-assets/assets ./assets` |
 | Multiplayer desync | Same `?room=`; Realtime on `rooms` + `room_players` |
 | Playwright hangs | Use `python3 -m http.server 8000`, not `launcher.py` |
