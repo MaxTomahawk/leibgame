@@ -78,17 +78,16 @@ Quick start:
 
 ```bash
 npm install
-cp config.example.js config.js   # paste Leibgame-dev anon key
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
-Open `http://localhost:8000`. Localhost uses the **dev** Supabase project automatically.
+Open `http://localhost:8000`. Supabase is **pre-configured** (`config.js` → dev on localhost).
 
-**Roadmap & agent tasks:** [`docs/ROADMAP.md`](docs/ROADMAP.md) · [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md)
+**New agent:** say what you want — [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md) (repo has the rest in [`docs/CONTEXT.md`](docs/CONTEXT.md)).
 
 ### Online mode (Supabase)
 
-Multiplayer and cloud progression use Supabase. See **[SUPABASE.md](SUPABASE.md)** for setup (`config.js`, database schema, Realtime).
+Multiplayer and cloud saves use Supabase (`config.js` pre-wired). Schema and Realtime: **[SUPABASE.md](SUPABASE.md)**.
 
 ## 🎨 Development & Assets
 

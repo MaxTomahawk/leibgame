@@ -1,82 +1,46 @@
 # AGENTS.md
 
-Instructions for **Cursor Cloud agents** (and humans) working in this workspace.
+## Read first
 
-**Start here:** [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) · [`docs/ROADMAP.md`](docs/ROADMAP.md) · [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md)
+| File | Why |
+|------|-----|
+| [`docs/CONTEXT.md`](docs/CONTEXT.md) | Architecture, Supabase, task specs, rules |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Human-oriented setup (also useful for agents) |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | What’s done / next |
+
+The user gives a **short goal** (see [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md)). You load the rest from here.
 
 ---
 
-## Cursor Cloud specific instructions
+## Cursor Cloud
 
-### Repositories
+### Repos
 
-| Repo | Path | Role |
-|------|------|------|
-| **leibgame** | `repos/leibgame` | Game client (HTML/JS/CSS, Python dev server, Playwright tests) |
-| **leibgame-assets** | `repos/leibgame-assets` | 3D/audio assets + optimize pipeline |
+| Repo | Path |
+|------|------|
+| leibgame | `repos/leibgame` |
+| leibgame-assets | `repos/leibgame-assets` |
 
-Runtime assets default to GitHub Pages CDN. For unreleased GLBs:  
-`ln -sf ../leibgame-assets/assets ./assets` (served as `/assets/` on localhost via `asset-config.js`).
+Optional local assets: `ln -sf ../leibgame-assets/assets ./assets`
 
-### Supabase: always dev in this environment
+### Supabase
 
-`config.js` routes **localhost / 127.0.0.1 → Leibgame-dev** (`qriaaekzknwffqlflftx`).  
-**Do not** point agent testing at the prod project (`hwpxsaamvtqabtxyndlm`) unless the user explicitly asks.
+**Pre-configured in `config.js`.** Do not ask the user for anon keys.
 
-| Project | Ref | Use |
-|---------|-----|-----|
-| Leibgame-dev | `qriaaekzknwffqlflftx` | Local dev, Cloud agents, playtests |
-| Leibgame | `hwpxsaamvtqabtxyndlm` | GitHub Pages only |
+- `localhost` → Leibgame-dev
+- `github.io` → prod
+- `?supabase=dev|prod` override
 
-Paste the **dev anon key** into `config.js` (see `config.example.js`). Empty key → offline mode.
-
-Override: `?supabase=dev` or `?supabase=prod`.
-
-Schema: [`supabase/schema.sql`](supabase/schema.sql). Setup: [`SUPABASE.md`](SUPABASE.md).
-
-### What we are building
-
-- **Now:** Leib Clouds on `main` (single game, Supabase multiplayer).
-- **Next:** Multi-game hub + Leib Jump — see [`docs/ROADMAP.md`](docs/ROADMAP.md).
-- **Do not use** deleted branches `cursor/multi-game-platform-*` or `cursor/multigame-leib-platform-*`.
-
-Use [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md) for the canonical multi-game task description.
-
-### Running the game
-
-From `repos/leibgame`:
+### Run & test
 
 ```bash
+cd repos/leibgame
 python3 -m http.server 8000 --bind 0.0.0.0
-```
-
-Open `http://localhost:8000`.
-
-Avoid `launcher.py` in Cloud/CI — it opens a desktop browser and can hang Playwright.
-
-### Tests
-
-```bash
-npx playwright install chromium   # first time
 npx playwright test tests/example.spec.js tests/model_load.spec.js
-npm run test:e2e
 ```
 
-Start the HTTP server in tmux before Playwright so `reuseExistingServer` works.
+Use HTTP server, not `launcher.py`, for Playwright.
 
-### Multiplayer data model
+### Branches
 
-- `player_profiles` — coins, stars, shop upgrades
-- `rooms` — shared world + collected coins
-- `room_players` — live presence (Realtime)
-- Default room: `main_world`; custom: `?room=code`
-
-### Known quirks
-
-- WebGL required for Start button (`modelLoaded`). Headless Chromium usually works.
-- `leibgame-assets` npm script name vs `scripts/optimize-assets.mjs` path mismatch.
-- No ESLint/TypeScript lint configured.
-
-### Branch naming (Cloud agents)
-
-Use `cursor/<descriptive-name>-1a65` for feature branches.
+`cursor/<name>-1a65` from `main`. Do not use deleted `cursor/multi-game-platform-*` or `cursor/multigame-leib-platform-*`.

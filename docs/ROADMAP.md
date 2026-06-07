@@ -11,8 +11,8 @@
 
 ## In progress
 
-- [ ] **Multi-game platform** — one site, hub + multiple games (agent task — see `docs/AGENT_PROMPTS.md` §1)
-- [ ] **Leib Jump!** — 2.5D side-scrolling platformer as second game (agent task — see §2)
+- [ ] **Multi-game platform** — one site, hub + multiple games (tell agent: see `docs/AGENT_PROMPTS.md` step 1)
+- [ ] **Leib Jump!** — 2.5D side-scrolling platformer as second game (step 2)
 
 ## Later (not scheduled)
 

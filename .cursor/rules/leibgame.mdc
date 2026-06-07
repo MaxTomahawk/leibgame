@@ -1,0 +1,16 @@
+---
+description: Leibgame project conventions — read repo context before coding
+alwaysApply: true
+---
+
+Before changing code in **leibgame** or **leibgame-assets**:
+
+1. Read `docs/CONTEXT.md` (architecture, Supabase, task specs, rules).
+2. Read `AGENTS.md` (how to run, test, dev Supabase routing).
+3. Branch `cursor/<descriptive-name>-1a65` from `main`.
+
+`config.js` already has dev/prod Supabase keys and routing — do not ask the user to paste keys.
+
+Do not resurrect deleted multi-game branches. Do not add Firebase.
+
+Default test: `python3 -m http.server 8000` + Playwright smoke tests in `tests/`.
