@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { ASSET_BASE_URL, modelKeyFromPath } from '../../shared/asset-config.js';
+import { ASSET_BASE_URL, modelKeyFromPath, modelUrlForQuality } from '../../shared/asset-config.js';
 
 let otherPlayers = {};
 let playersChannel = null;
@@ -40,9 +40,8 @@ function qualityFromSettings () {
 
 function remoteModelUrl (appearance) {
   if (!appearance?.model) return null;
-  const quality = qualityFromSettings();
-  const modelName = appearance.model.split('/').pop().replace('.glb', '');
-  return `${ASSET_BASE_URL}${modelName}_${quality}.glb`;
+  const quality = appearance.quality || qualityFromSettings();
+  return modelUrlForQuality(appearance.model, quality);
 }
 
 async function fetchRoomPlayers (supabase, roomId, selfId) {
@@ -129,19 +128,13 @@ function listenToPlayers (scene, userId, ui, supabase, roomId) {
             },
             undefined,
             () => {
-              loader.load(appearance.model, (gltf) => {
-                const mesh = gltf.scene;
-                mesh.scale.set(appearance.scale, appearance.scale, appearance.scale);
-                container.add(mesh);
-                otherPlayers[id] = { container, mesh, label, lastSeen: now, currentModel: appearance.model };
-              }, undefined, () => {
-                const mesh = new THREE.Mesh(
-                  new THREE.BoxGeometry(1, 2, 1),
-                  new THREE.MeshStandardMaterial({ color: 0xff0000 })
-                );
-                container.add(mesh);
-                otherPlayers[id] = { container, mesh, label, lastSeen: now, currentModel: appearance.model };
-              });
+              console.warn('Remote player model failed, using placeholder:', remoteUrl);
+              const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 2, 1),
+                new THREE.MeshStandardMaterial({ color: 0xff0000 })
+              );
+              container.add(mesh);
+              otherPlayers[id] = { container, mesh, label, lastSeen: now, currentModel: appearance.model };
             }
           );
         } else {

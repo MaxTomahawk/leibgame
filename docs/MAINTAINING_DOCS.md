@@ -40,7 +40,8 @@ Checklist — **all** apply:
 - [ ] **`docs/CONTEXT.md`** — section **“Current code (main)”** reflects reality *after your PR* (paths, entry URLs, what’s online/offline).
 - [ ] **`docs/ROADMAP.md`** — check off completed items; add new items if you expanded scope.
 - [ ] **`docs/HANDOFF.md`** — filled in using the template below (next agent prompt, your branch name, what you finished).
-- [ ] **Tests** — `npx playwright test tests/example.spec.js tests/model_load.spec.js` (fix or extend tests if UI changed).
+- [ ] **Tests** — `npx playwright test tests/example.spec.js tests/model_load.spec.js tests/clouds_start.spec.js` (fix or extend tests if UI changed).
+- [ ] **Browser verification** — hub → Clouds → play → hub → Clouds again in a real browser (Cursor Cloud desktop or local). Confirm Start Game works after character selection; no 404s on bare `*.glb` without quality suffix.
 - [ ] **PR body** — includes the **“Next agent prompt”** block copied from `HANDOFF.md` (so the human can spawn the next agent without searching).
 
 If you changed how to run, test, or configure: update **`AGENTS.md`** and/or **`DEVELOPMENT.md`**.

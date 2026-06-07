@@ -225,6 +225,7 @@ export class UIManager {
         if(playerName) this.dom.nameDisplay.innerText = playerName;
         this.dom.startScreen.classList.remove('active');
         this.dom.progressBar.style.display = 'block';
+        document.body.classList.add('game-playing');
     }
 
     togglePauseScreen(show) {

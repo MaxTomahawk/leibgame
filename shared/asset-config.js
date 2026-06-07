@@ -25,3 +25,20 @@ export function modelKeyFromPath (modelPath) {
   const file = modelPath.split('/').pop() || modelPath;
   return file.replace(/_(ultra|high|medium|low)\.glb$/i, '.glb');
 }
+
+/** Normalize any model reference to a bare filename (e.g. `leib.glb`). */
+export function resolveModelKey (path) {
+  if (!path) return 'leib.glb';
+  return modelKeyFromPath(path);
+}
+
+/** Canonical appearance id used in multiplayer animation maps. */
+export function appearanceModelId (modelKey) {
+  return `${ASSET_BASE_URL}${resolveModelKey(modelKey)}`;
+}
+
+/** CDN/local URL for a given quality tier. */
+export function modelUrlForQuality (modelKey, quality = 'high') {
+  const name = resolveModelKey(modelKey).replace('.glb', '');
+  return `${ASSET_BASE_URL}${name}_${quality}.glb`;
+}

@@ -11,7 +11,18 @@ body {
     height: 100dvh; /* Mobile fix */
 }
 
-canvas { display: block; }
+canvas {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+body.game-playing canvas {
+    pointer-events: auto;
+}
 
 .ui-container {
     position: fixed;

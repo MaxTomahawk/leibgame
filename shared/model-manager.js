@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 
-import { ASSET_BASE_URL } from './asset-config.js';
+import { appearanceModelId, modelUrlForQuality, resolveModelKey } from './asset-config.js';
 
 export const MODEL_SCALES = {
     'assets/katinka.glb': 1,
@@ -41,9 +41,8 @@ export class ModelManager {
             }
         } catch(e) { console.warn("Could not read graphics setting", e); }
 
-        // Construct URL: ${ASSET_BASE_URL}leib.glb -> https://.../leib_medium.glb
-        const modelName = modelFile.split('/').pop().replace('.glb', ''); 
-        const remoteUrl = `${ASSET_BASE_URL}${modelName}_${quality}.glb`;
+        const modelKey = resolveModelKey(modelFile);
+        const remoteUrl = modelUrlForQuality(modelKey, quality);
 
         console.log(`🎨 Loading remote asset: ${remoteUrl}`);
 
@@ -61,7 +60,11 @@ export class ModelManager {
                     this.playerModel.position.y = -1.1;
 
                     player.add(this.playerModel);
-                    player.userData.appearance = { model: modelFile, quality: quality, scale: scale };
+                    player.userData.appearance = {
+                        model: appearanceModelId(modelKey),
+                        quality,
+                        scale
+                    };
 
                     if (gltf.animations && gltf.animations.length > 0) {
                         this.setupAnimations(gltf); 
@@ -347,11 +350,32 @@ export class ModelManager {
         player.add(pointLight);
     }
 
+    disposePreview (element) {
+        if (!element) return;
+        if (element.previewFrame) {
+            cancelAnimationFrame(element.previewFrame);
+            element.previewFrame = null;
+        }
+        if (element.previewRenderer) {
+            element.previewRenderer.dispose();
+            if (element.previewRenderer.domElement?.parentNode) {
+                element.previewRenderer.domElement.parentNode.removeChild(element.previewRenderer.domElement);
+            }
+            element.previewRenderer = null;
+        }
+        element.previewModel = null;
+        element.previewScene = null;
+        element.previewCamera = null;
+    }
+
+    disposeAllPreviews () {
+        document.querySelectorAll('.char-preview').forEach((el) => this.disposePreview(el));
+    }
+
     loadPreviewModel(element, modelFile) {
-        if (element.previewRenderer) element.removeChild(element.previewRenderer.domElement);
+        this.disposePreview(element);
         const scene = new THREE.Scene();
-        const modelName = modelFile.split('/').pop().replace('.glb', '');
-        const previewUrl = `${ASSET_BASE_URL}${modelName}_medium.glb`;
+        const previewUrl = modelUrlForQuality(modelFile, 'medium');
         const camera = new THREE.PerspectiveCamera(50, element.clientWidth / element.clientHeight, 0.1, 100);
         camera.position.set(0, 1.5, 3);
         camera.lookAt(0, 1, 0);
@@ -379,13 +403,14 @@ export class ModelManager {
     }
 
     animatePreview(element) {
-        if (!element.previewModel) return;
+        if (!element.previewModel || !element.previewRenderer) return;
         element.previewModel.rotation.y += 0.01;
         element.previewRenderer.render(element.previewScene, element.previewCamera);
-        requestAnimationFrame(() => this.animatePreview(element));
+        element.previewFrame = requestAnimationFrame(() => this.animatePreview(element));
     }
 
     dispose() {
+        this.disposeAllPreviews();
         if (this.mixer) this.mixer.stopAllAction();
         if (this.playerModel) {
             this.playerModel.traverse(child => {

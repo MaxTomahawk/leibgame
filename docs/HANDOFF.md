@@ -13,8 +13,9 @@
 - Platform hub at `/` (`index.html` + `platform/hub.js`) lists available games.
 - **Leib Clouds** moved to `games/clouds/` — fully playable with Supabase multiplayer, shop, and shared rooms (`?room=code`).
 - Shared modules under `shared/`: `supabase.js`, `player-service.js`, `room-service.js`, `asset-config.js`, `asset-registry.js`, `audio-manager.js`, `settings-manager.js`, `model-manager.js`.
-- Playwright smoke tests updated: hub UI + Clouds start screen / 3D model previews.
+- Playwright smoke tests updated: hub UI + Clouds start screen / 3D model previews + `tests/clouds_start.spec.js` (reload, hub round-trip).
 - `playwright.config.js` uses `python3 -m http.server 8000` (not `launcher.py`).
+- **Bugfix:** WebGL context leak from character previews blocked second game start (black screen). Previews/renderer now dispose on `pagehide`; canvas no longer blocks start button; model URLs use quality suffixes consistently.
 
 **Test today:**
 

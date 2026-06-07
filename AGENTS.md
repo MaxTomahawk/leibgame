@@ -33,11 +33,23 @@ Pre-configured in `config.js`. `localhost` → Leibgame-dev. Do not ask for keys
 
 ```bash
 cd repos/leibgame
+ln -sf ../leibgame-assets/assets ./assets   # required for local GLB/audio (not optional for full verification)
 python3 -m http.server 8000 --bind 0.0.0.0
-npx playwright test tests/example.spec.js tests/model_load.spec.js
+npx playwright test tests/example.spec.js tests/model_load.spec.js tests/clouds_start.spec.js
 ```
 
 Use HTTP server, not `launcher.py`, for Playwright.
+
+### Verify in a real browser (mandatory before PR)
+
+Automated tests are not enough. You **must** manually confirm in Cursor Cloud desktop or local browser:
+
+1. Hub at `http://localhost:8000/` lists games and opens Clouds.
+2. Clouds: pick character → **Start Game** → world loads and you can move.
+3. Return to hub → open Clouds again → start still works (catches bfcache / overlay bugs).
+4. If assets fail to load, check the `assets` symlink and Network tab for 404s on `*_high.glb` (never bare `leib.glb`).
+
+Report what you verified in the PR **Tested** section.
 
 ### Branches
 

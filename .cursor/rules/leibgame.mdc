@@ -21,6 +21,8 @@ Follow **`docs/MAINTAINING_DOCS.md`** checklist:
 - Rewrite **`docs/HANDOFF.md`** with next-agent prompt (use template in MAINTAINING_DOCS.md)
 - Copy the “Next agent prompt” from HANDOFF.md into the PR description
 
-Tests: `python3 -m http.server 8000` + `npx playwright test tests/example.spec.js tests/model_load.spec.js`
+Tests: `ln -sf ../leibgame-assets/assets ./assets` then `python3 -m http.server 8000` + `npx playwright test tests/example.spec.js tests/model_load.spec.js tests/clouds_start.spec.js`
+
+Before PR: verify in a real browser (Cursor Cloud desktop or local) — hub → Clouds → play → hub → Clouds again; Start Game must work both times.
 
 Repo docs are the single source of truth — not chat, not wiki-only notes.

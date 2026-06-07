@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
+import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition, cleanupWorldListener } from './world.js';
 import { MobileControls } from './mobile-controls.js';
 import { AudioManager } from '../../shared/audio-manager.js';
 import { ModelManager } from '../../shared/model-manager.js';
@@ -13,7 +13,7 @@ import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
 import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
-import { ASSET_BASE_URL } from '../../shared/asset-config.js';
+import { ASSET_BASE_URL, resolveModelKey } from '../../shared/asset-config.js';
 import { isSupabaseConfigured, initSupabase, linkAnonymousAccountToEmail, loginWithEmail, logout } from '../../shared/supabase.js';
 import { ensurePlayerProfile, savePlayerProgress } from '../../shared/player-service.js';
 import { getActiveRoomId, markCoinCollected, regenerateRoomWorld } from '../../shared/room-service.js';
@@ -44,12 +44,11 @@ async function loadMultiplayerModules () {
 }
 
 function resolveModelPath (path) {
-    if (!path) return `${ASSET_BASE_URL}leib.glb`;
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return `${ASSET_BASE_URL}${path.replace(/^\//, '')}`;
+    return resolveModelKey(path);
 }
 
 let selectedModelFile = resolveModelPath('leib.glb');
+let isStartingGame = false;
 let gameVersion = { commit: 'loading...', date: 'loading...' };
 
 // --- PHYSICS & GAMEPLAY SETTINGS ---
@@ -218,6 +217,34 @@ function getOnlineContext () {
 }
 
 
+function cleanupGameSession () {
+    if (window.broadcastInterval) {
+        clearInterval(window.broadcastInterval);
+        window.broadcastInterval = null;
+    }
+    if (unsubscribePlayers) {
+        unsubscribePlayers();
+        unsubscribePlayers = null;
+    }
+    cleanupWorldListener();
+    if (modelManager) {
+        modelManager.disposeAllPreviews();
+    }
+    if (renderer) {
+        renderer.dispose();
+        if (renderer.domElement?.parentNode) {
+            renderer.domElement.parentNode.removeChild(renderer.domElement);
+        }
+    }
+}
+
+window.addEventListener('pagehide', cleanupGameSession);
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
 window.onload = async () => {
     uiManager = new UIManager();
     settingsManager = new SettingsManager();
@@ -364,7 +391,7 @@ function initThreeJS() {
     scene.fog = new THREE.Fog(COLORS[initialWeather].fog.clone(), 10, 90);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'default' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
@@ -587,7 +614,7 @@ function animate(time) {
 
     let audioLevel = 0;
     let bassLevel = 0;
-    if (audioManager && audioManager.musicSound.isPlaying) {
+    if (audioManager?.musicSound?.isPlaying) {
         const audioData = audioManager.getAudioData();
         audioLevel = audioData.average / 255.0;
         bassLevel = audioData.bass / 255.0;
@@ -1090,13 +1117,23 @@ function setupInputs() {
         }
         modelManager.loadPlayerModel(selectedModelFile, player, {
             onProgress: (t, m, c) => uiManager.updateStatus(t, m, c),
-            onLoaded: (t, m, c) => uiManager.updateStatus(t, m, c),
-            onError: (t, m, c) => uiManager.updateStatus(t, m, c)
+            onLoaded: (t, m, c) => {
+                uiManager.updateStatus(t, m, c);
+                modelLoaded = true;
+                checkIfReadyToStart();
+            },
+            onError: (t, m, c) => {
+                uiManager.updateStatus(t, m, c);
+                modelLoaded = true;
+                checkIfReadyToStart();
+            }
         });
     });
 
     // Game State Events
     uiManager.onStart(async (name) => {
+        if (isStartingGame || window.gameState === 'playing') return;
+        isStartingGame = true;
         if (name) myName = name;
         uiManager.startGameUI(myName);
 
@@ -1121,16 +1158,25 @@ function setupInputs() {
             status: uiManager.dom.authStatus
         };
 
-        await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, getOnlineContext(), CASTLE_Z, platformTexture, textureLoader);
+        try {
+            await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, getOnlineContext(), CASTLE_Z, platformTexture, textureLoader);
 
-        if (!mobile || !mobile.enabled) {
-            document.body.requestPointerLock();
-        }
-        window.gameState = 'playing';
-        if (mobile && mobile.enabled) {
-            mobile.start();
-            // Init abilities on start
-            updateMobileAbilities();
+            if (!mobile || !mobile.enabled) {
+                document.body.requestPointerLock();
+            }
+            window.gameState = 'playing';
+            if (mobile && mobile.enabled) {
+                mobile.start();
+                updateMobileAbilities();
+            }
+        } catch (e) {
+            console.error('Failed to start game:', e);
+            window.gameState = 'start';
+            uiManager.dom.startScreen.classList.add('active');
+            uiManager.dom.progressBar.style.display = 'none';
+            uiManager.updateStatus('online', '⚠️ Could not start — try again', 'yellow');
+        } finally {
+            isStartingGame = false;
         }
     });
 

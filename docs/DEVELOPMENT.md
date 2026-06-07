@@ -53,9 +53,16 @@ Override: `?supabase=dev` or `?supabase=prod`.
 
 Clone and run — status should show **Online!** on localhost.
 
-### 3. Local assets (optional)
+### 3. Local assets (required for agent verification)
 
-By default the game loads assets from GitHub Pages CDN. To test **unpublished** GLBs:
+By default production uses the GitHub Pages CDN. **Agents must symlink** `leibgame-assets` for reliable local testing and to catch asset-path bugs:
+
+```bash
+cd leibgame
+ln -sf ../leibgame-assets/assets ./assets
+```
+
+Without the symlink, some flows still work via CDN, but you cannot fully verify gameplay. To test **unpublished** GLBs:
 
 ```bash
 ln -sf ../leibgame-assets/assets ./assets
