@@ -1,56 +1,90 @@
-# Supabase setup (multiplayer + cloud progression)
+# Supabase setup
 
-Leibgame uses **Supabase** for:
+## Projects (already created)
 
-- **Player progression** — coins, stars, shop upgrades (`player_profiles`)
-- **Shared rooms** — same world layout + collected coins (`rooms`)
-- **Live presence** — other players in your room (`room_players` + Realtime)
+| Environment | Supabase project | When the game uses it |
+|-------------|------------------|------------------------|
+| **Development** | `Leibgame-dev` | `localhost` / Cursor cloud dev |
+| **Production** | `Leibgame` | GitHub Pages, public URL |
 
-When `config.js` has no keys, the game runs **offline** (localStorage only).
+`config.js` picks dev vs prod automatically. Override with `?supabase=dev` or `?supabase=prod`.
 
-## 1. Create a Supabase project
+Schema + Realtime are applied to **both** via migrations. **Player data is separate** — dev experiments do not touch prod saves.
 
-1. Go to [https://supabase.com](https://supabase.com) and create a project.
-2. **Authentication → Providers → Anonymous sign-ins** → **Enable**.
-3. (Optional) Enable **Email** provider for account linking / login.
+### Safe database updates (do not break prod)
 
-## 2. Run the database schema
+1. Change schema only by adding a **new** file under `supabase/migrations/` (never edit an old migration after prod uses it).
+2. Apply to **Leibgame-dev** first (Supabase MCP or CLI).
+3. Test the game against dev.
+4. Apply the same migration to **Leibgame** (prod).
+5. Optional: use `get_advisors` / dashboard linter before prod.
 
-1. Open **SQL Editor** in the Supabase dashboard.
-2. Paste and run the full contents of [`supabase/schema.sql`](supabase/schema.sql).
+**Do not use Supabase “branches” on the free plan** — they cost ~**$0.013/hour** (~$10/month if left running). Two free **projects** is the right split.
 
-## 3. Enable Realtime
+---
 
-1. **Database → Publications → `supabase_realtime`**
-2. Add tables: `rooms`, `room_players`
+## One-time dashboard steps (both projects)
 
-## 4. Configure the game client
+1. **Authentication → Providers → Anonymous** → Enable (required for guest play).
+2. **Authentication → URL configuration** — add your GitHub Pages URL when you deploy.
+3. OAuth (when you want them): enable **Google**, **GitHub**, **Email** under Providers.  
+   Phone/SMS needs a provider (e.g. Twilio); **SMS messages cost money**, not Supabase itself.
+
+---
+
+## Local run
 
 ```bash
-cp config.example.js config.js
+python3 -m http.server 8000
+# open http://localhost:8000  → uses Leibgame-dev
 ```
 
-Fill in from **Project Settings → API**:
+Status line should show **✅ Online!** after anonymous auth is enabled.
 
-- `SUPABASE_URL` — Project URL  
-- `SUPABASE_ANON_KEY` — `anon` `public` key  
-
-Serve the game and open `http://localhost:8000`. Status should show **Online!**
+---
 
 ## Rooms
 
 | URL | Room |
 |-----|------|
-| `/` | `main_world` (public default) |
+| `/` | `main_world` |
 | `/?room=friday` | Custom shared room |
 
-Everyone in the same room shares world layout and which coins are collected. Each player keeps their own coins/stars/upgrades on their profile.
+---
 
-## Deploy notes (GitHub Pages)
+## Free tier — how far can you go?
 
-Add the same `config.js` values before deploy, or inject them in CI. The `anon` key is safe in the browser when **RLS** is enabled (included in `schema.sql`).
+You are on Supabase **Free** (`MaxTomahawk's Org`). Rough limits:
 
-## What was removed
+| Resource | Free tier | Enough for Leibgame? |
+|----------|-----------|---------------------|
+| Projects | 2 active (you use both) | ✅ |
+| Database | 500 MB | ✅ (your saves are tiny) |
+| Bandwidth | 5 GB / month | ✅ early traffic |
+| MAU (auth users) | 50,000 / month | ✅ |
+| Realtime | Included | ✅ small rooms |
+| Email auth | Included | ✅ |
+| Google / GitHub OAuth | Included (counts toward MAU) | ✅ |
+| Phone SMS | Needs Twilio/etc.; **you pay per SMS** | ⚠️ optional later |
+| File storage | 1 GB | ✅ if you skip large uploads |
 
-- Firebase / Firestore (`firebase.js` deleted)
-- High-frequency position writes to a document DB (replaced by `room_players` upserts + Realtime)
+**Also free:** GitHub Pages (game), GitHub assets repo, Cursor dev VMs.
+
+**You start paying when:**
+
+- Supabase **Pro** (~$25/mo) — more DB, no pause, support, or you need >2 projects / heavy usage.
+- **Supabase branch** hours (~$0.013/hr) — avoid on free; use second project instead.
+- **SMS** for phone login — carrier/provider fees.
+- **Traffic** beyond free egress at scale (many thousands of players).
+
+For an indie browser game with OAuth + progression + multiplayer rooms, **free tier is realistic for a long time**.
+
+---
+
+## Tables
+
+- `player_profiles` — coins, stars, upgrades  
+- `rooms` — shared world + collected coins  
+- `room_players` — live positions (Realtime)
+
+Canonical SQL: [`supabase/schema.sql`](supabase/schema.sql)
