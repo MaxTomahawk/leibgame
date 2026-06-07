@@ -16,37 +16,37 @@ import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 import { getAudioAssetMap, getPlayerModelAssets, getTextureUrl } from './asset-library.js';
 import { LEIB_CLOUDS_ID, LEIB_JUMP_ID, LEIB_PLATFORM_GAMES } from './games.js';
 import { LeibJumpGame } from './leib-jump.js';
+import { isSupabaseConfigured, initSupabase, linkAnonymousAccountToEmail, loginWithEmail, logout } from './supabase.js';
+import { ensurePlayerProfile, savePlayerProgress } from './player-service.js';
+import { getActiveRoomId, markCoinCollected, regenerateRoomWorld } from './room-service.js';
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
-    MULTIPLAYER: false,  // Set to false to disable all multiplayer
-    SHOP_ONLINE: false   // Set to false for offline shop (localStorage)
+    MULTIPLAYER: isSupabaseConfigured(),
+    SHOP_ONLINE: isSupabaseConfigured()
 };
 
-// ===== CONDITIONAL IMPORTS =====
-let firebaseModule = null;
+// ===== ONLINE STATE =====
+let supabaseClient = null;
 let multiplayerModule = null;
-let db = null;
-let auth = null;
+let activeRoomId = getActiveRoomId();
+let unsubscribePlayers = null;
 
-// Only load multiplayer if enabled
-async function loadMultiplayerModules() {
+async function loadMultiplayerModules () {
     if (!FEATURES.MULTIPLAYER) return;
-
     try {
-        const [firebase, multiplayer] = await Promise.all([
-            import('./firebase.js'),
-            import('./multiplayer.js')
-        ]);
-        firebaseModule = firebase;
-        multiplayerModule = multiplayer;
-        db = firebase.db;
-        auth = firebase.auth;
-        console.log("✅ Multiplayer modules loaded");
+        multiplayerModule = await import('./multiplayer.js');
+        console.log('✅ Multiplayer modules loaded');
     } catch (e) {
         console.warn('⚠️ Failed to load multiplayer modules:', e);
         FEATURES.MULTIPLAYER = false;
+        FEATURES.SHOP_ONLINE = false;
     }
+}
+
+function getOnlineContext () {
+    if (!isMultiplayer || !supabaseClient || !userId) return null;
+    return { supabase: supabaseClient, roomId: activeRoomId, userId };
 }
 
 
@@ -173,60 +173,50 @@ function updateMobileAbilities() {
     }
 }
 
-async function saveUserProgress() {
+async function saveUserProgress () {
     const data = {
         coins: coinsCollected,
         stars: starsCollected,
         lastSaved: Date.now()
     };
 
-    // Try Firebase first if available
-    if (FEATURES.MULTIPLAYER && auth?.currentUser && db) {
+    if (FEATURES.MULTIPLAYER && supabaseClient && userId) {
         try {
-            const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-            const userRef = doc(db, "users", auth.currentUser.uid);
-            await setDoc(userRef, data, { merge: true });
-            console.log("✅ Progress saved to Firebase");
-            // Also update local abilities after save
+            const upgrades = shopSystem ? shopSystem._upgradesToObject() : undefined;
+            await savePlayerProgress(supabaseClient, userId, {
+                coins: coinsCollected,
+                stars: starsCollected,
+                upgrades,
+                ronnieUnlocked: shopSystem?.isRonnieUnlocked
+            });
+            console.log('✅ Progress saved to Supabase');
             updateMobileAbilities();
             return;
         } catch (e) {
-            console.warn("⚠️ Firebase save failed:", e);
+            console.warn('⚠️ Supabase save failed:', e);
         }
     }
 
-    // Fallback to localStorage
     localStorage.setItem('gameProgress', JSON.stringify(data));
+    if (shopSystem) shopSystem._saveLocalData();
     updateMobileAbilities();
-    console.log("💾 Progress saved locally");
+    console.log('💾 Progress saved locally');
 }
 
-async function loadUserProgress() {
-    // Try Firebase first
-    if (FEATURES.MULTIPLAYER && auth?.currentUser && db) {
-        try {
-            const { getDoc, doc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-            const userRef = doc(db, "users", auth.currentUser.uid);
-            const snap = await getDoc(userRef);
-            if (snap.exists()) {
-                const data = snap.data();
-                coinsCollected = data.coins || 0;
-                starsCollected = data.stars || 0;
-                console.log("✅ Progress loaded from Firebase");
-                return;
-            }
-        } catch (e) {
-            console.warn("⚠️ Firebase load failed:", e);
-        }
+async function loadUserProgress (profile) {
+    if (profile) {
+        coinsCollected = profile.coins || 0;
+        starsCollected = profile.stars || 0;
+        console.log('✅ Progress loaded from Supabase');
+        return;
     }
 
-    // Fallback to localStorage
     const saved = localStorage.getItem('gameProgress');
     if (saved) {
         const data = JSON.parse(saved);
         coinsCollected = data.coins || 0;
         starsCollected = data.stars || 0;
-        console.log("💾 Progress loaded locally");
+        console.log('💾 Progress loaded locally');
     }
 }
 
@@ -289,35 +279,38 @@ window.onload = async () => {
     // Load multiplayer modules first
     await loadMultiplayerModules();
 
-    // ===== MULTIPLAYER INITIALIZATION (OPTIONAL) =====
-    if (FEATURES.MULTIPLAYER && firebaseModule) {
+    if (FEATURES.MULTIPLAYER) {
         try {
-            uiManager.updateStatus("firebase", "🔌 Connecting...", "blue");
-
-            firebaseModule.initFirebase(async (user) => {
-                userId = user.uid;
+            uiManager.updateStatus('online', '🔌 Connecting...', 'blue');
+            await initSupabase(async (user, supabase) => {
+                supabaseClient = supabase;
+                userId = user.id;
                 isMultiplayer = true;
-                console.log("✅ Firebase connected!");
-                uiManager.updateStatus("firebase", "✅ Multiplayer!", "green");
+                activeRoomId = getActiveRoomId();
 
-                // Initialize shop with Firebase
-                if (FEATURES.SHOP_ONLINE) {
-                    shopSystem = new ShopSystem(uiManager, db, auth);
-                    await shopSystem.syncUserData(userId);
-                }
+                const profile = await ensurePlayerProfile(supabase, userId, myName);
+                console.log('✅ Supabase connected!');
+                uiManager.updateStatus('online', '✅ Online!', 'green');
 
-                await loadUserProgress();
+                shopSystem = new ShopSystem(uiManager, supabase, userId);
+                await shopSystem.syncUserData(profile);
+                await loadUserProgress(profile);
                 uiManager.initHUD(coinsCollected, starsCollected);
                 checkIfReadyToStart();
 
-                // Start multiplayer listeners
                 if (multiplayerModule) {
-                    multiplayerModule.listenToPlayers(scene, userId, { peers: uiManager.dom.peerCount }, db);
+                    unsubscribePlayers = multiplayerModule.listenToPlayers(
+                        scene,
+                        userId,
+                        { peers: uiManager.dom.peerCount },
+                        supabase,
+                        activeRoomId
+                    );
                 }
             });
         } catch (e) {
-            console.error("❌ Firebase error:", e);
-            uiManager.updateStatus("firebase", "⚠️ Offline", "yellow");
+            console.error('❌ Supabase error:', e);
+            uiManager.updateStatus('online', '⚠️ Offline', 'yellow');
             initOfflineMode();
         }
     } else {
@@ -336,7 +329,7 @@ async function initOfflineMode() {
 
     await loadUserProgress();
     uiManager.initHUD(coinsCollected, starsCollected);
-    uiManager.updateStatus("firebase", "🎮 Offline", "gray");
+    uiManager.updateStatus('online', '🎮 Offline', 'gray');
 
     checkIfReadyToStart();
 }
@@ -524,23 +517,20 @@ function endGame(reason, won = false, options = {}) {
     document.exitPointerLock();
     uiManager.showGameOver(reason, won);
 
-    // Only regenerate if multiplayer is active
-    if (won && FEATURES.MULTIPLAYER && db) {
-        console.log("🏆 Regenerating world...");
+    if (won && getOnlineContext()) {
+        console.log('🏆 Regenerating world...');
         regenerateWorld();
     }
 }
 
-async function regenerateWorld() {
-    if (!FEATURES.MULTIPLAYER || !db) return;
-
+async function regenerateWorld () {
+    const ctx = getOnlineContext();
+    if (!ctx) return;
     try {
-        const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-        const worldData = generateWorldData(CASTLE_Z);
-        await setDoc(doc(db, "levels", "main_world"), worldData);
-        console.log("✅ World regenerated!");
+        await regenerateRoomWorld(ctx.supabase, ctx.roomId, ctx.userId, generateWorldData, CASTLE_Z);
+        console.log('✅ World regenerated!');
     } catch (e) {
-        console.error("❌ Failed:", e);
+        console.error('❌ Failed:', e);
     }
 }
 
@@ -826,8 +816,14 @@ function animate(time) {
             c.position.y = c.baseY + Math.sin(performance.now() * 0.002 + c.bobOffset) * .35;
             if (player.position.distanceTo(coins[i].position) < 1.5) {
                 const isStar = coins[i].userData.isStar || (coins[i].children && coins[i].children.length > 0);
+                const coinId = coins[i].userData.coinId;
                 scene.remove(coins[i]);
                 coins.splice(i, 1);
+
+                const ctx = getOnlineContext();
+                if (ctx && coinId != null && !isStar) {
+                    markCoinCollected(ctx.supabase, ctx.roomId, coinId).catch(() => {});
+                }
 
                 if (isStar) {
                     starsCollected++;
@@ -1134,10 +1130,10 @@ function resetMovementFlags() {
 
 function setupInputs() {
     // --- 1. UI & Auth Events ---
-    if (FEATURES.MULTIPLAYER && firebaseModule) {
-        uiManager.onLinkAccount(firebaseModule.linkAnonymousAccountToEmail);
-        uiManager.onLogin(firebaseModule.loginWithEmail);
-        uiManager.onLogout(firebaseModule.logout);
+    if (FEATURES.MULTIPLAYER) {
+        uiManager.onLinkAccount(linkAnonymousAccountToEmail);
+        uiManager.onLogin(loginWithEmail);
+        uiManager.onLogout(logout);
     } else {
         // Offline mode - disable auth buttons
         uiManager.onLinkAccount(() => console.log('Auth disabled in offline mode'));
@@ -1170,23 +1166,13 @@ function setupInputs() {
         uiManager.startGameUI(myName);
         activeGameId = selectedGameId;
 
-        if (activeGameId === LEIB_CLOUDS_ID && FEATURES.MULTIPLAYER && firebaseModule && db) {
+        const ctx = getOnlineContext();
+        if (activeGameId === LEIB_CLOUDS_ID && ctx && multiplayerModule) {
             try {
-                const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-                const appearance = player.userData.appearance;
-                await setDoc(doc(db, "players", userId), {
-                    name: myName,
-                    x: player.position.x,
-                    y: player.position.y,
-                    z: player.position.z,
-                    rot: player.rotation.y,
-                    lastUpdate: Date.now(),
-                    player_appearance: appearance
-                }, { merge: true });
-                multiplayerModule.startBroadcasting(userId, myName, db, auth);
-                console.log("✅ Multiplayer broadcasting started");
+                multiplayerModule.startBroadcasting(userId, myName, ctx.supabase, ctx.roomId);
+                console.log('✅ Multiplayer broadcasting started');
             } catch (e) {
-                console.error("❌ Multiplayer start failed:", e);
+                console.error('❌ Multiplayer start failed:', e);
             }
         }
 
@@ -1214,7 +1200,7 @@ function setupInputs() {
             status: uiManager.dom.authStatus
         };
 
-        await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader);
+        await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, getOnlineContext(), CASTLE_Z, platformTexture, textureLoader);
 
         if (!mobile || !mobile.enabled) {
             document.body.requestPointerLock();

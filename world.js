@@ -3,8 +3,14 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
 import { resolveAssetUrl, getPreferredQuality } from './asset-library.js';
+import {
+  fetchOrCreateRoomWorld,
+  subscribeToRoom,
+  applyCollectedCoins,
+  stampCoinIds
+} from './room-service.js';
 
-console.log("🌍 World loading assets with quality:", getPreferredQuality());
+console.log('🌍 World loading assets with quality:', getPreferredQuality());
 
 let worldUnsubscribe = null;
 
@@ -27,34 +33,28 @@ dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
-// Load Coin GLB
 loadWorldModel('collectible', 'collectible_coin', (gltf) => {
     cachedCoinScene = gltf.scene;
     cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE);
     cachedCoinScene.traverse((child) => {
-        if (child.isMesh) {
-            child.castShadow = true;
-        }
+        if (child.isMesh) child.castShadow = true;
     });
-    console.log("🪙 Coin model loaded successfully!");
+    console.log('🪙 Coin model loaded successfully!');
 }, (err) => {
-    console.warn("Could not load coin.glb, using fallback cylinder.", err);
+    console.warn('Could not load coin model, using fallback cylinder.', err);
 });
 
-// Load Enemy GLB
 loadWorldModel('enemy', 'enemy_cloud_imp', (gltf) => {
     cachedEnemyGLTF = gltf;
     cachedEnemyGLTF.scene.traverse((child) => {
-        if (child.isMesh) {
-            child.castShadow = true;
-        }
+        if (child.isMesh) child.castShadow = true;
     });
-    console.log("😈 Enemy model loaded successfully!");
+    console.log('😈 Enemy model loaded successfully!');
 }, (err) => {
-    console.warn("Could not load enemy.glb, using fallback placeholder.", err);
+    console.warn('Could not load enemy model, using fallback placeholder.', err);
 });
 
-async function loadWorldModel(purpose, assetId, onLoad, onError) {
+async function loadWorldModel (purpose, assetId, onLoad, onError) {
     try {
         const url = await resolveAssetUrl(assetId, { purpose, quality: getPreferredQuality() });
         gltfLoader.load(url, onLoad, undefined, onError);
@@ -64,156 +64,97 @@ async function loadWorldModel(purpose, assetId, onLoad, onError) {
 }
 
 
-// --- WORLD SYNC LOGIC ---
-export async function syncAndBuildWorld(scene, ui, platforms, coins, enemies, projectiles, isMultiplayer, db, CASTLE_Z, platformTexture, textureLoader) {
-    ui.status.innerText = "Loading world...";
-
-    // Clean up existing objects
+function clearWorldEntities (scene, platforms, coins, enemies) {
     platforms.forEach(p => {
         scene.remove(p);
         if (p.geometry) p.geometry.dispose();
         if (p.material && !p.material.userData.isShared) p.material.dispose();
     });
     platforms.length = 0;
-
-    coins.forEach(c => scene.remove(c)); coins.length = 0;
-
+    coins.forEach(c => scene.remove(c));
+    coins.length = 0;
     enemies.forEach(e => {
         scene.remove(e);
         if (e.userData.mixer) e.userData.mixer = null;
     });
     enemies.length = 0;
+}
 
-    projectiles.forEach(p => scene.remove(p.mesh)); projectiles.length = 0;
+function showWorldRegenToast () {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 255, 0, 0.9);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 10px;
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 10000;
+    `;
+    notification.innerText = '🌍 New world loaded!';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+// --- WORLD SYNC LOGIC ---
+export async function syncAndBuildWorld (scene, ui, platforms, coins, enemies, projectiles, onlineCtx, CASTLE_Z, platformTexture, textureLoader) {
+    ui.status.innerText = 'Loading world...';
+    projectiles.forEach(p => scene.remove(p.mesh));
+    projectiles.length = 0;
 
     let worldData = null;
 
-    // ===== ONLY USE FIREBASE IF MULTIPLAYER IS ENABLED AND DB EXISTS =====
-    if (isMultiplayer && db) {
+    if (onlineCtx?.supabase && onlineCtx.roomId && onlineCtx.userId) {
         try {
-            // Dynamic import of Firestore functions
-            const { doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-
-            const worldDocRef = doc(db, "levels", "main_world");
-
-            const cachedWorld = localStorage.getItem('cachedWorld');
-            if (cachedWorld) {
-                try {
-                    const cached = JSON.parse(cachedWorld);
-                    console.log("📦 Using cached world data (no read needed)");
-                    worldData = cached;
-                } catch (e) {
-                    console.warn("Failed to parse cached world, fetching from Firebase");
-                }
-            }
-
-            if (!worldData) {
-                const docSnap = await getDoc(worldDocRef);
-
-                if (docSnap.exists()) {
-                    console.log("☁️ Fetched world from Firebase (1 read)");
-                    worldData = docSnap.data();
-                    localStorage.setItem('cachedWorld', JSON.stringify(worldData));
-                } else {
-                    console.log("No world found, generating new one...");
-                    worldData = generateWorldData(CASTLE_Z);
-                    await setDoc(worldDocRef, worldData);
-                    localStorage.setItem('cachedWorld', JSON.stringify(worldData));
-                }
-            }
+            const { supabase, roomId, userId } = onlineCtx;
+            const result = await fetchOrCreateRoomWorld(
+                supabase,
+                roomId,
+                userId,
+                generateWorldData,
+                CASTLE_Z
+            );
+            worldData = result.worldData;
+            localStorage.setItem('cachedWorld', JSON.stringify(worldData));
 
             if (!worldUnsubscribe) {
-                worldUnsubscribe = await setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+                let lastGeneratedAt = result.generatedAt;
+                worldUnsubscribe = subscribeToRoom(supabase, roomId, (roomRow) => {
+                    const nextGeneratedAt = roomRow.generated_at;
+                    if (!nextGeneratedAt || nextGeneratedAt === lastGeneratedAt) return;
+                    lastGeneratedAt = nextGeneratedAt;
+                    console.log('🌍 World regenerated! Reloading...');
+                    const nextWorld = applyCollectedCoins(roomRow.world_data, roomRow.collected_coin_ids);
+                    localStorage.setItem('cachedWorld', JSON.stringify(nextWorld));
+                    clearWorldEntities(scene, platforms, coins, enemies);
+                    buildWorldFromData(nextWorld, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+                    showWorldRegenToast();
+                });
             }
-
         } catch (e) {
-            console.error("Error fetching world:", e);
-            ui.status.innerHTML = "⚠️ <strong>Database Error:</strong> Falling back to offline mode.";
-            ui.status.className = "bg-yellow-100 text-yellow-800 p-3 rounded mb-4 border border-yellow-400";
-            worldData = generateWorldData(CASTLE_Z);
+            console.error('Error fetching room world:', e);
+            ui.status.innerHTML = '⚠️ <strong>Online world error:</strong> Falling back to offline generation.';
+            worldData = stampCoinIds(generateWorldData(CASTLE_Z));
         }
     } else {
-        // Offline mode - just generate locally
-        console.log("🎮 Generating offline world");
+        console.log('🎮 Generating offline world');
         worldData = generateWorldData(CASTLE_Z);
     }
 
-    if (!worldData || !worldData.platforms || worldData.platforms.length === 0) {
-        console.warn("Received world data was empty, fallback to local generation.");
+    if (!worldData?.platforms?.length) {
         worldData = generateWorldData(CASTLE_Z);
     }
 
+    clearWorldEntities(scene, platforms, coins, enemies);
     buildWorldFromData(worldData, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
 
-    if (!ui.status.innerText.includes("Error")) {
-        ui.status.innerText = "Have fun!";
+    if (!ui.status.innerText.includes('Error')) {
+        ui.status.innerText = 'Have fun!';
     }
-}
-
-async function setupWorldListener(worldDocRef, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
-    let lastWorldTimestamp = null;
-
-    // Dynamic import
-    const { onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-
-    const unsubscribe = onSnapshot(worldDocRef, (docSnap) => {
-        if (!docSnap.exists()) return;
-
-        const data = docSnap.data();
-        const currentTimestamp = data.generatedAt || 0;
-
-        if (lastWorldTimestamp === null) {
-            lastWorldTimestamp = currentTimestamp;
-            return;
-        }
-
-        if (currentTimestamp !== lastWorldTimestamp) {
-            console.log("🌍 World regenerated! Reloading...");
-            lastWorldTimestamp = currentTimestamp;
-
-            localStorage.setItem('cachedWorld', JSON.stringify(data));
-
-            platforms.forEach(p => {
-                scene.remove(p);
-                if (p.geometry) p.geometry.dispose();
-                if (p.material && !p.material.userData.isShared) p.material.dispose();
-            });
-            platforms.length = 0;
-
-            coins.forEach(c => scene.remove(c));
-            coins.length = 0;
-
-            enemies.forEach(e => {
-                scene.remove(e);
-                if (e.userData.mixer) e.userData.mixer = null;
-            });
-            enemies.length = 0;
-
-            buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
-
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 255, 0, 0.9);
-                color: white;
-                padding: 20px 40px;
-                border-radius: 10px;
-                font-size: 24px;
-                font-weight: bold;
-                z-index: 10000;
-                animation: fadeOut 3s forwards;
-            `;
-            notification.innerText = "🌍 New world loaded!";
-            document.body.appendChild(notification);
-
-            setTimeout(() => notification.remove(), 3000);
-        }
-    });
-
-    return unsubscribe;
 }
 
 // --- WORLD DATA GENERATOR ---
@@ -364,7 +305,10 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     scene.updateMatrixWorld(true);
 
     if (data.coins && data.coins.length > 0) {
-        data.coins.forEach(c => createCoin(c.x, c.y, c.z, scene, coins));
+        data.coins.forEach((c, index) => {
+            const mesh = createCoin(c.x, c.y, c.z, scene, coins);
+            mesh.userData.coinId = c.id ?? index;
+        });
     }
 
     if (data.enemies) {
@@ -377,7 +321,7 @@ export function buildWorldFromData(data, scene, CASTLE_Z, platforms, coins, enem
     scene.add(sky);
 }
 
-function createCoin(x, y, z, scene, coins) {
+function createCoin (x, y, z, scene, coins) {
     const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(0.5, 0.5, 0.1),
         new THREE.MeshPhongMaterial({ color: 0xffd700 })
@@ -386,9 +330,9 @@ function createCoin(x, y, z, scene, coins) {
     mesh.rotation.z = Math.PI / 2;
     mesh.baseY = y;
     mesh.bobOffset = Math.random() * Math.PI * 2;
-    // console.log("created coin at: ", x, y, z) //enable to check coin
     scene.add(mesh);
     coins.push(mesh);
+    return mesh;
 }
 
 // --- Star GENERATION ---
@@ -566,8 +510,9 @@ function createRonnieStall(scene, position) {
 
 
 export function loadRonnie(scene, gltfLoader, position) {
-    resolveAssetUrl('npc_ronnie', { purpose: 'npc', quality: getPreferredQuality() }).then((url) => {
-        gltfLoader.load(url, (gltf) => {
+    const suffix = getQualitySuffix();
+
+    gltfLoader.load(`${ASSET_BASE_URL}ronnie${suffix}.glb`, (gltf) => {
         const ronnie = gltf.scene;
         ronnie.scale.set(1.3, 1.3, 1.3);
         ronnie.position.set(position.x, position.y, position.z);
@@ -604,8 +549,7 @@ export function loadRonnie(scene, gltfLoader, position) {
         window.ronnie = ronnie;
 
         console.log("🧥 Ronnie (met E-prompt) is aanwezig.");
-        }, undefined, (err) => console.warn("Ronnie model niet gevonden.", err));
-    }).catch((err) => console.warn("Ronnie asset niet gevonden.", err));
+    }, undefined, (err) => console.warn("Ronnie model niet gevonden.", err));
 }
 
 export function summonCloudPlatform(playerPos, scene, platforms, texture) {

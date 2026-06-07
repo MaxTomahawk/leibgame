@@ -66,7 +66,7 @@ export class LeibJumpGame {
 
         if (window.ronnie) window.ronnie.visible = false;
         this.uiManager.updateStatus(
-            'firebase',
+            'online',
             `Leib Jump! ${this.level.difficulty.label}: ${this.level.difficulty.rewardMultiplier}x rewards`,
             'green'
         );
