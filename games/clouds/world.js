@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
-import { ASSET_BASE_URL } from './asset-config.js';
+import { ASSET_BASE_URL } from '../../shared/asset-config.js';
 import {
   fetchOrCreateRoomWorld,
   subscribeToRoom,
   applyCollectedCoins,
   stampCoinIds
-} from './room-service.js';
+} from '../../shared/room-service.js';
 
 // Hulpfunctie om de graphics setting op te halen (high/low)
 function getQualitySuffix() {

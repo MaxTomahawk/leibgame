@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition } from './world.js';
 import { MobileControls } from './mobile-controls.js';
-import { AudioManager } from './audio-manager.js';
-import { ModelManager } from './model-manager.js';
+import { AudioManager } from '../../shared/audio-manager.js';
+import { ModelManager } from '../../shared/model-manager.js';
 import { UIManager } from './ui-manager.js';
 import { ShopSystem } from './shop-system.js';
-import { SettingsManager } from './settings-manager.js';
+import { SettingsManager } from '../../shared/settings-manager.js';
 import { loadRonnie, summonCloudPlatform } from './world.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { WeatherSystem } from './weather.js';
@@ -13,10 +13,10 @@ import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
 import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
-import { ASSET_BASE_URL } from './asset-config.js';
-import { isSupabaseConfigured, initSupabase, linkAnonymousAccountToEmail, loginWithEmail, logout } from './supabase.js';
-import { ensurePlayerProfile, savePlayerProgress } from './player-service.js';
-import { getActiveRoomId, markCoinCollected, regenerateRoomWorld } from './room-service.js';
+import { ASSET_BASE_URL } from '../../shared/asset-config.js';
+import { isSupabaseConfigured, initSupabase, linkAnonymousAccountToEmail, loginWithEmail, logout } from '../../shared/supabase.js';
+import { ensurePlayerProfile, savePlayerProgress } from '../../shared/player-service.js';
+import { getActiveRoomId, markCoinCollected, regenerateRoomWorld } from '../../shared/room-service.js';
 
 // ===== FEATURE FLAGS =====
 const FEATURES = {
@@ -109,7 +109,7 @@ let currentGravity = 20.0;
 let targetGravity = 20.0;
 
 // Fetch version on load
-fetch('version.json')
+fetch('../../version.json')
     .then(r => r.json())
     .then(v => {
         gameVersion = v;

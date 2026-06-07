@@ -1,0 +1,25 @@
+.hub-bg {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 45%, #312e81 100%);
+}
+
+.hub-card {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.game-tile {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.game-tile:hover:not(.game-tile--disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.35);
+  border-color: rgba(129, 140, 248, 0.6);
+}
+
+.game-tile--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

@@ -12,8 +12,8 @@
 
 ## In progress
 
-- [ ] **Multi-game platform** — one site, hub + multiple games (tell agent: see `docs/AGENT_PROMPTS.md` step 1)
-- [ ] **Leib Jump!** — 2.5D side-scrolling platformer as second game (step 2)
+- [x] **Multi-game platform** — hub at `/`, Leib Clouds under `games/clouds/`, shared modules under `shared/`
+- [ ] **Leib Jump!** — 2.5D side-scrolling platformer as second game (see `docs/HANDOFF.md`)
 
 ## Later (not scheduled)
 

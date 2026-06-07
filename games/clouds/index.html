@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Leib Weissman: Multiplayer Cloud Jumper</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="../../favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+            }
+        }
+    </script>
+</head>
+
+<body>
+
+    <div id="start-screen" class="overlay active game-bg text-primary">
+        <div class="game-card card-bg">
+            <h1 class="text-4xl font-bold mb-2 text-primary">Leib Weissman</h1>
+            <h2 class="text-xl text-indigo-600 dark:text-indigo-400 mb-6 font-bold">Multiplayer Cloud Jumper</h2>
+
+            <div id="auth-status" class="text-sm p-3 mb-4 auth-status-bg rounded-lg">Connecting to server...</div>
+
+            <div class="mb-6 border-t border-b border-divider py-4">
+                <button id="show-login-btn" class="text-sm text-indigo-600 dark:text-indigo-400 underline font-bold hover:text-indigo-800 dark:hover:text-indigo-300 w-full text-center">
+                    Already have an account? Or want to save progress?
+                </button>
+                
+                <div id="login-form-container" class="hidden mt-3 p-4 input-area-bg rounded-lg text-left shadow-inner">
+                    <label class="block text-xs font-bold text-secondary uppercase mb-1">Email</label>
+                    <input type="email" id="email-input" placeholder="name@example.com" class="mb-3 w-full p-2 border rounded text-input focus:outline-none focus:border-indigo-500 input-field">
+                    
+                    <label class="block text-xs font-bold text-secondary uppercase mb-1">Password</label>
+                    <input type="password" id="password-input" placeholder="********" class="mb-3 w-full p-2 border rounded text-input focus:outline-none focus:border-indigo-500 input-field">
+                    
+                    <div class="flex gap-2 mb-2">
+                        <button id="btn-link-account" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm font-bold flex-1 transition">
+                            Save (Link)
+                        </button>
+                        <button id="btn-login" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm font-bold flex-1 transition">
+                            Login
+                        </button>
+                    </div>
+                    
+                    <button id="btn-logout" class="hidden w-full bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-200 text-xs font-bold py-2 rounded hover:bg-red-200 dark:hover:bg-red-800">
+                        Log out
+                    </button>
+                    
+                    <p id="auth-error" class="text-red-500 dark:text-red-400 text-xs mt-2 font-bold text-center min-h-[1rem]"></p>
+                </div>
+            </div>
+            <div class="mb-6">
+                <label class="block text-left text-label text-sm font-bold mb-2" for="username">Choose your name:</label>
+                <input
+                    class="shadow appearance-none border rounded w-full py-3 px-3 text-input leading-tight focus:outline-none focus:shadow-outline input-field input-border"
+                    id="username-input" type="text" placeholder="e.g. LeibWarrior" maxlength="12">
+            </div>
+
+            <div id="character-selection" class="mb-6">
+                <label class="block text-left text-label text-sm font-bold mb-2">Choose your character:</label>
+                <div class="flex gap-4 justify-center"> 
+                    <div class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border"
+                        data-model="katinka.glb" style="width:120px; height:150px;"></div>
+                    <div class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border"
+                        data-model="marco.glb" style="width:120px; height:150px;"></div>
+                    <div class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border"
+                        data-model="leib.glb" style="width:120px; height:150px;"></div>
+                </div>
+            </div>
+
+            <div id="controls-hint" class="text-left text-sm p-4 hint-bg rounded-lg mb-6 text-label">
+                <p>Loading controls...</p>
+            </div>
+
+            <button id="start-btn"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 w-full text-lg cursor-not-allowed opacity-50"
+                disabled>
+                Start Game
+            </button>
+        </div>
+    </div>
+
+    <div class="ui-container w-full fixed top-0 left-0 z-50">
+        <div class="relative w-full bg-gray-900 bg-opacity-90 text-white shadow-md border-b border-gray-800">
+            <div class="flex justify-between items-center px-4 py-2 h-14">
+                
+                <div class="flex items-center gap-2 text-sm overflow-hidden">
+                    <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Player</span>
+                    <span id="player-name-display" class="text-yellow-400 font-bold truncate max-w-[100px] sm:max-w-none">Guest</span>
+                    <span class="text-green-400 text-xs whitespace-nowrap opacity-80">(Online: <span id="peer-count">0</span>)</span>
+                </div>
+
+                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <span id="progress-text" class="text-xs font-bold text-green-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"></span>
+                </div>
+
+                <div class="flex items-center gap-4 text-sm">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Stars</span>
+                        <span class="text-lg">⭐</span>
+                        <span id="star-display" class="font-bold text-yellow-300">0</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-semibold uppercase opacity-70 hidden sm:inline">Coins</span>
+                        <span class="text-lg">🪙</span>
+                        <span id="coin-display" class="font-bold text-amber-400">0</span>
+                    </div>
+
+                    <span id="version-display" class="text-[10px] opacity-30 font-mono hidden md:block">v...</span>
+                    
+                    <button id="mobile-menu-btn" title="Open Menu" class="sm:hidden p-1 -mr-1 font-bold text-green-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] hover:text-indigo-400 focus:outline-none z-10">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="progress-bar" class="absolute bottom-0 left-0 w-full h-[2px] bg-gray-700" style="display: none;">
+                <div id="progress-fill" class="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-300" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div id="status-msg" class="text-center mt-4 text-white font-bold text-lg drop-shadow-md pointer-events-none"></div>
+    </div>
+
+    <div id="pause-screen" class="overlay game-bg text-primary">
+        <div class="game-card card-bg">
+            <h1 class="text-4xl font-extrabold text-primary mb-8">PAUSED</h1>
+            
+            <div class="flex flex-col gap-4">
+                <button id="resume-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 w-full text-lg">Resume</button>
+                <button id="settings-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 w-full text-lg">Settings</button>
+                <button id="restart-btn-menu" onclick="window.location.reload();" 
+                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 w-full text-lg">Restart</button>
+                <button id="fullscreen-btn" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 w-full text-lg">Toggle Fullscreen</button>
+            </div>
+            
+            <a href="https://www.buymeacoffee.com/wytzig" target="_blank" id="bmc-btn-in-menu" 
+                class="mt-8 block w-full sm:hidden bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-full transition duration-300 text-lg text-center shadow-md">
+                ☕ Support me
+            </a>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="overlay game-bg text-primary">
+        <div class="game-card card-bg">
+            <h1 class="text-4xl font-bold mb-2 text-primary">GAME OVER</h1>
+            <p id="go-reason" class="text-red-600 dark:text-red-400 mb-4"></p>
+            <button onclick="window.location.reload();"
+                class="bg-red-600 text-white px-6 py-3 rounded-full">Restart</button>
+        </div>
+    </div>
+
+    <script src="../../config.js"></script>
+    <script type="module" src="main.js"></script>
+
+    <style>
+        /* ========================================================== */
+        /* GLOBALE KLEUREN SCHEMA (CSS CUSTOM PROPERTIES) */
+        /* ========================================================== */
+        :root, body {
+            /* Lichte Modus Standaarden */
+            --color-game-bg: 243 244 246; /* gray-100/200 */
+            --color-card-bg: 255 255 255; /* white */
+            --color-text-primary: 17 24 39; /* gray-900 */
+            --color-text-secondary: 107 114 128; /* gray-500 */
+            --color-text-label: 55 65 81; /* gray-700 */
+            --color-input-field-bg: 255 255 255; /* white */
+            --color-input-text: 55 65 81; /* gray-700 */
+            --color-input-border: 209 213 219; /* gray-300 */
+            --color-hint-bg: 243 244 246; /* gray-100 */
+            --color-auth-status-bg: 219 234 254; /* blue-100 */
+            --color-auth-status-text: 30 58 138; /* blue-800 */
+            --color-divider: 229 231 235; /* gray-200 */
+            --color-input-area-bg: 249 250 251; /* gray-50 */
+        }
+        
+        body.dark {
+            /* Donkere Modus Overrides */
+            --color-game-bg: 17 24 39; /* gray-900 */
+            --color-card-bg: 31 41 55; /* gray-800 */
+            --color-text-primary: 243 244 246; /* gray-100 */
+            --color-text-secondary: 156 163 175; /* gray-400 */
+            --color-text-label: 209 213 219; /* gray-300 */
+            --color-input-field-bg: 75 85 99; /* gray-600 */
+            --color-input-text: 243 244 246; /* gray-100 */
+            --color-input-border: 107 114 128; /* gray-500 */
+            --color-hint-bg: 55 65 81; /* gray-700 */
+            --color-auth-status-bg: 30 58 138; /* blue-900 */
+            --color-auth-status-text: 191 219 254; /* blue-200 */
+            --color-divider: 55 65 81; /* gray-700 */
+            --color-input-area-bg: 55 65 81; /* gray-700 */
+        }
+        
+        /* ========================================================== */
+        /* GENERIEKE CLASSES DIE VARIABELEN GEBRUIKEN */
+        /* ========================================================== */
+        .game-bg { 
+            background-color: rgb(var(--color-game-bg)/ 0.78);
+            backdrop-filter: blur(10px);    
+        }
+        .card-bg { background-color: rgb(var(--color-card-bg)); }
+        
+        .text-primary { color: rgb(var(--color-text-primary)); }
+        .text-secondary { color: rgb(var(--color-text-secondary)); }
+        .text-label { color: rgb(var(--color-text-label)); }
+        .text-input { color: rgb(var(--color-input-text)); }
+
+        .input-field { background-color: rgb(var(--color-input-field-bg)); }
+        .input-border { border-color: rgb(var(--color-input-border)); }
+        .input-area-bg { background-color: rgb(var(--color-input-area-bg)); }
+        
+        .hint-bg { background-color: rgb(var(--color-hint-bg)); }
+        .auth-status-bg { 
+            background-color: rgb(var(--color-auth-status-bg)); 
+            color: rgb(var(--color-auth-status-text));
+        }
+        .border-divider { 
+            border-color: rgb(var(--color-divider)); 
+        }
+
+        /* Oude CSS behouden */
+        .char-preview.selected {
+            border-color: #00ff00;
+            background-color: #222;
+        }
+        .dark .char-preview.selected {
+            border-color: #00ff00; 
+            background-color: #1a1a1a; 
+        }
+        #start-btn {
+            position: relative;
+            z-index: 9999;
+        }
+        .bmc-fixed-btn {
+            position: fixed !important;
+            bottom: 20px;
+            right: 20px;
+            background: #ffdd00;
+            color: #000;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-weight: bold;
+            text-decoration: none;
+            font-size: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+            z-index: 999999;
+            pointer-events: auto !important;
+            user-select: none;
+            transition: transform 0.15s;
+        }
+        .bmc-fixed-btn:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+    <a href="https://www.buymeacoffee.com/wytzig" target="_blank" id="bmc-btn" class="bmc-fixed-btn hidden sm:block">
+        ☕ Support me
+    </a>
+
+</body>
+</html>

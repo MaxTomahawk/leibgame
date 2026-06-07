@@ -13,9 +13,9 @@ Human-friendly setup for **leibgame** + **leibgame-assets**.
 | Game client | [leibgame](https://github.com/MaxTomahawk/leibgame) | HTML/JS (Three.js), hosted on GitHub Pages |
 | Assets CDN | [leibgame-assets](https://github.com/MaxTomahawk/leibgame-assets) | GLB/audio/textures + optimize pipeline |
 
-**Today on `main`:** single game — **Leib Clouds** (3D platformer to the castle) with Supabase multiplayer and cloud saves.
+**Today on `main`:** multi-game platform — hub at `/`, **Leib Clouds** at `/games/clouds/` with Supabase multiplayer and cloud saves.
 
-**Next goal:** multi-game platform on one GitHub Pages site — hub at `/`, **Leib Clouds** + **Leib Jump!** as separate games sharing assets and (optionally) progression. See [`docs/ROADMAP.md`](ROADMAP.md).
+**Next goal:** **Leib Jump!** as second game under `games/jump/`. See [`docs/ROADMAP.md`](ROADMAP.md) and [`docs/HANDOFF.md`](HANDOFF.md).
 
 ### What we already decided (don’t re-litigate)
 
@@ -122,26 +122,16 @@ Same Wi‑Fi: friend opens `http://YOUR_LAN_IP:8000` (server must use `--bind 0.
 
 ```
 leibgame/
-  index.html          # Leib Clouds entry
-  main.js             # game loop
-  supabase.js         # auth client
-  player-service.js   # profiles
-  room-service.js     # shared worlds
-  asset-config.js     # CDN vs /assets/ on localhost
-  config.js           # dev/prod Supabase routing
+  index.html              # platform hub
+  platform/               # hub UI (hub.js, hub.css)
+  games/clouds/           # Leib Clouds (3D multiplayer platformer)
+  shared/                 # supabase, services, asset-config, asset-registry, audio, settings, model-manager
+  config.js               # dev/prod Supabase routing
+  version.json
   supabase/schema.sql
 ```
 
-**Target layout** (after multi-game work — see agent prompts):
-
-```
-leibgame/
-  index.html              # platform hub
-  platform/               # hub UI
-  games/clouds/           # Leib Clouds (move from root)
-  games/jump/             # Leib Jump!
-  shared/                 # audio, settings, supabase, asset registry
-```
+**Next:** `games/jump/` for Leib Jump! — see [`HANDOFF.md`](HANDOFF.md).
 
 ---
 

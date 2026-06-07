@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { ASSET_BASE_URL, modelKeyFromPath } from './asset-config.js';
+import { ASSET_BASE_URL, modelKeyFromPath } from '../../shared/asset-config.js';
 
 let otherPlayers = {};
 let playersChannel = null;

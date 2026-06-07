@@ -1,4 +1,4 @@
-import { savePlayerProgress, patchPlayerProfile } from './player-service.js';
+import { savePlayerProgress, patchPlayerProfile } from '../../shared/player-service.js';
 
 export class ShopSystem {
   constructor (uiManager, supabase, userId) {

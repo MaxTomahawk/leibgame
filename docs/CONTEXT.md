@@ -26,14 +26,19 @@ Local unreleased assets: `ln -sf ../leibgame-assets/assets ./assets` → served 
 
 > **Agents:** update this section on every PR that changes layout or entry points. See [`MAINTAINING_DOCS.md`](MAINTAINING_DOCS.md).
 
-Single game **Leib Clouds** at repo root:
+Multi-game platform (after `cursor/multigame-platform-1a65` merges):
 
 ```
-index.html, main.js, world.js, multiplayer.js, shop-system.js, …
-supabase.js, player-service.js, room-service.js, asset-config.js
+index.html              → platform hub (pick a game)
+platform/               → hub UI (hub.js, hub.css)
+games/clouds/           → Leib Clouds (3D multiplayer platformer)
+shared/                 → supabase, services, asset-config, asset-registry, audio, settings, model-manager
+config.js, version.json → repo root (shared by hub + games)
 ```
 
-Hub + `games/clouds/` + `games/jump/` **not built yet** — target below.
+- Hub: `http://localhost:8000/` lists games; **Leib Clouds** at `/games/clouds/`.
+- Supabase multiplayer, shop, and shared rooms (`?room=code`) work from Clouds.
+- `games/jump/` **not built yet** — next task (see `HANDOFF.md`).
 
 ## Target architecture (roadmap)
 

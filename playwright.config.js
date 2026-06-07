@@ -16,8 +16,8 @@ export default defineConfig({
   testDir: './tests',
 
   webServer: {
-    command: 'python3 launcher.py',
-    url: 'http://localhost:8000', // replace with your game URL
+    command: 'python3 -m http.server 8000 --bind 0.0.0.0',
+    url: 'http://localhost:8000',
     timeout: 120000,
     reuseExistingServer: !process.env.CI,
   },

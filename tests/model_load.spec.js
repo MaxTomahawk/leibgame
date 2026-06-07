@@ -1,7 +1,16 @@
 const { test, expect } = require('@playwright/test');
 
-test('start screen loads without model fallback warning', async ({ page }) => {
+test('hub lists available games', async ({ page }) => {
   await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Leibgame' })).toBeVisible();
+  await expect(page.getByTestId('game-grid')).toBeVisible();
+  await expect(page.getByTestId('game-tile-clouds')).toBeVisible();
+  await expect(page.getByTestId('game-tile-jump-coming-soon')).toBeVisible();
+});
+
+test('start screen loads without model fallback warning', async ({ page }) => {
+  await page.goto('/games/clouds/');
 
   const warning = page.locator('text=Model laden mislukt (gebruik fallback)');
   await expect(warning).not.toBeVisible();
@@ -12,7 +21,7 @@ test('start screen loads without model fallback warning', async ({ page }) => {
 
 test.describe('Character selection 3D model rendering', () => {
   test('should render a 3D model under character selection', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/games/clouds/');
 
     const charContainer = page.locator('#character-selection');
     await expect(charContainer).toBeVisible();
