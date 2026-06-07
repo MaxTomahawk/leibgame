@@ -30,10 +30,16 @@ When `config.js` has no keys, the game runs **offline** (localStorage only).
 cp config.example.js config.js
 ```
 
-Fill in from **Project Settings → API**:
+Paste **anon public keys** from **Project Settings → API** into `config.js`:
 
-- `SUPABASE_URL` — Project URL  
-- `SUPABASE_ANON_KEY` — `anon` `public` key  
+| Key in `PROJECTS` | Project | Used when |
+|-------------------|---------|-----------|
+| `dev` | Leibgame-dev | `localhost`, Cursor Cloud agents |
+| `prod` | Leibgame | `*.github.io` (GitHub Pages) |
+
+Routing is automatic. Override with `?supabase=dev` or `?supabase=prod`.
+
+For local work you only need the **dev** key. See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 Serve the game and open `http://localhost:8000`. Status should show **Online!**
 
