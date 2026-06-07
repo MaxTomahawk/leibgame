@@ -1,16 +1,26 @@
 ---
-description: Leibgame project conventions — read repo context before coding
+description: Leibgame — read context, maintain docs, hand off to next agent
 alwaysApply: true
 ---
 
-Before changing code in **leibgame** or **leibgame-assets**:
+## Start of task
 
-1. Read `docs/CONTEXT.md` (architecture, Supabase, task specs, rules).
-2. Read `AGENTS.md` (how to run, test, dev Supabase routing).
-3. Branch `cursor/<descriptive-name>-1a65` from `main`.
+1. `git fetch origin && git pull origin main` (then create `cursor/<name>-1a65`).
+2. Read **`docs/CONTEXT.md`** → **`docs/MAINTAINING_DOCS.md`** → **`docs/HANDOFF.md`** → **`AGENTS.md`**.
 
-`config.js` already has dev/prod Supabase keys and routing — do not ask the user to paste keys.
+`config.js` has dev/prod Supabase keys — do not ask the user to paste keys.
 
-Do not resurrect deleted multi-game branches. Do not add Firebase.
+Do not use deleted `cursor/multi-game-platform-*` or `cursor/multigame-leib-platform-*` branches. No Firebase.
 
-Default test: `python3 -m http.server 8000` + Playwright smoke tests in `tests/`.
+## End of task (before PR — mandatory)
+
+Follow **`docs/MAINTAINING_DOCS.md`** checklist:
+
+- Update **`docs/CONTEXT.md`** section “Current code (main)”
+- Update **`docs/ROADMAP.md`** if you completed roadmap items
+- Rewrite **`docs/HANDOFF.md`** with next-agent prompt (use template in MAINTAINING_DOCS.md)
+- Copy the “Next agent prompt” from HANDOFF.md into the PR description
+
+Tests: `python3 -m http.server 8000` + `npx playwright test tests/example.spec.js tests/model_load.spec.js`
+
+Repo docs are the single source of truth — not chat, not wiki-only notes.

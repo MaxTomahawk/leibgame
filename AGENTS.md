@@ -1,14 +1,16 @@
 # AGENTS.md
 
-## Read first
+## Read first (in order)
 
-| File | Why |
-|------|-----|
-| [`docs/CONTEXT.md`](docs/CONTEXT.md) | Architecture, Supabase, task specs, rules |
-| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Human-oriented setup (also useful for agents) |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | What’s done / next |
+| # | File | Purpose |
+|---|------|---------|
+| 1 | [`docs/CONTEXT.md`](docs/CONTEXT.md) | What the project is, current vs target layout, rules |
+| 2 | [`docs/MAINTAINING_DOCS.md`](docs/MAINTAINING_DOCS.md) | **How to update docs** — mandatory before every PR |
+| 3 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | What the last agent did + **prompt for you** |
+| 4 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Run, test, troubleshoot |
+| 5 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Done / not done |
 
-The user gives a **short goal** (see [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md)). You load the rest from here.
+The human gives a short goal ([`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md)). **You** keep docs on your branch current so merge → `main` → next agent never loses context.
 
 ---
 
@@ -21,15 +23,11 @@ The user gives a **short goal** (see [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPT
 | leibgame | `repos/leibgame` |
 | leibgame-assets | `repos/leibgame-assets` |
 
-Optional local assets: `ln -sf ../leibgame-assets/assets ./assets`
+Optional: `ln -sf ../leibgame-assets/assets ./assets`
 
 ### Supabase
 
-**Pre-configured in `config.js`.** Do not ask the user for anon keys.
-
-- `localhost` → Leibgame-dev
-- `github.io` → prod
-- `?supabase=dev|prod` override
+Pre-configured in `config.js`. `localhost` → Leibgame-dev. Do not ask for keys.
 
 ### Run & test
 
@@ -43,4 +41,8 @@ Use HTTP server, not `launcher.py`, for Playwright.
 
 ### Branches
 
-`cursor/<name>-1a65` from `main`. Do not use deleted `cursor/multi-game-platform-*` or `cursor/multigame-leib-platform-*`.
+`cursor/<name>-1a65` from latest `main`.
+
+### Before you open a PR
+
+See **`docs/MAINTAINING_DOCS.md`** — update `CONTEXT.md`, `ROADMAP.md`, `HANDOFF.md` on your branch.

@@ -2,7 +2,9 @@
 
 Human-friendly setup for **leibgame** + **leibgame-assets**.
 
-**New agent?** You only say what you want — see [`AGENT_PROMPTS.md`](AGENT_PROMPTS.md). Agents read [`CONTEXT.md`](CONTEXT.md) + [`AGENTS.md`](../AGENTS.md) from the repo.
+**New agent?** See [`AGENT_PROMPTS.md`](AGENT_PROMPTS.md) or [`HANDOFF.md`](HANDOFF.md). Agents read [`CONTEXT.md`](CONTEXT.md) + [`MAINTAINING_DOCS.md`](MAINTAINING_DOCS.md) and **update those files on their branch** before merge.
+
+**Wiki:** optional for humans ([GitHub Wiki](https://github.com/MaxTomahawk/leibgame/wiki)). Agents always use repo `docs/` — never wiki-only instructions.
 
 ## What this project is
 

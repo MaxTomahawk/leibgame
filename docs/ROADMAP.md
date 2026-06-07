@@ -8,6 +8,7 @@
 - [x] Asset CDN via `leibgame-assets` on GitHub Pages
 - [x] Playwright smoke tests
 - [x] Cursor Cloud dev environment (`AGENTS.md`)
+- [x] Agent doc contract (`docs/MAINTAINING_DOCS.md`, `docs/HANDOFF.md`, PR template)
 
 ## In progress
 
