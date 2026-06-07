@@ -39,13 +39,17 @@ npm run test:e2e                  # all tests in ./tests
 - `tests/model_load.spec.js` — game-specific but **out of date** (expects `"Multiplayer connected!"` / `"Start Spel"`; multiplayer is off by default and UI uses `"Start Game"`).
 - No ESLint/TypeScript lint script is configured.
 
-### Multiplayer / Firebase
+### Multiplayer / Supabase
 
-Disabled by default (`FEATURES.MULTIPLAYER = false` in `main.js`). No local DB; offline mode uses `localStorage`.
+Enabled automatically when `config.js` contains valid `SUPABASE_URL` and `SUPABASE_ANON_KEY` (see `SUPABASE.md`). Without config, offline mode uses `localStorage`.
+
+- `player_profiles` — coins, stars, shop upgrades  
+- `rooms` + `room_players` — shared world and live presence  
+- Default room: `main_world`; override with `?room=yourcode`
 
 ### Known quirks
 
-- `index.html` references missing `ui.js` (404). Game logic loads via `main.js` → `ui-manager.js`; the stray script tag is harmless but noisy in network logs.
+- Local dev assets: symlink `assets` → `../leibgame-assets/assets` and use `ASSET_BASE_URL` from `asset-config.js` (`/assets/` on localhost).
 - 3D character previews and gameplay need WebGL. Playwright Chromium headless works for start-screen → in-game flow; desktop browser in GPU-less VMs may fail WebGL and block the Start button (`modelLoaded` never becomes true).
 - Asset pipeline in `leibgame-assets`: `package.json` script points to `optimize-assets.js` but the file is `scripts/optimize-assets.mjs`.
 
