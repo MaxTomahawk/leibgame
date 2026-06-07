@@ -4,7 +4,7 @@
 |-------|--------|
 | **Last agent task** | Multi-game platform (hub + Leib Clouds relocation) |
 | **Branch** | `cursor/multigame-platform-1a65` |
-| **PR** | *(open after push)* |
+| **PR** | #8 |
 | **Updated** | 2026-06-07 |
 | **Status** | ready for merge |
 
