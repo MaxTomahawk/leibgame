@@ -72,13 +72,19 @@ Access the Pause Menu (ESC) to tweak the game to your liking:
 
 ## 🛠️ Local Setup
 
-To test local development, please run the Python launcher:
+**Full guide:** [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) (Supabase dev/prod, assets symlink, sharing with friends).
+
+Quick start:
 
 ```bash
-python launcher.py
+npm install
+cp config.example.js config.js   # paste Leibgame-dev anon key
+python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
-Then navigate to `http://localhost:8000` in your browser.
+Open `http://localhost:8000`. Localhost uses the **dev** Supabase project automatically.
+
+**Roadmap & agent tasks:** [`docs/ROADMAP.md`](docs/ROADMAP.md) · [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md)
 
 ### Online mode (Supabase)
 
