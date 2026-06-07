@@ -83,7 +83,7 @@ python3 -m http.server 8000 --bind 0.0.0.0
 
 Open `http://localhost:8000`. Supabase is **pre-configured** (`config.js` → dev on localhost).
 
-**New agent:** say what you want — [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md) (repo has the rest in [`docs/CONTEXT.md`](docs/CONTEXT.md)).
+**New agent:** [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md) or latest [`docs/HANDOFF.md`](docs/HANDOFF.md). Agents update [`docs/MAINTAINING_DOCS.md`](docs/MAINTAINING_DOCS.md) before each PR so context stays on `main`.
 
 ### Online mode (Supabase)
 
