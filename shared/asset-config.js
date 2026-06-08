@@ -2,8 +2,13 @@
  * Asset URL routing — local junction, bundled low tier on Pages, CDN for higher tiers.
  */
 
+import { getBasePath } from './base-path.js';
+
 const PRODUCTION_CDN_BASE = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
-const BUNDLED_ASSET_BASE = '/assets/';
+
+function bundledAssetBase () {
+  return `${getBasePath()}assets/`;
+}
 
 function isPrivateOrLocalHost (host) {
   if (!host || host === 'localhost' || host === '[::1]') return true;
@@ -79,7 +84,7 @@ export function modelUrlForQuality (modelKey, quality = 'high') {
     return `${getLocalAssetBaseUrl()}${file}`;
   }
   if (quality === 'low') {
-    return `${BUNDLED_ASSET_BASE}${file}`;
+    return `${bundledAssetBase()}${file}`;
   }
   return `${getCdnAssetBaseUrl()}${file}`;
 }
@@ -94,7 +99,7 @@ export function remoteAssetUrl (relativePath) {
     return `${getLocalAssetBaseUrl()}${clean}`;
   }
   if (clean.endsWith('_low.glb')) {
-    return `${BUNDLED_ASSET_BASE}${clean}`;
+    return `${bundledAssetBase()}${clean}`;
   }
   return `${getCdnAssetBaseUrl()}${clean}`;
 }

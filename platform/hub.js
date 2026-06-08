@@ -1,4 +1,5 @@
 import { GAMES } from '../shared/asset-registry.js';
+import { appUrl } from '../shared/base-path.js';
 
 function renderGameTiles (container) {
   container.innerHTML = '';
@@ -10,7 +11,7 @@ function renderGameTiles (container) {
     }`;
 
     if (game.available) {
-      tile.href = game.path;
+      tile.href = appUrl(game.path);
       tile.setAttribute('data-testid', `game-tile-${game.id}`);
     } else {
       tile.setAttribute('aria-disabled', 'true');

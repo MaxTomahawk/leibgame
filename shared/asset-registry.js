@@ -14,7 +14,7 @@ export const GAMES = [
     id: 'clouds',
     title: 'Leib Clouds',
     subtitle: 'Multiplayer Cloud Jumper',
-    path: '/games/clouds/',
+    path: 'games/clouds/',
     available: true,
     emoji: '☁️'
   },
