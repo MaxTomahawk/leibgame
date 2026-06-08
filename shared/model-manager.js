@@ -373,6 +373,10 @@ export class ModelManager {
     }
 
     loadPreviewModel(element, modelFile) {
+        if (element.clientWidth < 2 || element.clientHeight < 2) {
+            requestAnimationFrame(() => this.loadPreviewModel(element, modelFile));
+            return;
+        }
         this.disposePreview(element);
         const scene = new THREE.Scene();
         const previewUrl = modelUrlForQuality(modelFile, 'medium');
@@ -409,8 +413,7 @@ export class ModelManager {
         element.previewFrame = requestAnimationFrame(() => this.animatePreview(element));
     }
 
-    dispose() {
-        this.disposeAllPreviews();
+    disposePlayerModel () {
         if (this.mixer) this.mixer.stopAllAction();
         if (this.playerModel) {
             this.playerModel.traverse(child => {
@@ -419,6 +422,15 @@ export class ModelManager {
                     if (child.material) child.material.dispose();
                 }
             });
+            this.playerModel = null;
         }
+        this.mixer = null;
+        this.animations = {};
+        this.currentAction = null;
+        this.currentAnimation = '';
+    }
+
+    dispose() {
+        this.disposePlayerModel();
     }
 }

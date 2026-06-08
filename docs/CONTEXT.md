@@ -38,6 +38,7 @@ config.js, version.json → repo root (shared by hub + games)
 
 - Hub: `http://localhost:8000/` lists games; **Leib Clouds** at `/games/clouds/`.
 - Supabase multiplayer, shop, and shared rooms (`?room=code`) work from Clouds.
+- Local assets: `asset-config.js` serves `/assets/` on localhost, private LAN, and Tailscale IPs (100.64–127.x); override with `?assets=/assets/`.
 - `games/jump/` **not built yet** — next task (see `HANDOFF.md`).
 
 ## Target architecture (roadmap)

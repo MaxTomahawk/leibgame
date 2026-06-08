@@ -34,11 +34,11 @@ Pre-configured in `config.js`. `localhost` → Leibgame-dev. Do not ask for keys
 ```bash
 cd repos/leibgame
 ln -sf ../leibgame-assets/assets ./assets   # required for local GLB/audio (not optional for full verification)
-python3 -m http.server 8000 --bind 0.0.0.0
+python3 -m http.server 8000 --bind 0.0.0.0  # Windows local: use `python` instead
 npx playwright test tests/example.spec.js tests/model_load.spec.js tests/clouds_start.spec.js
 ```
 
-Use HTTP server, not `launcher.py`, for Playwright.
+Use HTTP server, not `launcher.py`, for Playwright. On Windows, `playwright.config.js` uses `python`; on Linux/macOS/Cloud it uses `python3`.
 
 ### Verify in a real browser (mandatory before PR)
 

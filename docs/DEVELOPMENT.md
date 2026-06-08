@@ -4,6 +4,8 @@ Human-friendly setup for **leibgame** + **leibgame-assets**.
 
 **New agent?** See [`AGENT_PROMPTS.md`](AGENT_PROMPTS.md) or [`HANDOFF.md`](HANDOFF.md). Agents read [`CONTEXT.md`](CONTEXT.md) + [`MAINTAINING_DOCS.md`](MAINTAINING_DOCS.md) and **update those files on their branch** before merge.
 
+**Master Folder workspace:** three sibling repos — see [`WORKSPACE.md`](WORKSPACE.md). Open `leibgame.code-workspace` at the Master Folder root.
+
 **Wiki:** optional for humans ([GitHub Wiki](https://github.com/MaxTomahawk/leibgame/wiki)). Agents always use repo `docs/` — never wiki-only instructions.
 
 ## What this project is
@@ -55,36 +57,45 @@ Clone and run — status should show **Online!** on localhost.
 
 ### 3. Local assets (required for agent verification)
 
-By default production uses the GitHub Pages CDN. **Agents must symlink** `leibgame-assets` for reliable local testing and to catch asset-path bugs:
+By default production uses the GitHub Pages CDN. **Agents must link** `leibgame-assets` for reliable local testing and to catch asset-path bugs:
+
+**Linux / macOS / Cursor Cloud:**
 
 ```bash
 cd leibgame
 ln -sf ../leibgame-assets/assets ./assets
 ```
 
-Without the symlink, some flows still work via CDN, but you cannot fully verify gameplay. To test **unpublished** GLBs:
+**Windows (junction — run from `leibgame` folder, both repos as siblings):**
 
-```bash
-ln -sf ../leibgame-assets/assets ./assets
+```cmd
+mklink /J assets "..\leibgame-assets\assets"
 ```
 
-`asset-config.js` serves `/assets/` on localhost.
+Verify: `dir assets` should list `leib_high.glb`, `katinka_high.glb`, etc. If the junction is broken, delete the empty `assets` folder and recreate with `mklink /J`.
+
+Without the link, some flows still work via CDN, but you cannot fully verify gameplay. To test **unpublished** GLBs, use the local link above.
+
+`asset-config.js` serves `/assets/` on localhost, private LAN (10.x, 192.168.x, …), and **Tailscale** (100.64–127.x). Override: `?assets=/assets/` on any host.
 
 ### 4. Run
 
 ```bash
-python3 -m http.server 8000 --bind 0.0.0.0
+python -m http.server 8000 --bind 0.0.0.0      # Windows
+python3 -m http.server 8000 --bind 0.0.0.0     # Linux / macOS / Cursor Cloud
 ```
 
 Open **http://localhost:8000**. Status should show **Online!** when dev key is set.
 
+**Tailscale / LAN:** bind `0.0.0.0` and open `http://<your-tailscale-ip>:8000` — assets load from `/assets/` automatically when the junction/symlink is present.
+
 ### 5. Tests
 
 ```bash
-npx playwright test tests/example.spec.js tests/model_load.spec.js
+npx playwright test tests/example.spec.js tests/model_load.spec.js tests/clouds_start.spec.js
 ```
 
-Prefer `python3 -m http.server 8000` over `launcher.py` when running Playwright (see `AGENTS.md`).
+Prefer `python -m http.server 8000` (Windows) or `python3 -m http.server 8000` (Unix) over `launcher.py` when running Playwright (see `AGENTS.md`). `playwright.config.js` picks the right Python command per OS.
 
 ---
 
@@ -159,7 +170,8 @@ npm run optimize -- --help   # script: scripts/optimize-assets.mjs
 | Problem | Fix |
 |---------|-----|
 | “Offline” on localhost | Check `config.js` exists; Anonymous auth enabled in Supabase dev project |
-| Models 404 locally | `ln -sf ../leibgame-assets/assets ./assets` |
+| Models 404 locally | Windows: `mklink /J assets "..\leibgame-assets\assets"` · Unix: `ln -sf ../leibgame-assets/assets ./assets` |
+| Models 404 on Tailscale IP | Ensure junction/symlink exists; private IPs now use `/assets/` automatically; or add `?assets=/assets/` |
 | Multiplayer desync | Same `?room=`; Realtime on `rooms` + `room_players` |
 | Playwright hangs | Use `python3 -m http.server 8000`, not `launcher.py` |
 | Start button disabled | WebGL/model load failed — check console + asset URLs |

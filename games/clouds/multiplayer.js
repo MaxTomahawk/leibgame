@@ -53,6 +53,15 @@ async function fetchRoomPlayers (supabase, roomId, selfId) {
   return (data || []).filter((row) => row.player_id !== selfId);
 }
 
+function clearOtherPlayers (scene) {
+  for (const player of Object.values(otherPlayers)) {
+    if (player.container) scene.remove(player.container);
+  }
+  for (const key of Object.keys(otherPlayers)) {
+    delete otherPlayers[key];
+  }
+}
+
 function listenToPlayers (scene, userId, ui, supabase, roomId) {
   const loader = new GLTFLoader();
   const ANIMATION_MAPPING = buildAnimationMapping();
@@ -205,11 +214,19 @@ function listenToPlayers (scene, userId, ui, supabase, roomId) {
 
   return () => {
     if (playersPollInterval) clearInterval(playersPollInterval);
+    playersPollInterval = null;
     if (playersChannel) supabase.removeChannel(playersChannel);
+    playersChannel = null;
+    clearOtherPlayers(scene);
   };
 }
 
 function startBroadcasting (userId, myName, supabase, roomId) {
+  if (window.broadcastInterval) {
+    clearInterval(window.broadcastInterval);
+    window.broadcastInterval = null;
+  }
+
   let lastSent = 0;
   const lastPos = new THREE.Vector3();
   let lastRot = 0;
@@ -260,9 +277,16 @@ function startBroadcasting (userId, myName, supabase, roomId) {
   window.broadcastInterval = broadcastInterval;
 
   window.addEventListener('beforeunload', () => {
-    clearInterval(broadcastInterval);
+    stopBroadcasting();
     supabase.from('room_players').delete().eq('room_id', roomId).eq('player_id', userId);
   });
+}
+
+function stopBroadcasting () {
+  if (window.broadcastInterval) {
+    clearInterval(window.broadcastInterval);
+    window.broadcastInterval = null;
+  }
 }
 
 function createNameLabel (name) {
@@ -289,6 +313,7 @@ function updateOtherPlayerAnimations (delta) {
 export {
   listenToPlayers,
   startBroadcasting,
+  stopBroadcasting,
   createNameLabel,
   updateOtherPlayerAnimations,
   modelKeyFromPath

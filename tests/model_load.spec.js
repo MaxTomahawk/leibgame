@@ -26,12 +26,14 @@ test.describe('Character selection 3D model rendering', () => {
     const charContainer = page.locator('#character-selection');
     await expect(charContainer).toBeVisible();
 
-    await page.waitForTimeout(3000);
+    const previews = page.locator('.char-preview');
+    await expect(previews).toHaveCount(3);
 
-    const previewElements = await page.$$('.char-preview');
-    for (const el of previewElements) {
-      const hasModel = await page.evaluate((element) => !!element.previewModel, el);
-      expect(hasModel).toBeTruthy();
+    for (let i = 0; i < 3; i++) {
+      await expect(async () => {
+        const hasModel = await previews.nth(i).evaluate((el) => !!el.previewModel);
+        expect(hasModel).toBeTruthy();
+      }).toPass({ timeout: 20000 });
     }
   });
 });

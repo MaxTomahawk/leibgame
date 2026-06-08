@@ -89,6 +89,14 @@ function clearWorldEntities (scene, platforms, coins, enemies) {
         if (e.userData.mixer) e.userData.mixer = null;
     });
     enemies.length = 0;
+
+    const decor = [];
+    scene.traverse((obj) => {
+        if (obj.userData?.worldDecor || obj.name === 'SkySphere') decor.push(obj);
+    });
+    decor.forEach((obj) => {
+        if (obj.parent) obj.parent.remove(obj);
+    });
 }
 
 function showWorldRegenToast () {
@@ -111,47 +119,80 @@ function showWorldRegenToast () {
     setTimeout(() => notification.remove(), 3000);
 }
 
+function readCachedWorld () {
+    try {
+        const raw = localStorage.getItem('cachedWorld');
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        return data?.platforms?.length ? data : null;
+    } catch (_e) {
+        return null;
+    }
+}
+
+function attachRoomListener (supabase, roomId, initialGeneratedAt, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader) {
+    if (worldUnsubscribe) return;
+    let lastGeneratedAt = initialGeneratedAt;
+    worldUnsubscribe = subscribeToRoom(supabase, roomId, (roomRow) => {
+        const nextGeneratedAt = roomRow.generated_at;
+        if (!nextGeneratedAt || nextGeneratedAt === lastGeneratedAt) return;
+        lastGeneratedAt = nextGeneratedAt;
+        console.log('🌍 World regenerated! Reloading...');
+        const nextWorld = applyCollectedCoins(roomRow.world_data, roomRow.collected_coin_ids);
+        localStorage.setItem('cachedWorld', JSON.stringify(nextWorld));
+        clearWorldEntities(scene, platforms, coins, enemies);
+        buildWorldFromData(nextWorld, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+        showWorldRegenToast();
+    });
+}
+
+async function refreshRoomWorldInBackground (supabase, roomId, userId, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader, cachedGeneratedAt) {
+    try {
+        const result = await fetchOrCreateRoomWorld(supabase, roomId, userId, generateWorldData, CASTLE_Z);
+        localStorage.setItem('cachedWorld', JSON.stringify(result.worldData));
+        attachRoomListener(supabase, roomId, result.generatedAt ?? cachedGeneratedAt, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+        if (result.generatedAt && cachedGeneratedAt && result.generatedAt === cachedGeneratedAt) return;
+        clearWorldEntities(scene, platforms, coins, enemies);
+        buildWorldFromData(result.worldData, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+    } catch (e) {
+        console.warn('Background world refresh failed:', e);
+    }
+}
+
 // --- WORLD SYNC LOGIC ---
 export async function syncAndBuildWorld (scene, ui, platforms, coins, enemies, projectiles, onlineCtx, CASTLE_Z, platformTexture, textureLoader) {
     ui.status.innerText = 'Loading world...';
     projectiles.forEach(p => scene.remove(p.mesh));
     projectiles.length = 0;
 
-    let worldData = null;
+    let worldData = readCachedWorld();
 
     if (onlineCtx?.supabase && onlineCtx.roomId && onlineCtx.userId) {
-        try {
-            const { supabase, roomId, userId } = onlineCtx;
-            const result = await fetchOrCreateRoomWorld(
-                supabase,
-                roomId,
-                userId,
-                generateWorldData,
-                CASTLE_Z
-            );
-            worldData = result.worldData;
-            localStorage.setItem('cachedWorld', JSON.stringify(worldData));
+        const { supabase, roomId, userId } = onlineCtx;
 
-            if (!worldUnsubscribe) {
-                let lastGeneratedAt = result.generatedAt;
-                worldUnsubscribe = subscribeToRoom(supabase, roomId, (roomRow) => {
-                    const nextGeneratedAt = roomRow.generated_at;
-                    if (!nextGeneratedAt || nextGeneratedAt === lastGeneratedAt) return;
-                    lastGeneratedAt = nextGeneratedAt;
-                    console.log('🌍 World regenerated! Reloading...');
-                    const nextWorld = applyCollectedCoins(roomRow.world_data, roomRow.collected_coin_ids);
-                    localStorage.setItem('cachedWorld', JSON.stringify(nextWorld));
-                    clearWorldEntities(scene, platforms, coins, enemies);
-                    buildWorldFromData(nextWorld, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
-                    showWorldRegenToast();
-                });
+        if (worldData) {
+            console.log('📦 Using cached world (instant load)');
+            attachRoomListener(supabase, roomId, worldData.generatedAt, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+            refreshRoomWorldInBackground(supabase, roomId, userId, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader, worldData.generatedAt);
+        } else {
+            try {
+                const result = await fetchOrCreateRoomWorld(
+                    supabase,
+                    roomId,
+                    userId,
+                    generateWorldData,
+                    CASTLE_Z
+                );
+                worldData = result.worldData;
+                localStorage.setItem('cachedWorld', JSON.stringify(worldData));
+                attachRoomListener(supabase, roomId, result.generatedAt, scene, CASTLE_Z, platforms, coins, enemies, platformTexture, textureLoader);
+            } catch (e) {
+                console.error('Error fetching room world:', e);
+                ui.status.innerHTML = '⚠️ <strong>Online world error:</strong> Falling back to offline generation.';
+                worldData = stampCoinIds(generateWorldData(CASTLE_Z));
             }
-        } catch (e) {
-            console.error('Error fetching room world:', e);
-            ui.status.innerHTML = '⚠️ <strong>Online world error:</strong> Falling back to offline generation.';
-            worldData = stampCoinIds(generateWorldData(CASTLE_Z));
         }
-    } else {
+    } else if (!worldData) {
         console.log('🎮 Generating offline world');
         worldData = generateWorldData(CASTLE_Z);
     }
@@ -293,6 +334,7 @@ function createCastle(scene, CASTLE_Z) {
 
     // === FINAL POSITION ===
     castle.position.set(0, 1, CASTLE_Z);
+    castle.userData.worldDecor = true;
     scene.add(castle);
 }
 
@@ -428,6 +470,13 @@ export function cleanupWorldListener() {
     }
 }
 
+/** Clear platforms/coins/enemies/sky decor between play sessions (same document). */
+export function resetVisibleWorld (scene, platforms, coins, enemies, projectiles) {
+    projectiles.forEach((p) => scene.remove(p.mesh));
+    projectiles.length = 0;
+    clearWorldEntities(scene, platforms, coins, enemies);
+}
+
 function createPromptTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 128; canvas.height = 128;
@@ -514,6 +563,7 @@ function createRonnieStall(scene, position) {
     if (position.rotation) {
         stall.rotation.y = position.rotation;
     }
+    stall.userData.worldDecor = true;
     scene.add(stall);
     
     console.log("🏪 Ronnie's stall created!");
@@ -692,6 +742,7 @@ function createCloudySky() {
     
     const sky = new THREE.Mesh(skyGeo, skyMat);
     sky.userData.skyMaterial = skyMat;
+    sky.userData.worldDecor = true;
     sky.name = 'SkySphere';
     
     return sky;

@@ -1,7 +1,9 @@
 // mobile-controls.js
+import { isTouchInputMode } from '../../shared/input-mode.js';
+
 export class MobileControls {
-    constructor() {
-        this.enabled = this.isMobile();
+    constructor (touchMode = isTouchInputMode()) {
+        this.enabled = touchMode;
         
         // --- Configuration ---
         this.maxDragDistance = 60; 
@@ -36,8 +38,25 @@ export class MobileControls {
         this.stickInner = this.stickOuter.firstChild;
     }
 
+    setTouchMode (touchMode) {
+        this.enabled = touchMode;
+        if (!touchMode && this.uiBuilt) {
+            this._teardownUI();
+        }
+    }
+
+    _teardownUI () {
+        [this.moveArea, this.dragArea, this.btnShoot, this.btnAbility, this.btnCloud, this.btnGlide, this.btnInteract]
+            .filter(Boolean)
+            .forEach((el) => el.remove());
+        if (this.stickOuter?.parentNode) this.stickOuter.parentNode.removeChild(this.stickOuter);
+        this.uiBuilt = false;
+        this.moveArea = null;
+        this.dragArea = null;
+    }
+
     isMobile() {
-        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        return this.enabled;
     }
 
     _createStickVisual() {

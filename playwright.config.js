@@ -9,6 +9,8 @@ import { defineConfig, devices } from '@playwright/test';
 // import path from 'path';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -16,7 +18,7 @@ export default defineConfig({
   testDir: './tests',
 
   webServer: {
-    command: 'python3 -m http.server 8000 --bind 0.0.0.0',
+    command: `${pythonCmd} -m http.server 8000 --bind 0.0.0.0`,
     url: 'http://localhost:8000',
     timeout: 120000,
     reuseExistingServer: !process.env.CI,

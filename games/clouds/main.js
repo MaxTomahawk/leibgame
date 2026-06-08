@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition, cleanupWorldListener } from './world.js';
+import { syncAndBuildWorld, generateWorldData, ASSET_CONFIG, spawnStarAtPosition, cleanupWorldListener, resetVisibleWorld } from './world.js';
 import { MobileControls } from './mobile-controls.js';
+import { getInputMode, isTouchInputMode, watchInputMode } from '../../shared/input-mode.js';
 import { AudioManager } from '../../shared/audio-manager.js';
 import { ModelManager } from '../../shared/model-manager.js';
 import { UIManager } from './ui-manager.js';
@@ -91,6 +92,7 @@ let textureLoader;
 let modelLoaded = false;
 let platformTexture = null;
 let mobile = null;
+let unwatchInputMode = null;
 let audioManager;
 let shopSystem, settingsManager;
 let jumpCount = 0;
@@ -217,8 +219,10 @@ function getOnlineContext () {
 }
 
 
-function cleanupGameSession () {
-    if (window.broadcastInterval) {
+function stopMultiplayerSession () {
+    if (multiplayerModule?.stopBroadcasting) {
+        multiplayerModule.stopBroadcasting();
+    } else if (window.broadcastInterval) {
         clearInterval(window.broadcastInterval);
         window.broadcastInterval = null;
     }
@@ -227,20 +231,81 @@ function cleanupGameSession () {
         unsubscribePlayers = null;
     }
     cleanupWorldListener();
-    if (modelManager) {
-        modelManager.disposeAllPreviews();
+}
+
+function isRendererUsable () {
+    return !!(renderer?.domElement?.isConnected && document.body.contains(renderer.domElement));
+}
+
+function ensureRendererAttached () {
+    if (!renderer) return false;
+    if (!renderer.domElement.id) renderer.domElement.id = 'game-canvas';
+    if (!renderer.domElement.isConnected) {
+        document.body.prepend(renderer.domElement);
     }
-    if (renderer) {
-        renderer.dispose();
-        if (renderer.domElement?.parentNode) {
-            renderer.domElement.parentNode.removeChild(renderer.domElement);
-        }
+    return true;
+}
+
+function reloadCharacterPreviews () {
+    if (!uiManager || !modelManager) return;
+    uiManager.getCharacterPreviewElements().forEach((el) => {
+        modelManager.loadPreviewModel(el, resolveModelPath(el.dataset.model));
+    });
+}
+
+/** Reset to start screen without destroying WebGL (safe for bfcache / second play). */
+function resetSessionForReplay () {
+    console.log('🔄 Resetting session for replay');
+    stopMultiplayerSession();
+
+    window.gameState = 'start';
+    isStartingGame = false;
+    isTripping = false;
+    isGliding = false;
+    jumpCount = 0;
+    velocity.set(0, 0, 0);
+
+    if (scene && platforms) {
+        resetVisibleWorld(scene, platforms, coins, enemies, projectiles);
+    }
+
+    if (player) {
+        player.position.set(0, 5, 0);
+        player.rotation.set(0, 0, 0);
+    }
+
+    document.body.classList.remove('game-playing');
+    ensureRendererAttached();
+
+    if (uiManager) {
+        uiManager.dom.startScreen.classList.add('active');
+        uiManager.dom.progressBar.style.display = 'none';
+        uiManager.dom.gameOverScreen?.classList.remove('active');
+        uiManager.togglePauseScreen(false);
+        reloadCharacterPreviews();
+    }
+
+    if (isMultiplayer && multiplayerModule && supabaseClient && userId && scene) {
+        unsubscribePlayers = multiplayerModule.listenToPlayers(
+            scene,
+            userId,
+            { peers: uiManager.dom.peerCount },
+            supabaseClient,
+            activeRoomId
+        );
     }
 }
 
-window.addEventListener('pagehide', cleanupGameSession);
+function onPageHide () {
+    // Stop network work only — never dispose WebGL (breaks bfcache / second visit).
+    stopMultiplayerSession();
+}
+
+window.addEventListener('pagehide', onPageHide);
 window.addEventListener('pageshow', (event) => {
     if (event.persisted) {
+        resetSessionForReplay();
+    } else if (!isRendererUsable()) {
         window.location.reload();
     }
 });
@@ -282,9 +347,14 @@ window.onload = async () => {
     const currentTheme = settingsManager.get('theme') || 'dynamic';
     applyThemeSettings(currentTheme);
 
-    mobile = new MobileControls();
+    mobile = new MobileControls(isTouchInputMode());
     handleMobileControls(mobile);
     uiManager.setControlsHint(mobile.enabled);
+    unwatchInputMode = watchInputMode((mode) => {
+        const touch = isTouchInputMode(mode);
+        mobile.setTouchMode(touch);
+        uiManager.setControlsHint(touch);
+    });
 
     // Load multiplayer modules first
     await loadMultiplayerModules();
@@ -394,6 +464,7 @@ function initThreeJS() {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'default' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.domElement.id = 'game-canvas';
     document.body.appendChild(renderer.domElement);
 
     // --- POST-PROCESSING SETUP (Voor Trip Mode) ---
@@ -1111,10 +1182,10 @@ function setupInputs() {
 
     uiManager.onCharacterSelect((modelPath) => {
         selectedModelFile = resolveModelPath(modelPath);
-        modelManager.dispose();
         if (modelManager.playerModel) {
             player.remove(modelManager.playerModel);
         }
+        modelManager.disposePlayerModel();
         modelManager.loadPlayerModel(selectedModelFile, player, {
             onProgress: (t, m, c) => uiManager.updateStatus(t, m, c),
             onLoaded: (t, m, c) => {
@@ -1134,47 +1205,44 @@ function setupInputs() {
     uiManager.onStart(async (name) => {
         if (isStartingGame || window.gameState === 'playing') return;
         isStartingGame = true;
-        if (name) myName = name;
-        uiManager.startGameUI(myName);
-
-        const ctx = getOnlineContext();
-        if (ctx && multiplayerModule) {
-            try {
-                multiplayerModule.startBroadcasting(userId, myName, ctx.supabase, ctx.roomId);
-                console.log('✅ Multiplayer broadcasting started');
-            } catch (e) {
-                console.error('❌ Multiplayer start failed:', e);
-            }
-        }
-
-        if (audioManager) {
-            audioManager.playMusic('bgm');
-        }
-
-        const worldUI = {
-            progressBar: uiManager.dom.progressBar,
-            progressFill: uiManager.dom.progressFill,
-            progressText: uiManager.dom.progressText,
-            status: uiManager.dom.authStatus
-        };
-
         try {
+            if (name) myName = name;
+            modelManager.disposeAllPreviews();
+            uiManager.startGameUI(myName);
+
+            const ctx = getOnlineContext();
+            if (ctx && multiplayerModule) {
+                try {
+                    multiplayerModule.startBroadcasting(userId, myName, ctx.supabase, ctx.roomId);
+                    console.log('✅ Multiplayer broadcasting started');
+                } catch (e) {
+                    console.error('❌ Multiplayer start failed:', e);
+                }
+            }
+
+            if (audioManager) {
+                audioManager.playMusic('bgm');
+            }
+
+            const worldUI = {
+                progressBar: uiManager.dom.progressBar,
+                progressFill: uiManager.dom.progressFill,
+                progressText: uiManager.dom.progressText,
+                status: uiManager.dom.authStatus
+            };
+
             await syncAndBuildWorld(scene, worldUI, platforms, coins, enemies, projectiles, getOnlineContext(), CASTLE_Z, platformTexture, textureLoader);
 
             if (!mobile || !mobile.enabled) {
-                document.body.requestPointerLock();
+                try {
+                    document.body.requestPointerLock();
+                } catch (_e) { /* optional — e.g. automated tests */ }
             }
             window.gameState = 'playing';
             if (mobile && mobile.enabled) {
                 mobile.start();
                 updateMobileAbilities();
             }
-        } catch (e) {
-            console.error('Failed to start game:', e);
-            window.gameState = 'start';
-            uiManager.dom.startScreen.classList.add('active');
-            uiManager.dom.progressBar.style.display = 'none';
-            uiManager.updateStatus('online', '⚠️ Could not start — try again', 'yellow');
         } finally {
             isStartingGame = false;
         }

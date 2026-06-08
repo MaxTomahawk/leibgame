@@ -11,8 +11,9 @@ body {
     height: 100dvh; /* Mobile fix */
 }
 
-canvas {
-    display: block;
+canvas { display: block; }
+
+#game-canvas {
     position: fixed;
     top: 0;
     left: 0;
@@ -20,8 +21,49 @@ canvas {
     pointer-events: none;
 }
 
-body.game-playing canvas {
+body.game-playing #game-canvas {
     pointer-events: auto;
+}
+
+.char-preview {
+    position: relative;
+    overflow: hidden;
+    flex: 1 1 0;
+    min-width: 5.5rem;
+    max-width: 7.75rem;
+    aspect-ratio: 4 / 5;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 0.625rem;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: rgb(var(--color-input-field-bg));
+}
+
+.char-preview:hover {
+    border-color: #6366f1;
+}
+
+.dark .char-preview:hover {
+    border-color: #818cf8;
+}
+
+.char-row {
+    display: flex;
+    gap: 0.625rem;
+    justify-content: center;
+    align-items: stretch;
+    width: 100%;
+}
+
+.char-preview canvas {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none;
 }
 
 .ui-container {

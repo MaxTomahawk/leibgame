@@ -63,13 +63,10 @@
 
             <div id="character-selection" class="mb-6">
                 <label class="block text-left text-label text-sm font-bold mb-2">Choose your character:</label>
-                <div class="flex gap-4 justify-center"> 
-                    <div class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border"
-                        data-model="katinka.glb" style="width:120px; height:150px;"></div>
-                    <div class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border"
-                        data-model="marco.glb" style="width:120px; height:150px;"></div>
-                    <div class="char-preview border p-2 rounded-md hover:border-indigo-600 dark:hover:border-indigo-400 transition cursor-pointer input-border"
-                        data-model="leib.glb" style="width:120px; height:150px;"></div>
+                <div class="char-row">
+                    <div class="char-preview input-border" data-model="katinka.glb"></div>
+                    <div class="char-preview input-border" data-model="marco.glb"></div>
+                    <div class="char-preview input-border" data-model="leib.glb"></div>
                 </div>
             </div>
 
@@ -227,12 +224,13 @@
 
         /* Oude CSS behouden */
         .char-preview.selected {
-            border-color: #00ff00;
-            background-color: #222;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+            background-color: rgb(var(--color-input-area-bg));
         }
         .dark .char-preview.selected {
-            border-color: #00ff00; 
-            background-color: #1a1a1a; 
+            border-color: #818cf8;
+            box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35);
         }
         #start-btn {
             position: relative;
