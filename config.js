@@ -13,11 +13,25 @@
     }
   };
 
+  function isPrivateOrLocalHost (host) {
+    if (!host || host === 'localhost' || host === '[::1]') return true;
+    if (host.endsWith('.local')) return true;
+    const parts = host.split('.').map(Number);
+    if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // Tailscale CGNAT
+    if (a === 127) return true;
+    return false;
+  }
+
   function pickEnvironment () {
     const host = window.location.hostname;
     const override = new URLSearchParams(window.location.search).get('supabase');
     if (override === 'dev' || override === 'prod') return override;
-    if (host === 'localhost' || host === '127.0.0.1') return 'dev';
+    if (isPrivateOrLocalHost(host)) return 'dev';
     if (host.includes('github.io')) return 'prod';
     return 'dev';
   }

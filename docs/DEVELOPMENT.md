@@ -6,6 +6,8 @@ Human-friendly setup for **leibgame** + **leibgame-assets**.
 
 **Master Folder workspace:** three sibling repos — see [`WORKSPACE.md`](WORKSPACE.md). Open `leibgame.code-workspace` at the Master Folder root.
 
+**Remote / Tailscale / SSH:** [`REMOTE_ACCESS.md`](REMOTE_ACCESS.md)
+
 **Wiki:** optional for humans ([GitHub Wiki](https://github.com/MaxTomahawk/leibgame/wiki)). Agents always use repo `docs/` — never wiki-only instructions.
 
 ## What this project is

@@ -14,7 +14,7 @@ import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
 import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
-import { ASSET_BASE_URL, resolveModelKey } from '../../shared/asset-config.js';
+import { remoteAssetUrl, resolveModelKey } from '../../shared/asset-config.js';
 import { isSupabaseConfigured, initSupabase, linkAnonymousAccountToEmail, loginWithEmail, logout } from '../../shared/supabase.js';
 import { ensurePlayerProfile, savePlayerProgress } from '../../shared/player-service.js';
 import { getActiveRoomId, markCoinCollected, regenerateRoomWorld } from '../../shared/room-service.js';
@@ -423,14 +423,14 @@ function checkIfReadyToStart() {
 }
 
 const AUDIO_ASSETS = {
-    bgm: `${ASSET_BASE_URL}sounds/soundtrack/hava_leib.mp3`,
-    jump: `${ASSET_BASE_URL}sounds/effects/male_jump.wav`,
-    jump_female: `${ASSET_BASE_URL}sounds/effects/female_jump.wav`,
-    coin: `${ASSET_BASE_URL}sounds/effects/coin.wav`,
-    hava: `${ASSET_BASE_URL}sounds/effects/hava.wav`,
-    shoot: `${ASSET_BASE_URL}sounds/effects/spit.wav`,
-    fail: `${ASSET_BASE_URL}sounds/effects/fail.wav`,
-    win: `${ASSET_BASE_URL}sounds/effects/win.wav`
+    bgm: remoteAssetUrl('sounds/soundtrack/hava_leib.mp3'),
+    jump: remoteAssetUrl('sounds/effects/male_jump.wav'),
+    jump_female: remoteAssetUrl('sounds/effects/female_jump.wav'),
+    coin: remoteAssetUrl('sounds/effects/coin.wav'),
+    hava: remoteAssetUrl('sounds/effects/hava.wav'),
+    shoot: remoteAssetUrl('sounds/effects/spit.wav'),
+    fail: remoteAssetUrl('sounds/effects/fail.wav'),
+    win: remoteAssetUrl('sounds/effects/win.wav')
 };
 
 async function setupAudio() {
@@ -509,7 +509,7 @@ function initThreeJS() {
     renderer.outputEncoding = THREE.sRGBEncoding;
 
     platformTexture = textureLoader.load(
-        `${ASSET_BASE_URL}hava.png`,
+        remoteAssetUrl('hava.png'),
         (tex) => {
             tex.encoding = THREE.sRGBEncoding;
             tex.wrapS = THREE.RepeatWrapping;
@@ -1093,7 +1093,7 @@ let flameMaterial;
 
 function initFireballAssets() {
     // 🔥 Load flame sprite texture ONCE
-    flameTexture = new THREE.TextureLoader().load(`${ASSET_BASE_URL}fire.png`);
+    flameTexture = new THREE.TextureLoader().load(remoteAssetUrl('fire.png'));
     flameTexture.encoding = THREE.sRGBEncoding;
     renderer.outputEncoding = THREE.sRGBEncoding;
 

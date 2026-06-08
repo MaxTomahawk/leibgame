@@ -13,6 +13,8 @@
 ## In progress
 
 - [x] **Multi-game platform** — hub at `/`, Leib Clouds under `games/clouds/`, shared modules under `shared/`
+- [x] **GitHub Pages** — auto-deploy on push to `main` (game + assets repos)
+- [x] **Bundled low-tier GLBs** — `assets/*_low.glb` in game repo; CDN for higher tiers
 - [ ] **Leib Jump!** — 2.5D side-scrolling platformer as second game (see `docs/HANDOFF.md`)
 
 ## Later (not scheduled)

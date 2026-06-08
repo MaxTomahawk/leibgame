@@ -91,6 +91,21 @@ Tests:
 npx playwright test tests/example.spec.js tests/model_load.spec.js tests/clouds_start.spec.js
 ```
 
-## Branch pairing
+## GitHub Pages
+
+Push to **`main`** triggers `.github/workflows/deploy-pages.yml`.
+
+| Site | URL |
+|------|-----|
+| Game | `https://maxtomahawk.github.io/leibgame/` |
+| Assets | `https://maxtomahawk.github.io/leibgame-assets/assets/` |
+
+One-time: repo **Settings → Pages → Source: GitHub Actions** (both repos).
+
+**Bundled assets:** only `*_low.glb` live in `leibgame/assets/`; sync after optimize with `node scripts/sync-bundled-low-assets.mjs`.
+
+## Remote access
+
+See [`REMOTE_ACCESS.md`](REMOTE_ACCESS.md) for Tailscale ports, Termius SSH snippets, and ComfyUI over LAN.
 
 When changing `manifest.json` or asset paths, use matching branch names on `leibgame` and `leibgame-assets` and merge together.

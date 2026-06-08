@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/utils/SkeletonUtils.js';
-import { ASSET_BASE_URL } from '../../shared/asset-config.js';
+import { remoteAssetUrl } from '../../shared/asset-config.js';
 import {
   fetchOrCreateRoomWorld,
   subscribeToRoom,
@@ -48,7 +48,7 @@ const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
 // Load Coin GLB
-gltfLoader.load(`${ASSET_BASE_URL}coin${QUALITY_SUFFIX}.glb`, (gltf) => {
+gltfLoader.load(remoteAssetUrl(`coin${QUALITY_SUFFIX}.glb`), (gltf) => {
     cachedCoinScene = gltf.scene;
     cachedCoinScene.scale.set(ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE, ASSET_CONFIG.COIN_SCALE);
     cachedCoinScene.traverse((child) => {
@@ -62,7 +62,7 @@ gltfLoader.load(`${ASSET_BASE_URL}coin${QUALITY_SUFFIX}.glb`, (gltf) => {
 });
 
 // Load Enemy GLB
-gltfLoader.load(`${ASSET_BASE_URL}enemy${QUALITY_SUFFIX}.glb`, (gltf) => {
+gltfLoader.load(remoteAssetUrl(`enemy${QUALITY_SUFFIX}.glb`), (gltf) => {
     cachedEnemyGLTF = gltf;
     cachedEnemyGLTF.scene.traverse((child) => {
         if (child.isMesh) {
@@ -573,7 +573,7 @@ function createRonnieStall(scene, position) {
 export function loadRonnie(scene, gltfLoader, position) {
     const suffix = getQualitySuffix();
 
-    gltfLoader.load(`${ASSET_BASE_URL}ronnie${suffix}.glb`, (gltf) => {
+    gltfLoader.load(remoteAssetUrl(`ronnie${suffix}.glb`), (gltf) => {
         const ronnie = gltf.scene;
         ronnie.scale.set(1.3, 1.3, 1.3);
         ronnie.position.set(position.x, position.y, position.z);

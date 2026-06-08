@@ -3,6 +3,8 @@
  * Games register here; manifest URLs point at leibgame-assets CDN.
  */
 
+import { isLocalDev } from './asset-config.js';
+
 const PRODUCTION_MANIFEST_URL =
   'https://MaxTomahawk.github.io/leibgame-assets/assets/manifest.json';
 
@@ -39,8 +41,7 @@ export function getManifestUrl () {
   const params = new URLSearchParams(window.location.search);
   const override = params.get('manifest');
   if (override) return override;
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1') {
+  if (isLocalDev()) {
     return '/assets/manifest.json';
   }
   return PRODUCTION_MANIFEST_URL;

@@ -1,4 +1,9 @@
-const PRODUCTION_ASSET_BASE = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
+/**
+ * Asset URL routing — local junction, bundled low tier on Pages, CDN for higher tiers.
+ */
+
+const PRODUCTION_CDN_BASE = 'https://MaxTomahawk.github.io/leibgame-assets/assets/';
+const BUNDLED_ASSET_BASE = '/assets/';
 
 function isPrivateOrLocalHost (host) {
   if (!host || host === 'localhost' || host === '[::1]') return true;
@@ -16,8 +21,18 @@ function isPrivateOrLocalHost (host) {
   return false;
 }
 
-function isLocalDev () {
+export function isLocalDev () {
   return isPrivateOrLocalHost(window.location.hostname);
+}
+
+/** Full local mirror via junction/symlink (dev + Tailscale/LAN). */
+export function getLocalAssetBaseUrl () {
+  return '/assets/';
+}
+
+/** CDN base for shipped assets (prod + default remote). */
+export function getCdnAssetBaseUrl () {
+  return PRODUCTION_CDN_BASE;
 }
 
 /** @returns {string} */
@@ -28,12 +43,12 @@ export function getAssetBaseUrl () {
     return override.endsWith('/') ? override : `${override}/`;
   }
   if (isLocalDev()) {
-    return '/assets/';
+    return getLocalAssetBaseUrl();
   }
-  return PRODUCTION_ASSET_BASE;
+  return getCdnAssetBaseUrl();
 }
 
-export const ASSET_BASE_URL = getAssetBaseUrl ();
+export const ASSET_BASE_URL = getAssetBaseUrl();
 
 /** Stable model key used in animation maps (not quality-specific). */
 export function modelKeyFromPath (modelPath) {
@@ -52,8 +67,34 @@ export function appearanceModelId (modelKey) {
   return `${ASSET_BASE_URL}${resolveModelKey(modelKey)}`;
 }
 
-/** CDN/local URL for a given quality tier. */
+/**
+ * URL for a GLB quality tier.
+ * Local/Tailscale: all tiers from junctioned /assets/.
+ * GitHub Pages: low tier from bundled /assets/ in leibgame repo; others from CDN.
+ */
 export function modelUrlForQuality (modelKey, quality = 'high') {
   const name = resolveModelKey(modelKey).replace('.glb', '');
-  return `${ASSET_BASE_URL}${name}_${quality}.glb`;
+  const file = `${name}_${quality}.glb`;
+  if (isLocalDev()) {
+    return `${getLocalAssetBaseUrl()}${file}`;
+  }
+  if (quality === 'low') {
+    return `${BUNDLED_ASSET_BASE}${file}`;
+  }
+  return `${getCdnAssetBaseUrl()}${file}`;
+}
+
+/**
+ * Remote asset path (audio, textures, world GLBs on high+).
+ * Uses local /assets/ on private networks; CDN on GitHub Pages.
+ */
+export function remoteAssetUrl (relativePath) {
+  const clean = relativePath.replace(/^\//, '');
+  if (isLocalDev()) {
+    return `${getLocalAssetBaseUrl()}${clean}`;
+  }
+  if (clean.endsWith('_low.glb')) {
+    return `${BUNDLED_ASSET_BASE}${clean}`;
+  }
+  return `${getCdnAssetBaseUrl()}${clean}`;
 }

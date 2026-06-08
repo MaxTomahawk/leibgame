@@ -7,4 +7,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
-assets
+# Local junction/symlink — full mirror lives in leibgame-assets
+/assets/*
+!/assets/*_low.glb
+!/assets/README.md

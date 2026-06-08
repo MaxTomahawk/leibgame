@@ -26,20 +26,22 @@ Local unreleased assets: `ln -sf ../leibgame-assets/assets ./assets` → served 
 
 > **Agents:** update this section on every PR that changes layout or entry points. See [`MAINTAINING_DOCS.md`](MAINTAINING_DOCS.md).
 
-Multi-game platform (after `cursor/multigame-platform-1a65` merges):
+Multi-game platform (PR #8 on `main`):
 
 ```
 index.html              → platform hub (pick a game)
 platform/               → hub UI (hub.js, hub.css)
 games/clouds/           → Leib Clouds (3D multiplayer platformer)
 shared/                 → supabase, services, asset-config, asset-registry, audio, settings, model-manager
+assets/                 → bundled *_low.glb only (Pages); junction to leibgame-assets for local dev
 config.js, version.json → repo root (shared by hub + games)
 ```
 
-- Hub: `http://localhost:8000/` lists games; **Leib Clouds** at `/games/clouds/`.
-- Supabase multiplayer, shop, and shared rooms (`?room=code`) work from Clouds.
-- Local assets: `asset-config.js` serves `/assets/` on localhost, private LAN, and Tailscale IPs (100.64–127.x); override with `?assets=/assets/`.
-- `games/jump/` **not built yet** — next task (see `HANDOFF.md`).
+- Hub: `http://localhost:8000/` · Clouds: `/games/clouds/`
+- **Pages:** `https://maxtomahawk.github.io/leibgame/` — deploy on push to `main` via GitHub Actions
+- **Assets:** low tier in this repo; CDN `https://MaxTomahawk.github.io/leibgame-assets/assets/` for high+ and audio
+- Local/Tailscale: junction `assets` → `../leibgame-assets/assets`; private IPs → `/assets/` + dev Supabase
+- `games/jump/` **not built yet** — see `HANDOFF.md`
 
 ## Target architecture (roadmap)
 
